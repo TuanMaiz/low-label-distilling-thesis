@@ -1,0 +1,23 @@
+record_id,person_id,family_id,name,language,age,gender
+001_ru,Q001,FAM01,Владимир Владимирович Путин,ru,68,M
+001_en,Q001,FAM01,Vladimir Vladimirovich Putin,en,68,M
+002_ru,Q002,FAM01,Людмила Александровна Путина,ru,66,F
+002_en,Q002,FAM01,Lyudmila Aleksandrovna Putina,en,66,F
+003_ru,Q003,FAM01,Мария Владимировна Путина,ru,40,F
+003_en,Q003,FAM01,Maria Vladimirovna Putina,en,40,F
+004_ru,Q004,FAM01,Вера Владимировна Путина,ru,38,F
+004_en,Q004,FAM01,Vera Vladimirovna Putina,en,38,F
+005_ru,Q005,FAM02,Иосиф Виссарионович Сталин,ru,74,M
+005_en,Q005,FAM02,Joseph Vissarionovich Stalin,en,74,M
+006_ru,Q006,FAM02,Нadezhda Сергеевна Аллилуева,ru,31,F
+006_en,Q006,FAM02,Nadezhda Sergeevna Alliluyeva,en,31,F
+007_ru,Q007,FAM02,Светлана Иосифовна Сталина,ru,27,F
+007_en,Q007,FAM02,Svetlana Iosifovna Stalina,en,27,F
+008_ru,Q008,FAM02,Яков Джугашвили,ru,36,M
+008_en,Q008,FAM02,Yakov Dzhugashvili,en,36,M
+009_ru,Q009,FAM03,Михаил Горбачёв,ru,91,M
+009_en,Q009,FAM03,Mikhail Gorbachev,en,91,M
+010_ru,Q010,FAM03,Раиса Горбачёва,ru,67,F
+010_en,Q010,FAM03,Raisa Gorbacheva,en,67,F
+011_ru,Q011,FAM03,Ирина Горбачёва,ru,38,F
+011_en,Q011,FAM03,Irina Gorbacheva,en,38,F
