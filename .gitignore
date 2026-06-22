@@ -1,2 +1,11 @@
 data/cache/
 data/raw/wdc_products/*.zip
+.claude
+.venv
+legacy
+
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ipynb_checkpoints/
