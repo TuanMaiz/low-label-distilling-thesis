@@ -91,6 +91,7 @@ scripts/validate_phase02_rationales.sh configs/phase02_rationales_smoke.json
 
 Generate cached rationales without the wrapper:
 
+```bash
 .venv/bin/python -m rationales.generate_teacher_rationales \
   --input data/cache/wdc_products/low_label/train_128.jsonl \
   --output data/cache/wdc_products/rationales/train_128.openrouter.rationales.jsonl \
