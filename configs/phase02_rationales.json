@@ -1,0 +1,15 @@
+{
+  "pairs_path": "data/cache/wdc_products/low_label/train_128.jsonl",
+  "rationales_path": "data/cache/wdc_products/rationales/train_128.openrouter.rationales.jsonl",
+  "generation_rejects_path": "data/cache/wdc_products/rationales/train_128.openrouter.rejects.jsonl",
+  "validation_rejects_path": "data/cache/wdc_products/rationales/train_128.openrouter.validation_rejects.jsonl",
+  "env_file": ".env",
+  "limit": null,
+  "force": false,
+  "openrouter": {
+    "base_url": "https://openrouter.ai/api/v1",
+    "timeout": 90,
+    "temperature": 0.0,
+    "max_tokens": 1600
+  }
+}

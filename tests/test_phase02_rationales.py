@@ -188,9 +188,27 @@ class Phase02RationaleTest(unittest.TestCase):
         self.assertIsInstance(teacher, OpenRouterTeacher)
         self.assertEqual(teacher.teacher_model, "openrouter:openai/gpt-4o-mini")
 
+    @patch.dict("os.environ", {}, clear=True)
+    def test_provider_factory_reads_openrouter_config_from_env_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text(
+                "OPENROUTER_API_KEY='file-key'\nOPENROUTER_MODEL=openai/gpt-4o-mini\n",
+                encoding="utf-8",
+            )
+
+            teacher = build_teacher(
+                env_file=env_path,
+                openrouter_timeout=5,
+            )
+
+            self.assertIsInstance(teacher, OpenRouterTeacher)
+            self.assertEqual(teacher.api_key, "file-key")
+            self.assertEqual(teacher.teacher_model, "openrouter:openai/gpt-4o-mini")
+
     @patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"})
     @patch("urllib.request.urlopen")
-    def test_openrouter_teacher_uses_chat_completions_json_schema(self, mock_urlopen):
+    def test_openrouter_teacher_uses_chat_completions_json_schema_and_hydrates_values(self, mock_urlopen):
         pair = _pair_row()
         rationale = {
             "pair_id": pair["pair_id"],
@@ -200,8 +218,8 @@ class Phase02RationaleTest(unittest.TestCase):
                 {
                     "field": "title",
                     "relation": "exact agreement",
-                    "record_a_value": "Acme Camera",
-                    "record_b_value": "Acme Camera",
+                    "record_a_value": "Acme",
+                    "record_b_value": "Acme",
                     "explanation": "Both titles exactly agree.",
                 }
             ],
@@ -240,8 +258,13 @@ class Phase02RationaleTest(unittest.TestCase):
         self.assertEqual(request.full_url, "https://openrouter.ai/api/v1/chat/completions")
         self.assertEqual(payload["model"], "openai/gpt-4o-mini")
         self.assertEqual(payload["response_format"]["type"], "json_schema")
+        schema = payload["response_format"]["json_schema"]["schema"]
+        self.assertEqual(schema["additionalProperties"], False)
+        self.assertNotIn("metadata", schema["properties"])
         self.assertEqual(payload["provider"]["require_parameters"], True)
         self.assertEqual(result.teacher_model, "openrouter:openai/gpt-4o-mini")
+        self.assertEqual(result.evidence[0].record_a_value, "Acme Camera")
+        self.assertEqual(result.evidence[0].record_b_value, "Acme Camera")
         self.assertEqual(result.metadata["teacher_provider"], "openrouter")
 
 

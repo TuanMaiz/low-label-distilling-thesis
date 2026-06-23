@@ -22,9 +22,15 @@ Clean FEBRL baselines saturated earlier, so FEBRL alone must not be used as the 
 
 ## Build & Run Commands
 
+Always use the project uv-managed virtual environment for Python commands.
+Do not run bare system `python`, `pip`, or `pytest` from this repository.
+Prefer `.venv/bin/python -m ...` and `uv pip ...` so commands use the pinned
+project environment.
+
 ```bash
 cd /mnt/d/Study/Cao-hoc/luan-van/code
 source .venv/bin/activate
+.venv/bin/python -m unittest discover -s tests
 ```
 
 Current implementation should follow the active plan phases. Old Wikidata and

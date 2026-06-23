@@ -3,6 +3,9 @@ data/raw/wdc_products/*.zip
 .claude
 .venv
 legacy
+.env
+.env.*
+!.env.example
 
 __pycache__/
 *.py[cod]

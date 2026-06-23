@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from rationales.config import config_optional_path, config_path, load_phase02_config
 from rationales.generate_teacher_rationales import iter_jsonl
 from rationales.schema import RationaleValidationError, validate_rationale_against_pair
 
@@ -48,12 +49,18 @@ def validate_rationale_file(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate cached structured rationales")
-    parser.add_argument("--rationales", type=Path, required=True)
-    parser.add_argument("--pairs", type=Path, required=True)
+    parser.add_argument("--config", type=Path, help="Phase 02 rationale JSON config")
+    parser.add_argument("--rationales", type=Path)
+    parser.add_argument("--pairs", type=Path)
     parser.add_argument("--rejects", type=Path)
     args = parser.parse_args()
 
-    summary = validate_rationale_file(args.rationales, args.pairs, args.rejects)
+    config = load_phase02_config(args.config) if args.config else {}
+    rationales_path = args.rationales or config_path(config, "rationales_path")
+    pairs_path = args.pairs or config_path(config, "pairs_path")
+    rejects_path = args.rejects or config_optional_path(config, "validation_rejects_path")
+
+    summary = validate_rationale_file(rationales_path, pairs_path, rejects_path)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     if summary["rejected"]:
         raise SystemExit(1)
