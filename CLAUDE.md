@@ -1,6 +1,8 @@
 # CLAUDE.md
 
 This file provides guidance for Codex/Claude when working in this repository.
+Workspace-level agent guidance also lives in `../AGENTS.md`; read both files
+when starting a fresh conversation or changing workflow conventions.
 
 ## Active Project Overview
 
@@ -36,6 +38,10 @@ source .venv/bin/activate
 Current implementation should follow the active plan phases. Old Wikidata and
 mBART commands have been moved under `legacy/` and should not be treated as the
 active workflow.
+
+When workflow, status, commands, or conventions change after a meaningful
+implementation iteration, update both `../AGENTS.md` and this file if the change
+affects future agents.
 
 ## Tech Stack
 
