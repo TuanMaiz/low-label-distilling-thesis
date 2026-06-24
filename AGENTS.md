@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance for Codex/Claude when working in this repository.
+This file provides guidance for Codex/Codex when working in this repository.
 Workspace-level agent guidance also lives in `../AGENTS.md`; read both files
 when starting a fresh conversation or changing workflow conventions.
 

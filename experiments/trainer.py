@@ -73,13 +73,15 @@ class Trainer:
         self.wandb_project = wandb_project
         self.wandb_entity = wandb_entity
         self.wandb_run_name = wandb_run_name
+        self.use_wandb = HAS_WANDB and bool(wandb_project)
+        self.scheduler = None
 
         self.global_step = 0
         self.best_val_loss = float("inf")
 
     def setup_wandb(self, config: Dict) -> None:
         """Initialize W&B logging."""
-        if not HAS_WANDB:
+        if not self.use_wandb:
             print("W&B not available. Skipping logging.")
             return
 
@@ -137,6 +139,8 @@ class Trainer:
 
             # Optimizer step
             self.optimizer.step()
+            if self.scheduler is not None:
+                self.scheduler.step()
             self.optimizer.zero_grad()
 
             self.global_step += 1
@@ -145,7 +149,7 @@ class Trainer:
             pbar.set_postfix({"loss": loss.item()})
 
             # Log to W&B
-            if HAS_WANDB and self.global_step % log_every == 0:
+            if self.use_wandb and self.global_step % log_every == 0:
                 wandb.log({
                     "train/loss": loss.item(),
                     "train/epoch": epoch,
@@ -154,7 +158,7 @@ class Trainer:
 
         avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
 
-        if HAS_WANDB:
+        if self.use_wandb:
             wandb.log({"train/epoch_loss": avg_loss, "epoch": epoch})
 
         return avg_loss
@@ -190,7 +194,7 @@ class Trainer:
 
         avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
 
-        if HAS_WANDB:
+        if self.use_wandb:
             wandb.log({"val/loss": avg_loss, "epoch": epoch})
 
         return avg_loss
@@ -266,7 +270,7 @@ class Trainer:
                 self.model.save_pretrained(checkpoint_path)
                 self.tokenizer.save_pretrained(checkpoint_path)
 
-        if HAS_WANDB:
+        if self.use_wandb:
             wandb.finish()
 
         return history

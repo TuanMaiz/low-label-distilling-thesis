@@ -36,14 +36,18 @@ def _structured_target(label: str, rationale: StructuredRationale) -> str:
 
 def build_targets(
     pairs_path: Path,
-    rationales_path: Path,
+    rationales_path: Path | None,
     output_path: Path,
     variant: TargetVariant,
 ) -> dict:
-    rationales = {
-        row["pair_id"]: StructuredRationale.model_validate(row)
-        for row in iter_jsonl(rationales_path)
-    }
+    rationales: dict[str, StructuredRationale] = {}
+    if variant != "label_only":
+        if rationales_path is None:
+            raise ValueError(f"{variant} targets require --rationales")
+        rationales = {
+            row["pair_id"]: StructuredRationale.model_validate(row)
+            for row in iter_jsonl(rationales_path)
+        }
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     written = 0
@@ -84,7 +88,7 @@ def build_targets(
 
     return {
         "pairs": str(pairs_path),
-        "rationales": str(rationales_path),
+        "rationales": str(rationales_path) if rationales_path else None,
         "output": str(output_path),
         "variant": variant,
         "written": written,
@@ -95,7 +99,7 @@ def build_targets(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build seq2seq targets from rationale cache")
     parser.add_argument("--pairs", type=Path, required=True)
-    parser.add_argument("--rationales", type=Path, required=True)
+    parser.add_argument("--rationales", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--variant",
