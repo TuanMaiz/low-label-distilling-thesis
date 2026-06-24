@@ -1,5 +1,6 @@
 data/cache/
 data/raw/wdc_products/*.zip
+outputs/
 .claude
 .venv
 legacy

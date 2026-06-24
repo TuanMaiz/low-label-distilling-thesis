@@ -1,10 +1,13 @@
 import json
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from experiments.evaluate_student import evaluate_prediction_rows, parse_decision
-from models.mt5_student import ERSeq2SeqDataset
+from models.mt5_student import ERSeq2SeqDataset, load_mt5
 from rationales.build_targets import build_targets
 
 
@@ -105,6 +108,33 @@ class Phase03StudentTest(unittest.TestCase):
 
         self.assertEqual(item["input_ids"].shape[0], 8)
         self.assertIn(-100, item["labels"].tolist())
+
+    def test_mt5_loader_uses_slow_sentencepiece_tokenizer(self):
+        calls = {}
+
+        class _AutoTokenizer:
+            @staticmethod
+            def from_pretrained(model_name, **kwargs):
+                calls["tokenizer"] = (model_name, kwargs)
+                return object()
+
+        class _AutoModelForSeq2SeqLM:
+            @staticmethod
+            def from_pretrained(model_name):
+                calls["model"] = model_name
+                return object()
+
+        fake_transformers = types.SimpleNamespace(
+            AutoTokenizer=_AutoTokenizer,
+            AutoModelForSeq2SeqLM=_AutoModelForSeq2SeqLM,
+        )
+
+        with patch.dict(sys.modules, {"transformers": fake_transformers}):
+            load_mt5("google/mt5-small")
+
+        self.assertEqual(calls["tokenizer"][0], "google/mt5-small")
+        self.assertFalse(calls["tokenizer"][1]["use_fast"])
+        self.assertEqual(calls["model"], "google/mt5-small")
 
 
 if __name__ == "__main__":

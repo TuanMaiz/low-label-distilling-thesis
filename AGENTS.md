@@ -65,6 +65,15 @@ Phase 03 training/evaluation entry points:
   --metrics outputs/phase03/mt5-small/train_128/label_only/validation_metrics.json
 ```
 
+For Colab/GPU runs, pull this branch and use the bundled runner. If Google
+Drive is mounted at `/content/drive/MyDrive`, outputs default to Drive;
+otherwise they default to local `outputs/phase03`.
+
+```bash
+bash scripts/run_phase03_colab.sh label_only 128
+bash scripts/run_phase03_colab.sh structured_rationale 128
+```
+
 Current implementation should follow the active plan phases. Old Wikidata and
 mBART commands have been moved under `legacy/` and should not be treated as the
 active workflow.

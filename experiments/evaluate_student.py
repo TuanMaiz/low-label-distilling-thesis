@@ -88,7 +88,7 @@ def generate_predictions(
     rows = list(iter_jsonl(input_path))
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+    tokenizer = AutoTokenizer.from_pretrained(checkpoint, use_fast=False)
     model = AutoModelForSeq2SeqLM.from_pretrained(checkpoint)
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)

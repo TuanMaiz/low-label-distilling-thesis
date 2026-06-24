@@ -72,6 +72,6 @@ def load_mt5(model_name: str = DEFAULT_MT5_MODEL):
     """Load an mT5-compatible tokenizer and seq2seq model."""
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     return tokenizer, model

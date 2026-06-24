@@ -1,0 +1,54 @@
+{
+  "dataset": "wdc_products",
+  "source": "data/raw/wdc_products/80pair.zip",
+  "config": {
+    "corner_cases": 80,
+    "train_size": "small",
+    "test_unseen": 100,
+    "seed": 42
+  },
+  "splits": {
+    "train": {
+      "pairs": 2500,
+      "matches": 500,
+      "non_matches": 2000
+    },
+    "validation": {
+      "pairs": 2500,
+      "matches": 500,
+      "non_matches": 2000
+    },
+    "test": {
+      "pairs": 4500,
+      "matches": 500,
+      "non_matches": 4000
+    }
+  },
+  "low_label": {
+    "16": {
+      "pairs": 16,
+      "matches": 8,
+      "non_matches": 8
+    },
+    "32": {
+      "pairs": 32,
+      "matches": 16,
+      "non_matches": 16
+    },
+    "64": {
+      "pairs": 64,
+      "matches": 32,
+      "non_matches": 32
+    },
+    "128": {
+      "pairs": 128,
+      "matches": 64,
+      "non_matches": 64
+    },
+    "full": {
+      "pairs": 2500,
+      "matches": 500,
+      "non_matches": 2000
+    }
+  }
+}
