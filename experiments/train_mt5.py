@@ -39,6 +39,7 @@ def train_student(
     seed: int = 42,
     device: str | None = None,
     use_wandb: bool = False,
+    early_stopping_patience: int = 3,
 ) -> dict:
     set_seed(seed)
     tokenizer, model = load_mt5(model_name)
@@ -70,6 +71,7 @@ def train_student(
         val_loader=validation_loader,
         num_epochs=num_epochs,
         save_dir=str(output_dir),
+        early_stopping_patience=early_stopping_patience,
     )
     summary = {
         "model_name": model_name,
@@ -84,6 +86,7 @@ def train_student(
         "max_input_length": max_input_length,
         "max_target_length": max_target_length,
         "seed": seed,
+        "early_stopping_patience": early_stopping_patience,
         "history": history,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -111,6 +114,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device")
     parser.add_argument("--use-wandb", action="store_true")
+    parser.add_argument("--early-stopping-patience", type=int, default=3)
     args = parser.parse_args()
 
     validation_targets = args.validation_targets
@@ -138,6 +142,7 @@ def main() -> None:
         seed=args.seed,
         device=args.device,
         use_wandb=args.use_wandb,
+        early_stopping_patience=args.early_stopping_patience,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 

@@ -56,18 +56,26 @@ Phase 03 training/evaluation entry points:
 .venv/bin/python -m experiments.train_mt5 \
   --train-targets data/cache/wdc_products/targets/train_128.label_only.targets.jsonl \
   --validation-targets data/cache/wdc_products/targets/validation.label_only.targets.jsonl \
-  --output-dir outputs/phase03/mt5-small/train_128/label_only
+  --output-dir outputs/phase03_v2/flan-t5-base/train_128/label_only \
+  --model-name google/flan-t5-base \
+  --batch-size 4 \
+  --num-epochs 50 \
+  --learning-rate 3e-4 \
+  --max-target-length 16 \
+  --early-stopping-patience 8
 
 .venv/bin/python -m experiments.evaluate_student \
-  --checkpoint outputs/phase03/mt5-small/train_128/label_only/best_model \
+  --checkpoint outputs/phase03_v2/flan-t5-base/train_128/label_only/best_model \
   --input data/cache/wdc_products/serialized/validation.jsonl \
-  --predictions outputs/phase03/mt5-small/train_128/label_only/validation_predictions.jsonl \
-  --metrics outputs/phase03/mt5-small/train_128/label_only/validation_metrics.json
+  --predictions outputs/phase03_v2/flan-t5-base/train_128/label_only/validation_predictions.jsonl \
+  --metrics outputs/phase03_v2/flan-t5-base/train_128/label_only/validation_metrics.json
 ```
 
 For Colab/GPU runs, pull this branch and use the bundled runner. If Google
 Drive is mounted at `/content/drive/MyDrive`, outputs default to Drive;
-otherwise they default to local `outputs/phase03`.
+otherwise they default to local `outputs/phase03_v2`. The runner defaults to
+`google/flan-t5-base` because mT5-small failed the 128-row overfit sanity check
+while FLAN-T5-base reached 100% train accuracy with valid outputs.
 
 ```bash
 bash scripts/run_phase03_colab.sh label_only 128
@@ -88,7 +96,7 @@ affects future agents.
 - ML: PyTorch, HuggingFace Transformers
 - Data: pandas, datasets
 - Validation: Pydantic v2
-- Experiment target: mT5-small first, mT5-base optional after pilot signal
+- Experiment target: FLAN-T5-base for the Phase 03 seq2seq pilot; mT5-small is retained as a failed sanity-check baseline.
 - Teacher: reasoning LLM used offline for rationale generation
 
 ## New Target Architecture
@@ -177,8 +185,8 @@ See cleanup inventory:
 
 ## Immediate Next Steps
 
-1. Train Phase 03 label-only mT5-small on WDC low-label targets.
-2. Train Phase 03 structured-rationale mT5-small using the validated cache.
+1. Train Phase 03 label-only FLAN-T5-base on WDC low-label targets.
+2. Train Phase 03 structured-rationale FLAN-T5-base using the validated cache.
 3. Evaluate both variants on the shared validation/test split and produce the 16/32/64/128 comparison table.
 
 Phase 03 is the kill-or-continue gate for the new thesis direction.
