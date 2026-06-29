@@ -179,7 +179,9 @@ class Phase02RationaleTest(unittest.TestCase):
             self.assertEqual(validated["rejected"], 0)
             self.assertEqual(targets["written"], 6)
             target_row = json.loads(targets_path.read_text(encoding="utf-8").splitlines()[0])
-            self.assertIn("decision", target_row["target_text"])
+            self.assertIn("[[DECISION]]", target_row["target_text"])
+            self.assertIn("[[EVIDENCE]]", target_row["target_text"])
+            self.assertIn("[[END]]", target_row["target_text"])
 
     @patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"})
     def test_provider_factory_selects_openrouter(self):

@@ -80,7 +80,56 @@ class Phase03StudentTest(unittest.TestCase):
         self.assertFalse(parse_decision("non-match. titles differ"))
         self.assertTrue(parse_decision('{"decision": "match", "evidence": []}'))
         self.assertFalse(parse_decision('{"decision": "non-match"}'))
+        self.assertTrue(parse_decision("[[DECISION]] match [[EVIDENCE]] title=synonym [[END]]"))
+        self.assertFalse(
+            parse_decision("[[DECISION]] non-match [[EVIDENCE]] title=semantic_mismatch [[END]]")
+        )
         self.assertIsNone(parse_decision("uncertain"))
+
+    def test_structured_rationale_targets_use_flat_delimiters(self):
+        rationale_payload = {
+            "pair_id": "1#2",
+            "decision": "non-match",
+            "gold_label": "non-match",
+            "evidence": [
+                {
+                    "field": "title",
+                    "relation": "semantic mismatch",
+                    "record_a_value": "Acme Camera",
+                    "record_b_value": "Other Speaker",
+                    "explanation": "Titles describe different product types.",
+                }
+            ],
+            "conflicts": [],
+            "missing_fields": [{"record": "A", "field": "brand"}],
+            "decision_rule": "A strong title mismatch supports a non-match decision.",
+            "prompt_version": "test",
+            "teacher_model": "teacher",
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pairs_path = tmp_path / "pairs.jsonl"
+            rationales_path = tmp_path / "rationales.jsonl"
+            targets_path = tmp_path / "targets.jsonl"
+            _write_jsonl(pairs_path, [_pair_row(1, 0)])
+            _write_jsonl(rationales_path, [rationale_payload])
+
+            summary = build_targets(
+                pairs_path=pairs_path,
+                rationales_path=rationales_path,
+                output_path=targets_path,
+                variant="structured_rationale",
+            )
+
+            row = json.loads(targets_path.read_text(encoding="utf-8"))
+            target = row["target_text"]
+            self.assertEqual(summary["written"], 1)
+            self.assertTrue(target.startswith("[[DECISION]] non-match"))
+            self.assertIn("[[EVIDENCE]] title=semantic_mismatch", target)
+            self.assertIn("[[MISSING]] brand=missing_a", target)
+            self.assertIn("[[END]]", target)
+            self.assertNotIn('{"decision"', target)
 
     def test_evaluate_prediction_rows_counts_invalid_outputs(self):
         rows = [

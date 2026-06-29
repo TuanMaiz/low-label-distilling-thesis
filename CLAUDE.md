@@ -37,6 +37,10 @@ source .venv/bin/activate
 
 Phase 03 student target generation examples:
 
+`structured_rationale` now uses a compact delimiter target rather than JSON so
+the student does not spend capacity reproducing brittle nested syntax. Example:
+`[[DECISION]] match [[EVIDENCE]] title=synonym [[CONFLICT]] none [[MISSING]] none [[RULE]] ... [[END]]`.
+
 ```bash
 .venv/bin/python -m rationales.build_targets \
   --pairs data/cache/wdc_products/low_label/train_128.jsonl \
@@ -75,7 +79,9 @@ For Colab/GPU runs, pull this branch and use the bundled runner. If Google
 Drive is mounted at `/content/drive/MyDrive`, outputs default to Drive;
 otherwise they default to local `outputs/phase03_v2`. The runner defaults to
 `google/flan-t5-base` because mT5-small failed the 128-row overfit sanity check
-while FLAN-T5-base reached 100% train accuracy with valid outputs.
+while FLAN-T5-base reached 100% train accuracy with valid outputs. Structured
+rationale runs use shorter delimiter targets with `MAX_TARGET_LENGTH=128` and
+`MAX_NEW_TOKENS=96` by default.
 
 ```bash
 bash scripts/run_phase03_colab.sh label_only 128
@@ -185,8 +191,8 @@ See cleanup inventory:
 
 ## Immediate Next Steps
 
-1. Train Phase 03 label-only FLAN-T5-base on WDC low-label targets.
-2. Train Phase 03 structured-rationale FLAN-T5-base using the validated cache.
+1. Use the existing 128-label label-only FLAN-T5-base validation result as the current baseline.
+2. Rerun Phase 03 structured-rationale FLAN-T5-base with the compact delimiter targets.
 3. Evaluate both variants on the shared validation/test split and produce the 16/32/64/128 comparison table.
 
 Phase 03 is the kill-or-continue gate for the new thesis direction.

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -23,15 +24,41 @@ def _free_text_target(label: str, rationale: StructuredRationale) -> str:
     return f"{label}. {explanation}"
 
 
+def _slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", value.strip().lower())
+    return slug.strip("_") or "unknown"
+
+
+def _field_relation_items(items: list) -> str:
+    if not items:
+        return "none"
+    return " ;; ".join(f"{item.field}={_slug(item.relation.value)}" for item in items)
+
+
+def _missing_items(rationale: StructuredRationale) -> str:
+    if not rationale.missing_fields:
+        return "none"
+    return " ;; ".join(f"{item.field}=missing_{item.record.lower()}" for item in rationale.missing_fields)
+
+
+def _compact_rule(rule: str, max_chars: int = 180) -> str:
+    compact = " ".join(rule.split())
+    if len(compact) <= max_chars:
+        return compact
+    return compact[: max_chars - 3].rstrip() + "..."
+
+
 def _structured_target(label: str, rationale: StructuredRationale) -> str:
-    payload = {
-        "decision": label,
-        "evidence": [item.model_dump(mode="json") for item in rationale.evidence],
-        "conflicts": [item.model_dump(mode="json") for item in rationale.conflicts],
-        "missing_fields": [item.model_dump(mode="json") for item in rationale.missing_fields],
-        "decision_rule": rationale.decision_rule,
-    }
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return " ".join(
+        [
+            f"[[DECISION]] {label}",
+            f"[[EVIDENCE]] {_field_relation_items(rationale.evidence)}",
+            f"[[CONFLICT]] {_field_relation_items(rationale.conflicts)}",
+            f"[[MISSING]] {_missing_items(rationale)}",
+            f"[[RULE]] {_compact_rule(rationale.decision_rule)}",
+            "[[END]]",
+        ]
+    )
 
 
 def build_targets(

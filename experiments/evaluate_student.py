@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -23,6 +24,13 @@ def parse_decision(text: str) -> Optional[bool]:
         payload = None
     if isinstance(payload, dict) and "decision" in payload:
         return parse_decision(str(payload["decision"]))
+
+    delimited = re.search(
+        r"\[\[decision\]\]\s*(non-match|non match|no match|match)\b",
+        normalized,
+    )
+    if delimited:
+        return parse_decision(delimited.group(1))
 
     first = normalized.splitlines()[0].strip()
     if first.startswith("non-match") or first.startswith("non match") or first.startswith("no match"):
