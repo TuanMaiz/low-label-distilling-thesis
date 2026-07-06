@@ -1,4 +1,4 @@
-"""Train Phase 03 mT5 student models for low-label ER."""
+"""Train compact seq2seq student models for WDC Entity Matching."""
 from __future__ import annotations
 
 import argparse
@@ -12,8 +12,13 @@ from torch.utils.data import DataLoader
 from transformers import get_scheduler
 
 from experiments.trainer import Trainer
-from models.mt5_student import DEFAULT_MT5_MODEL, ERSeq2SeqDataset, load_mt5, load_target_rows
-from rationales.build_targets import build_targets
+from models.seq2seq_student import (
+    DEFAULT_SEQ2SEQ_MODEL,
+    ERSeq2SeqDataset,
+    load_seq2seq,
+    load_target_rows,
+)
+from supervision.build_targets import build_targets
 
 
 def set_seed(seed: int) -> None:
@@ -28,7 +33,7 @@ def train_student(
     train_targets: Path,
     validation_targets: Path,
     output_dir: Path,
-    model_name: str = DEFAULT_MT5_MODEL,
+    model_name: str = DEFAULT_SEQ2SEQ_MODEL,
     batch_size: int = 4,
     num_epochs: int = 8,
     learning_rate: float = 5e-5,
@@ -42,7 +47,7 @@ def train_student(
     early_stopping_patience: int = 3,
 ) -> dict:
     set_seed(seed)
-    tokenizer, model = load_mt5(model_name)
+    tokenizer, model = load_seq2seq(model_name)
     train_rows = load_target_rows(train_targets)
     validation_rows = load_target_rows(validation_targets)
 
@@ -58,7 +63,7 @@ def train_student(
         learning_rate=learning_rate,
         weight_decay=weight_decay,
         warmup_steps=warmup_steps,
-        wandb_project="rationale-distillation-er" if use_wandb else None,
+        wandb_project="distiller-wdc-er" if use_wandb else None,
     )
     trainer.scheduler = get_scheduler(
         "linear",
@@ -98,12 +103,12 @@ def train_student(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train an mT5 student for Phase 03")
+    parser = argparse.ArgumentParser(description="Train a seq2seq ER student")
     parser.add_argument("--train-targets", type=Path, required=True)
     parser.add_argument("--validation-targets", type=Path)
     parser.add_argument("--validation-pairs", type=Path, default=Path("data/cache/wdc_products/serialized/validation.jsonl"))
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--model-name", default=DEFAULT_MT5_MODEL)
+    parser.add_argument("--model-name", default=DEFAULT_SEQ2SEQ_MODEL)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--num-epochs", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=5e-5)
@@ -119,12 +124,11 @@ def main() -> None:
 
     validation_targets = args.validation_targets
     if validation_targets is None:
-        validation_targets = args.output_dir / "validation_label_only.targets.jsonl"
+        validation_targets = args.output_dir / "validation.gold_label.targets.jsonl"
         build_targets(
             pairs_path=args.validation_pairs,
-            rationales_path=None,
             output_path=validation_targets,
-            variant="label_only",
+            variant="gold_label",
         )
 
     summary = train_student(

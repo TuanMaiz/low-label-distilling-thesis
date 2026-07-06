@@ -67,13 +67,13 @@ For direct LLM matching, use the same schema with `mode: "direct_prediction"` an
 
 ## Related Code Files
 
-- Reuse: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/model_providers.py`
-- Reuse/modify: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/config.py`
-- Modify or split: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/prompts.py`
-- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/teacher_label_schema.py`
-- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/generate_teacher_labels.py`
-- Create or extend: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/run_direct_llm_matcher.py`
-- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/validate_teacher_labels.py`
+- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/llm_providers.py`
+- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/config.py`
+- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/prompts.py`
+- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/teacher_label_schema.py`
+- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/generate_teacher_labels.py`
+- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/direct_llm_matcher.py`
+- Create: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/validate_teacher_labels.py`
 - Create or modify: `/mnt/d/Study/Cao-hoc/luan-van/code/analysis/cost_summary.py`
 - Add tests: `/mnt/d/Study/Cao-hoc/luan-van/code/tests/test_teacher_labels.py`
 

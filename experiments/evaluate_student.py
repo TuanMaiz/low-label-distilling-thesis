@@ -1,4 +1,4 @@
-"""Evaluate Phase 03 seq2seq ER student checkpoints."""
+"""Evaluate seq2seq ER student checkpoints."""
 from __future__ import annotations
 
 import argparse
@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from models.mt5_student import iter_jsonl
+from models.seq2seq_student import iter_jsonl
 from utils.metrics import compute_metrics
 
 

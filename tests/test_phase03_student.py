@@ -7,8 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from experiments.evaluate_student import evaluate_prediction_rows, parse_decision
-from models.mt5_student import ERSeq2SeqDataset, load_mt5
-from rationales.build_targets import build_targets
+from models.seq2seq_student import ERSeq2SeqDataset, load_seq2seq
+from supervision.build_targets import build_targets
 
 
 def _pair_row(idx: int = 1, label: int = 1) -> dict:
@@ -55,8 +55,8 @@ class _TinyTokenizer:
         }
 
 
-class Phase03StudentTest(unittest.TestCase):
-    def test_label_only_targets_do_not_require_rationale_file(self):
+class Seq2SeqStudentTest(unittest.TestCase):
+    def test_gold_label_targets_use_dataset_labels(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             pairs_path = tmp_path / "pairs.jsonl"
@@ -65,15 +65,33 @@ class Phase03StudentTest(unittest.TestCase):
 
             summary = build_targets(
                 pairs_path=pairs_path,
-                rationales_path=None,
                 output_path=targets_path,
-                variant="label_only",
+                variant="gold_label",
             )
 
             rows = [json.loads(line) for line in targets_path.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(summary["written"], 2)
             self.assertEqual([row["target_text"] for row in rows], ["match", "non-match"])
+            self.assertEqual(rows[0]["label_source"], "gold")
             self.assertIsNone(rows[0]["prompt_version"])
+
+    def test_label_only_variant_remains_backward_compatible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pairs_path = tmp_path / "pairs.jsonl"
+            targets_path = tmp_path / "targets.jsonl"
+            _write_jsonl(pairs_path, [_pair_row(1, 1)])
+
+            summary = build_targets(
+                pairs_path=pairs_path,
+                output_path=targets_path,
+                variant="label_only",
+            )
+
+            row = json.loads(targets_path.read_text(encoding="utf-8"))
+            self.assertEqual(summary["written"], 1)
+            self.assertEqual(row["target_text"], "match")
+            self.assertEqual(row["variant"], "label_only")
 
     def test_parse_decision_handles_label_and_json_outputs(self):
         self.assertTrue(parse_decision("match"))
@@ -85,51 +103,6 @@ class Phase03StudentTest(unittest.TestCase):
             parse_decision("[[DECISION]] non-match [[EVIDENCE]] title=semantic_mismatch [[END]]")
         )
         self.assertIsNone(parse_decision("uncertain"))
-
-    def test_structured_rationale_targets_use_flat_delimiters(self):
-        rationale_payload = {
-            "pair_id": "1#2",
-            "decision": "non-match",
-            "gold_label": "non-match",
-            "evidence": [
-                {
-                    "field": "title",
-                    "relation": "semantic mismatch",
-                    "record_a_value": "Acme Camera",
-                    "record_b_value": "Other Speaker",
-                    "explanation": "Titles describe different product types.",
-                }
-            ],
-            "conflicts": [],
-            "missing_fields": [{"record": "A", "field": "brand"}],
-            "decision_rule": "A strong title mismatch supports a non-match decision.",
-            "prompt_version": "test",
-            "teacher_model": "teacher",
-        }
-
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            pairs_path = tmp_path / "pairs.jsonl"
-            rationales_path = tmp_path / "rationales.jsonl"
-            targets_path = tmp_path / "targets.jsonl"
-            _write_jsonl(pairs_path, [_pair_row(1, 0)])
-            _write_jsonl(rationales_path, [rationale_payload])
-
-            summary = build_targets(
-                pairs_path=pairs_path,
-                rationales_path=rationales_path,
-                output_path=targets_path,
-                variant="structured_rationale",
-            )
-
-            row = json.loads(targets_path.read_text(encoding="utf-8"))
-            target = row["target_text"]
-            self.assertEqual(summary["written"], 1)
-            self.assertTrue(target.startswith("[[DECISION]] non-match"))
-            self.assertIn("[[EVIDENCE]] title=semantic_mismatch", target)
-            self.assertIn("[[MISSING]] brand=missing_a", target)
-            self.assertIn("[[END]]", target)
-            self.assertNotIn('{"decision"', target)
 
     def test_evaluate_prediction_rows_counts_invalid_outputs(self):
         rows = [
@@ -158,7 +131,7 @@ class Phase03StudentTest(unittest.TestCase):
         self.assertEqual(item["input_ids"].shape[0], 8)
         self.assertIn(-100, item["labels"].tolist())
 
-    def test_mt5_loader_uses_slow_sentencepiece_tokenizer(self):
+    def test_seq2seq_loader_uses_slow_tokenizer(self):
         calls = {}
 
         class _AutoTokenizer:
@@ -179,7 +152,7 @@ class Phase03StudentTest(unittest.TestCase):
         )
 
         with patch.dict(sys.modules, {"transformers": fake_transformers}):
-            load_mt5("google/mt5-small")
+            load_seq2seq("google/mt5-small")
 
         self.assertEqual(calls["tokenizer"][0], "google/mt5-small")
         self.assertFalse(calls["tokenizer"][1]["use_fast"])

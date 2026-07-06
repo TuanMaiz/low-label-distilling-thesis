@@ -33,8 +33,7 @@ low-label train pairs
 
 ## Related Code Files
 
-- Modify: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/build_targets.py`
-- Create optional: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/build_label_targets.py`
+- Modify: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/build_targets.py`
 - Modify tests: `/mnt/d/Study/Cao-hoc/luan-van/code/tests/`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/data/cache/wdc_products/low_label/`
 - Write outputs under: `/mnt/d/Study/Cao-hoc/luan-van/code/data/cache/wdc_products/targets/`

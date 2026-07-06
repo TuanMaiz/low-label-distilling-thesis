@@ -1,8 +1,5 @@
-"""
-Training loop with W&B logging for multilingual name matching.
-"""
+"""Training loop with optional W&B logging for seq2seq ER students."""
 
-import os
 from typing import Optional, Dict, List, Callable
 from pathlib import Path
 import torch
@@ -33,7 +30,7 @@ class Trainer:
         weight_decay: float = 0.01,
         warmup_steps: int = 100,
         label_smoothing: float = 0.1,
-        wandb_project: Optional[str] = "multilingual-ner",
+        wandb_project: Optional[str] = "distiller-wdc-er",
         wandb_entity: Optional[str] = None,
         wandb_run_name: Optional[str] = None,
     ):

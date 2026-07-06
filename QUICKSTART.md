@@ -2,15 +2,22 @@
 
 ## Active Direction
 
-This repository now follows the reasoning-rationale distillation thesis pivot:
+This repository now follows the DistillER/WDC thesis pivot:
 
-> validated structured rationales from a reasoning LLM -> compact seq2seq ER student -> low-label label-efficiency evaluation.
+> LLM-generated answer-only labels -> compact ER student -> cost and quality
+> comparison against gold-label student training and direct LLM matching.
 
-Main plan:
-`../plans/260619-reasoning-rationale-distillation/plan.md`
+Main execution plan:
+`plans/260704-distiller-wdc-agent-execution/plan.md`
 
-Cleanup inventory:
-`../docs/codebase-pivot-cleanup-inventory.md`
+Experiment contract:
+`plans/260704-distiller-wdc-agent-execution/research/experiment-contract.md`
+
+Thesis writing plan:
+`plans/260704-distiller-wdc-thesis-writing/plan.md`
+
+The old structured-rationale direction is preserved as negative evidence in
+journals and plans. Its code/artifacts have been removed from the active tree.
 
 ## Environment
 
@@ -25,39 +32,43 @@ Install/update dependencies when needed:
 uv pip install -r requirements.txt
 ```
 
+Run local checks:
+
+```bash
+.venv/bin/python -m unittest discover -s tests
+```
+
 ## Current Work Order
 
-1. Phase 00: completed non-destructive pivot cleanup.
-2. Phase 01: implement dataset loader, serializer, and low-label sampler.
-3. Phase 02: implement structured rationale schema, teacher prompt, and validator.
-4. Phase 03: run minimal mT5-small pilot.
-
-Phase 01 dataset prep now lives under `data/` and `experiments/`. Upcoming
-Phase 02-03 work should add rationale and student-training entrypoints under
-`rationales/`, `models/`, and `experiments/`.
+1. Phase 1: completed research contract for cost-aware LLM-label distillation.
+2. Phase 2: update guidance so old rationale work is clearly historical.
+3. Phase 3: implement direct LLM matching and answer-only teacher labeling.
+4. Phase 4: build `gold_label`, `llm_label`, and optional `mixed_gold_llm`
+   targets for compact student training.
+5. Phase 5: run the 128-budget pilot and compare against direct LLM cost.
 
 ## First Decision Gate
 
-By the end of Phase 03, produce this table:
+The first new pilot should produce this table shape:
 
-| Budget | Label-only mT5 F1 | Structured-rationale mT5 F1 | Difference |
-|---:|---:|---:|---:|
-| 16 | | | |
-| 32 | | | |
-| 64 | | | |
-| 128 | | | |
+| Arm | Budget / Eval Set | Variant | Match F1 | Macro F1 | Accuracy | LLM cost |
+|---|---|---|---:|---:|---:|---:|
+| A | train 128, validation | `gold_label` | | | | |
+| B | fixed validation eval | `direct_llm_matcher` | | | | |
+| C | train 128, validation | `llm_label` | | | | |
+| C optional | train 128, validation | `mixed_gold_llm` | | | | |
 
-Continue only if structured rationales show useful signal, especially at 16/32/64 labels.
+Continue only if the LLM-label student has a useful quality/cost story compared
+with the gold-label reference and repeated direct LLM inference.
 
-## Legacy Warning
+## Historical Rationale Result
 
-These old commands were moved to `legacy/multilingual_name/main.py` and are
-kept only as historical reference:
+At budget 128, structured rationales increased recall but hurt precision and
+overall F1:
 
-```bash
-python legacy/multilingual_name/main.py --mode test
-python legacy/multilingual_name/main.py --mode train --model mbart
-```
+| Variant | Match precision | Match recall | Match F1 | Macro F1 | Accuracy |
+|---|---:|---:|---:|---:|---:|
+| `label_only` | 0.3887 | 0.5900 | 0.4686 | 0.6449 | 0.7324 |
+| `structured_rationale` | 0.2487 | 0.6780 | 0.3639 | 0.4931 | 0.5260 |
 
-They belong to the older Wikidata/mBART direction. Do not use them as the
-current workflow.
+Do not revive structured rationales as the main path unless explicitly asked.

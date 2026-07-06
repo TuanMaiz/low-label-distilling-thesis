@@ -1,6 +1,0 @@
-{"pair_id": "70331081#51909448", "error": "missing field reference is not missing: record A description", "prompt_version": "teacher-rationale-v1", "teacher_model": "openrouter:openai/gpt-4o-mini"}
-{"pair_id": "4484537#16871572", "error": "missing field reference is not missing: record A priceCurrency", "prompt_version": "teacher-rationale-v1", "teacher_model": "openrouter:openai/gpt-4o-mini"}
-{"pair_id": "12176070#50920560", "error": "missing field reference is not missing: record A priceCurrency", "prompt_version": "teacher-rationale-v1", "teacher_model": "openrouter:openai/gpt-4o-mini"}
-{"pair_id": "26786850#35410623", "error": "missing field reference is not missing: record A priceCurrency", "prompt_version": "teacher-rationale-v1", "teacher_model": "openrouter:openai/gpt-4o-mini"}
-{"pair_id": "21463573#8315719", "error": "missing field reference is not missing: record A price", "prompt_version": "teacher-rationale-v1", "teacher_model": "openrouter:openai/gpt-4o-mini"}
-{"pair_id": "84249757#76569969", "error": "missing field reference is not missing: record A priceCurrency", "prompt_version": "teacher-rationale-v1", "teacher_model": "openrouter:openai/gpt-4o-mini"}

@@ -1,5 +1,5 @@
 """
-Prepare WDC Products low-label data for rationale distillation.
+Prepare WDC Products low-label data for compact-student distillation.
 
 Example:
     python -m experiments.prepare_low_label_data \

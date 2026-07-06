@@ -92,7 +92,7 @@ These variants apply only to compact student training. `direct_llm_matcher` is n
 | `gold_label` | dataset gold labels | A | yes | supervised compact-student performance standard |
 | `llm_label` | validated answer-only teacher labels | C | yes | main distillation variant |
 | `mixed_gold_llm` | small gold seed plus LLM labels | C | optional | practical fallback if pure LLM labels are noisy |
-| `old_structured_rationale` | existing structured-rationale targets | historical only | no | negative-history ablation only |
+| `old_structured_rationale` | recorded Phase 03 result | historical only | no | negative-history context only |
 
 Validation and test evaluation must always use gold labels.
 

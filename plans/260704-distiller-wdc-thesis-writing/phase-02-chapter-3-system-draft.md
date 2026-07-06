@@ -39,8 +39,8 @@ system overview
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/data/er_dataset_loader.py`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/data/low_label_sampler.py`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/data/serialize_pairs.py`
-- Read after implementation: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/generate_teacher_labels.py`
-- Read after implementation: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/build_targets.py`
+- Read after implementation: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/generate_teacher_labels.py`
+- Read after implementation: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/build_targets.py`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/train_mt5.py`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/evaluate_student.py`
 

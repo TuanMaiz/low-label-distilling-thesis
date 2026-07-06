@@ -1,10 +1,4 @@
-"""
-Generic entity-resolution schemas for the active rationale-distillation work.
-
-These are the Phase 01 contracts consumed by dataset loading, pair
-serialization, teacher rationale generation, and low-label student training.
-Legacy Wikidata/person-family schemas live under code/legacy/wikidata/.
-"""
+"""Generic entity-resolution schemas for the active WDC distillation work."""
 from __future__ import annotations
 
 from typing import Any, Dict, Optional

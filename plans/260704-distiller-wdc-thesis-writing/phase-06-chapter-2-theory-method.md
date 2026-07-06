@@ -37,7 +37,7 @@ problem formulation
 
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/data/schema.py`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/utils/metrics.py`
-- Read: `/mnt/d/Study/Cao-hoc/luan-van/code/rationales/teacher_label_schema.py` after implementation
+- Read: `/mnt/d/Study/Cao-hoc/luan-van/code/supervision/teacher_label_schema.py` after implementation
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/analysis/cost_summary.py` after implementation
 
 ## Implementation Steps

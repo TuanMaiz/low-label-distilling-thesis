@@ -7,7 +7,7 @@ description: >-
 status: in_progress
 priority: P1
 effort: 6-8 weeks for thesis-core evidence
-branch: phase-03/minimal-distillation-pilot
+branch: codex/distiller-wdc-implementation
 tags:
   - research
   - entity-resolution
@@ -60,7 +60,7 @@ Secondary questions:
 | B | `direct_llm_matcher` | LLM predicts each evaluation pair directly | inference-cost baseline |
 | C | `llm_label` | LLM labels training pairs, compact student learns from them | main distillation method |
 | C optional | `mixed_gold_llm` | small gold seed plus LLM labels | safer practical distillation variant |
-| historical | `old_structured_rationale` | existing rationale target outputs | optional negative-history ablation only |
+| historical | `old_structured_rationale` | recorded Phase 03 result only | negative-history context, not active code |
 
 ## Architecture
 
@@ -99,7 +99,7 @@ Teacher LLM calls are used only to prepare training labels. Final inference must
 | Phase | Name | Status | Priority | Effort | Dependencies |
 |-------|------|--------|----------|--------|--------------|
 | 1 | [Research Contract](./phase-01-research-contract.md) | Completed | P1 | 1 day | None |
-| 2 | [Pivot Cleanup](./phase-02-pivot-cleanup.md) | Pending | P1 | 0.5-1 day | Phase 1 |
+| 2 | [Pivot Cleanup](./phase-02-pivot-cleanup.md) | Completed | P1 | 0.5-1 day | Phase 1 |
 | 3 | [Teacher Labeling And Direct LLM Baseline](./phase-03-teacher-labeling-pipeline.md) | Pending | P1 | 3-5 days | Phase 1 |
 | 4 | [Training Target Builder](./phase-04-training-target-builder.md) | Pending | P1 | 2-3 days | Phase 3 |
 | 5 | [Pilot Student Runs And Direct LLM Baseline](./phase-05-pilot-student-runs.md) | Pending | P1 | 1-2 weeks | Phase 4 |

@@ -1,4 +1,4 @@
-"""mT5 student dataset and model helpers for Phase 03."""
+"""Seq2seq student dataset and model helpers for ER experiments."""
 from __future__ import annotations
 
 import json
@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-DEFAULT_MT5_MODEL = "google/mt5-small"
+DEFAULT_SEQ2SEQ_MODEL = "google/flan-t5-base"
 
 
 def iter_jsonl(path: Path) -> Iterable[dict]:
@@ -68,10 +68,11 @@ class ERSeq2SeqDataset:
         }
 
 
-def load_mt5(model_name: str = DEFAULT_MT5_MODEL):
-    """Load an mT5-compatible tokenizer and seq2seq model."""
+def load_seq2seq(model_name: str = DEFAULT_SEQ2SEQ_MODEL):
+    """Load a T5-compatible tokenizer and seq2seq model."""
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     return tokenizer, model
+
