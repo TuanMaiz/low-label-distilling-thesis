@@ -15,7 +15,7 @@ Draft the system/pipeline chapter while implementation details are fresh.
 
 ## Requirements
 
-- Functional: describe the implemented data, teacher-label, target-building, training, evaluation, and cost-logging pipeline.
+- Functional: describe the implemented data, selection-manifest, teacher-label, target-building, training, evaluation, and cost-logging pipeline.
 - Non-functional: keep this chapter descriptive and reproducible, not argumentative.
 - Dependency: needs agent execution Phases 3-4 for final file paths and commands.
 
@@ -27,6 +27,7 @@ Suggested Chapter 3 flow:
 system overview
   -> WDC data preparation
   -> low-label sampler
+  -> active pair selector
   -> teacher label generation
   -> label validation/cache
   -> target builder
@@ -48,11 +49,12 @@ system overview
 
 1. Draft Chapter 3 outline.
 2. Create Figure 3.1: overall pipeline.
-3. Create Figure 3.2: teacher-label cache and target builder flow.
+3. Create Figure 3.2: selection manifest, teacher-label cache, and target builder flow.
 4. Write dataset preparation section.
-5. Write teacher-labeling module section.
-6. Write student-training module section.
-7. Write evaluation and cost-logging module section.
+5. Write random and active selection module section.
+6. Write teacher-labeling module section.
+7. Write student-training module section.
+8. Write evaluation and cost-logging module section.
 8. Add command snippets only if the school format allows; otherwise put commands in appendix.
 
 ## Success Criteria

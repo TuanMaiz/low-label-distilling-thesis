@@ -15,7 +15,7 @@ Write the experiment setup before polishing results. This chapter should make th
 
 ## Requirements
 
-- Functional: document dataset, splits, label budgets, direct LLM matcher, teacher model, student model, baselines, hyperparameters, hardware/software, and metrics.
+- Functional: document dataset, splits, label budgets, selection strategies, direct LLM matcher, teacher model, student model, baselines, hyperparameters, hardware/software, and metrics.
 - Non-functional: separate setup from results; do not interpret too much here.
 - Dependency: needs the experiment contract and pilot run configuration.
 
@@ -26,6 +26,7 @@ Suggested Chapter 4 sections:
 ```text
 dataset
   -> experiment arms
+  -> selection strategies
   -> student supervision variants
   -> label budgets
   -> direct LLM matcher setup
@@ -50,37 +51,44 @@ dataset
 2. Add dataset statistics table.
 3. Define train/validation/test split.
 4. Define label budgets.
-5. Define experiment arms:
+5. Define selection strategies:
+   - random balanced sample.
+   - active hybrid selection.
+   - optional uncertainty/diversity strategies if used.
+6. Define experiment arms:
    - gold-label compact student.
    - direct LLM matcher.
-   - LLM-label distilled compact student.
-6. Define student supervision variants:
+   - random LLM-label distilled compact student.
+   - active LLM-label distilled compact student.
+7. Define student supervision variants:
    - gold labels.
-   - LLM-generated labels.
+   - random LLM-generated labels.
+   - actively selected LLM-generated labels.
    - mixed labels if used.
-7. Define direct LLM matcher setting:
+8. Define direct LLM matcher setting:
    - model.
    - prompt version.
    - fixed evaluation split or predeclared sample.
    - token/cost logging.
-8. Define teacher-labeling setting:
+9. Define teacher-labeling setting:
    - model.
    - prompt version.
    - answer-only output.
    - validation rule.
-9. Define student setting:
+10. Define student setting:
    - model name.
    - max input length.
    - max target length.
    - training epochs.
    - early stopping.
-10. Define metrics.
-11. Define hardware/software environment.
+11. Define metrics.
+12. Define hardware/software environment.
 
 ## Success Criteria
 
 - [ ] Dataset statistics table exists.
 - [ ] Experiment matrix table exists.
+- [ ] Selection strategy table exists.
 - [ ] Direct LLM matcher setup is fixed before results.
 - [ ] Hyperparameter table exists.
 - [ ] Metric definitions are clear.

@@ -11,13 +11,16 @@ dependencies: []
 
 ## Overview
 
-Freeze the thesis title, safe claim, chapter structure, contribution wording, and evidence requirements before writing long prose.
+Freeze the thesis title, safe claim, chapter structure, contribution wording,
+and evidence requirements before writing long prose. The current claim centers
+on active selection of scarce LLM-labeled training pairs, not plain distillation
+alone.
 
 ## Requirements
 
 - Functional: define working Vietnamese and English titles.
 - Functional: map the topic into the official thesis structure.
-- Non-functional: avoid overclaiming novelty against DistillER and related LLM-labeling work.
+- Non-functional: avoid overclaiming novelty against DistillER, active ER, and related LLM-labeling work.
 
 ## Architecture
 
@@ -41,14 +44,15 @@ research evidence needed
 ## Implementation Steps
 
 1. Choose working title:
-   - English: "Cost-Aware Distillation of LLM-Generated Labels for Entity Matching".
+   - English: "Cost-Aware Active LLM Labeling for Low-Budget Entity Matching".
    - Vietnamese can be finalized with advisor.
 2. Define one safe research question.
 3. Define 3-4 thesis contributions:
-   - WDC-focused evaluation of LLM-to-student label distillation for compact ER students.
+   - WDC-focused evaluation of active LLM-labeled pair selection for compact ER students.
+   - same-budget comparison against random LLM-label distillation.
    - comparison against direct LLM matching as the inference-cost baseline.
    - label-budget, cost-efficiency, and break-even analysis.
-   - failure analysis of direct LLM, teacher-label, and student errors.
+   - failure analysis of selection strategy, direct LLM, teacher-label, and student errors.
 4. Define what evidence each contribution needs.
 5. Define chapter structure using official requirement:
    - front matter.
@@ -73,4 +77,4 @@ research evidence needed
 - Risk: writing starts before claim is known.
   Mitigation: write only skeleton prose until pilot results exist.
 - Risk: advisor expects more novelty.
-  Mitigation: keep optional expansion ready: second student or extra dataset.
+  Mitigation: keep optional expansion ready: second active strategy, second student, or extra dataset.

@@ -15,7 +15,7 @@ Write `Chuong 1: Tong quan` as the related-work and research-gap chapter, not as
 
 ## Requirements
 
-- Functional: cover ER/EM, product matching, WDC, transformer ER, LLMs for ER, DistillER, and LLM-generated labels.
+- Functional: cover ER/EM, product matching, WDC, transformer ER, active learning/data selection for ER, LLMs for ER, DistillER, and LLM-generated labels.
 - Non-functional: clearly admit related work overlap and position the thesis as controlled evaluation/adaptation.
 
 ## Architecture
@@ -26,6 +26,7 @@ Suggested chapter flow:
 ER/EM background
   -> product matching and WDC
   -> neural/transformer ER
+  -> active learning and data selection for ER
   -> LLMs for ER
   -> distillation and LLM supervision
   -> DistillER and close work
@@ -50,12 +51,14 @@ ER/EM background
 2. Write ER/EM overview.
 3. Write product matching and WDC overview.
 4. Write neural ER overview.
-5. Write LLM for ER overview.
-6. Write DistillER and LLM-labeled training data subsection.
-7. Write gap:
+5. Write active learning and data selection for ER overview.
+6. Write LLM for ER overview.
+7. Write DistillER and LLM-labeled training data subsection.
+8. Write gap:
    - need a WDC-focused, cost-aware compact-student study.
-   - need explicit label-budget and failure behavior analysis.
-8. Keep any stronger novelty language out unless advisor approves it.
+   - need explicit active-vs-random LLM-label selection under fixed budgets.
+   - need explicit label-budget, teacher-noise, and failure behavior analysis.
+9. Keep any stronger novelty language out unless advisor approves it.
 
 ## Success Criteria
 

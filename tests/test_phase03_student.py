@@ -9,6 +9,7 @@ from unittest.mock import patch
 from experiments.evaluate_student import evaluate_prediction_rows, parse_decision
 from models.seq2seq_student import ERSeq2SeqDataset, load_seq2seq
 from supervision.build_targets import build_targets
+from supervision.teacher_label_schema import TeacherLabel
 
 
 def _pair_row(idx: int = 1, label: int = 1) -> dict:
@@ -38,6 +39,34 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row) + "\n")
+
+
+def _teacher_label_row(pair_id: str, label: str = "non_match", gold_label: str = "match") -> dict:
+    return TeacherLabel(
+        pair_id=pair_id,
+        dataset="wdc_products",
+        split="train",
+        budget="128",
+        selection_strategy="llm_active_bucketed_v1",
+        selection_rank=3,
+        selection_score=0.75,
+        selection_seed=42,
+        selection_uses_gold_label=False,
+        selection_bucket="hard_match_candidate",
+        selection_bucket_rank=1,
+        selection_bucket_quota=32,
+        teacher_model="openrouter:test-model",
+        prompt_version="answer_only_v1",
+        raw_answer=label,
+        label=label,
+        valid=True,
+        input_tokens=10,
+        output_tokens=1,
+        estimated_cost_usd=0.001,
+        gold_label=gold_label,
+        created_at="2026-07-08T00:00:00+00:00",
+        metadata={},
+    ).model_dump(mode="json")
 
 
 class _TinyTokenizer:
@@ -92,6 +121,51 @@ class Seq2SeqStudentTest(unittest.TestCase):
             self.assertEqual(summary["written"], 1)
             self.assertEqual(row["target_text"], "match")
             self.assertEqual(row["variant"], "label_only")
+
+    def test_llm_targets_use_teacher_labels_and_keep_audit_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pairs_path = tmp_path / "pairs.jsonl"
+            labels_path = tmp_path / "labels.jsonl"
+            targets_path = tmp_path / "targets.jsonl"
+            pair = _pair_row(1, 1)
+            pair["selection_strategy"] = "llm_active_bucketed_v1"
+            pair["selection_rank"] = 3
+            pair["selection_score"] = 0.75
+            _write_jsonl(pairs_path, [pair])
+            _write_jsonl(labels_path, [_teacher_label_row(pair["pair_id"], label="non_match", gold_label="match")])
+
+            summary = build_targets(
+                pairs_path=pairs_path,
+                output_path=targets_path,
+                variant="llm_active_bucketed_v1",
+                teacher_labels_path=labels_path,
+            )
+
+            row = json.loads(targets_path.read_text(encoding="utf-8"))
+            self.assertEqual(summary["written"], 1)
+            self.assertEqual(summary["valid_teacher_labels_loaded"], 1)
+            self.assertEqual(row["target_text"], "non-match")
+            self.assertEqual(row["label"], "non_match")
+            self.assertEqual(row["gold_label"], "match")
+            self.assertEqual(row["label_source"], "llm_teacher")
+            self.assertEqual(row["prompt_version"], "answer_only_v1")
+            self.assertEqual(row["selection_strategy"], "llm_active_bucketed_v1")
+            self.assertEqual(row["selection_bucket"], "hard_match_candidate")
+
+    def test_llm_targets_require_teacher_label_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pairs_path = tmp_path / "pairs.jsonl"
+            targets_path = tmp_path / "targets.jsonl"
+            _write_jsonl(pairs_path, [_pair_row(1, 1)])
+
+            with self.assertRaisesRegex(ValueError, "require --teacher-labels"):
+                build_targets(
+                    pairs_path=pairs_path,
+                    output_path=targets_path,
+                    variant="llm_random",
+                )
 
     def test_parse_decision_handles_label_and_json_outputs(self):
         self.assertTrue(parse_decision("match"))

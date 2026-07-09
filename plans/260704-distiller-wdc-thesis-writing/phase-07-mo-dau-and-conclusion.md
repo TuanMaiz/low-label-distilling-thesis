@@ -23,7 +23,7 @@ Write `Mo dau` and the final conclusion after the results chapter is stable, so 
 
 ```text
 Chapter 5 findings
-  -> safe thesis claim
+  -> safe active-selection thesis claim
   -> Mo dau
   -> conclusion and recommendations
 ```
@@ -49,8 +49,9 @@ Chapter 5 findings
    - practical contribution.
    - limitations.
    - recommendations/future work.
-3. Check every claim against Chapter 5.
-4. Remove any novelty language that results do not support.
+3. State the final answer to whether active LLM-label selection improves over random selection under low budgets.
+4. Check every claim against Chapter 5.
+5. Remove any novelty language that results do not support.
 
 ## Success Criteria
 

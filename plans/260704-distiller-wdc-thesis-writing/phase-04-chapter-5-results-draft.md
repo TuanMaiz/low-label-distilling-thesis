@@ -15,7 +15,7 @@ Write the core evidence chapter after pilot and full-budget metrics exist.
 
 ## Requirements
 
-- Functional: report label-efficiency, direct LLM inference cost, distillation cost-efficiency, and failure-analysis results.
+- Functional: report active-vs-random label selection, label-efficiency, direct LLM inference cost, distillation cost-efficiency, and failure-analysis results.
 - Non-functional: discuss both positive and negative findings.
 - Dependency: needs agent execution Phases 5-7.
 
@@ -25,6 +25,7 @@ Suggested Chapter 5 logic:
 
 ```text
 pilot result
+  -> active-vs-random selection result
   -> direct LLM matcher result
   -> full budget result
   -> cost result
@@ -45,15 +46,16 @@ pilot result
 1. Write the pilot result subsection first.
 2. Add main label-budget table.
 3. Add label-efficiency figure.
-4. Compare `gold_label` student vs `llm_label` distilled student for quality.
-5. Compare `direct_llm_matcher` vs distilled student for repeated inference cost.
-6. Add mixed-label results if used.
-7. Add cost table and break-even estimate.
-8. Add failure-analysis table.
-9. Discuss what result supports the thesis.
-10. Discuss what result weakens the thesis.
-11. Compare cautiously with DistillER and LLM-labeling related work.
-12. Write limitations:
+4. Compare `llm_random` vs `llm_active_hybrid` at the same budget.
+5. Compare `gold_random` student vs LLM-label students for quality.
+6. Compare `direct_llm_matcher` vs selected-label distilled student for repeated inference cost.
+7. Add mixed-label results if used.
+8. Add cost table and break-even estimate.
+9. Add selection-strategy and failure-analysis tables.
+10. Discuss what result supports the thesis.
+11. Discuss what result weakens the thesis.
+12. Compare cautiously with DistillER, active ER, and LLM-labeling related work.
+13. Write limitations:
     - one main dataset.
     - one or few teacher models.
     - cost depends on provider.
@@ -63,6 +65,7 @@ pilot result
 
 - [ ] Main result table exists.
 - [ ] Main plot exists.
+- [ ] Active-vs-random same-budget comparison exists.
 - [ ] Cost table exists.
 - [ ] Direct LLM matching appears as cost baseline.
 - [ ] Failure examples exist.

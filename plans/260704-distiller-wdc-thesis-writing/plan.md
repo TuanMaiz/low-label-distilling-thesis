@@ -1,6 +1,6 @@
 ---
-title: "DistillER WDC Thesis Writing"
-description: "Detailed writing plan for the official master's thesis structure, written around the DistillER-style WDC experiment after results are known."
+title: "Active LLM Labeling WDC Thesis Writing"
+description: "Detailed writing plan for the official master's thesis structure, written around the cost-aware active LLM-labeling WDC experiment after results are known."
 status: pending
 priority: P1
 effort: "8-10 weeks alongside experiments"
@@ -13,11 +13,13 @@ createdBy: "ck:plan"
 source: skill
 ---
 
-# DistillER WDC Thesis Writing
+# Active LLM Labeling WDC Thesis Writing
 
 ## Overview
 
-This plan turns the official school requirement into a practical writing schedule for the DistillER-style WDC thesis pivot.
+This plan turns the official school requirement into a practical writing
+schedule for the WDC thesis pivot: cost-aware active selection of scarce
+LLM-labeled training pairs for compact Entity Matching students.
 
 Write like a paper, but format like the official thesis:
 
@@ -43,11 +45,15 @@ So the thesis should not treat Chapter 1 as a generic introduction. Introduction
 
 Conservative claim:
 
-> This thesis evaluates whether compact Entity Matching students distilled from LLM-generated teacher labels can approach gold-label supervised students on WDC Products while reducing repeated inference cost compared with direct LLM matching.
+> This thesis evaluates whether actively selected LLM-labeled training pairs can
+> train compact Entity Matching students more cost-effectively than random
+> LLM-label distillation on WDC Products, while reducing repeated inference cost
+> compared with direct LLM matching.
 
 Do not claim:
 
 - that LLM-label distillation for ER is new.
+- that active learning or data selection for ER is new.
 - that the method beats DistillER generally.
 - that results transfer to all ER datasets unless experiments show it.
 
@@ -96,7 +102,10 @@ The companion execution plan is:
 
 `/mnt/d/Study/Cao-hoc/luan-van/code/plans/260704-distiller-wdc-agent-execution/plan.md`
 
-Writing should follow the evidence generated there. If the experiment changes, update this writing plan before drafting final chapters.
+Writing should follow the evidence generated there. If the experiment changes,
+update this writing plan before drafting final chapters. The current evidence
+focus is active-vs-random LLM-label selection, direct LLM inference cost,
+teacher-noise behavior, and WDC failure slices.
 
 ## Final Deliverables
 

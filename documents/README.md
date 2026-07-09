@@ -13,3 +13,16 @@ phase and now serve as novelty-boundary or negative-history context.
 | `zeakis-2026-distiller-knowledge-distillation-in-entity-resolution-with-large-language-models.pdf` | Zeakis et al. 2026, DistillER: Knowledge Distillation in Entity Resolution with Large Language Models | Closest ER knowledge-distillation paper and the most important novelty boundary. |
 
 Original sources are arXiv PDFs.
+
+## Active-Selection Literature To Add
+
+The active thesis extension needs a small related-work set on low-budget active
+learning and data selection for Entity Matching. Add these as PDFs before
+drafting Chapter 1 if available:
+
+| Topic | Why it matters |
+|---|---|
+| active learning for deep Entity Resolution | novelty boundary for selecting scarce labels |
+| risk or uncertainty sampling for Entity Matching | baseline strategy for `llm_active_uncertainty` |
+| diversity or representative sampling for low-resource ER | baseline strategy for `llm_active_diversity` |
+| LLM data selection or LLM-as-labeler under budget | connects active learning to the current teacher-label cost lens |

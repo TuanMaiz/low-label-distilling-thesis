@@ -15,7 +15,7 @@ Write the theoretical and methodological foundation that supports the experiment
 
 ## Requirements
 
-- Functional: define ER formulation, pair serialization, compact student training, teacher-label supervision, distillation framing, metrics, and cost metrics.
+- Functional: define ER formulation, pair serialization, low-budget pair selection, compact student training, teacher-label supervision, distillation framing, metrics, and cost metrics.
 - Non-functional: keep math light but precise enough for a master's thesis.
 
 ## Architecture
@@ -25,6 +25,7 @@ Suggested chapter flow:
 ```text
 problem formulation
   -> data representation
+  -> low-budget selection strategy
   -> supervised student learning
   -> LLM-generated supervision
   -> distillation framing
@@ -47,25 +48,29 @@ problem formulation
    - `y_gold`.
    - `y_teacher`.
    - `y_student`.
-3. Define compact student objective.
-4. Define teacher-label supervision:
+3. Define selection notation:
+   - candidate pool.
+   - selected set under budget `B`.
+   - selection strategy `s`.
+4. Define compact student objective.
+5. Define teacher-label supervision:
    - teacher labels are generated offline.
    - student inference does not call teacher.
-5. Define metrics:
+6. Define metrics:
    - precision.
    - recall.
    - F1.
    - accuracy.
    - invalid-output rate if seq2seq student is used.
-6. Define cost metrics:
+7. Define cost metrics:
    - cost per teacher-labeled pair.
    - total labeling cost.
    - cost per trained budget.
-7. Define research method:
+8. Define research method:
    - controlled comparison across budgets.
    - same dataset split.
    - same student model.
-   - varying supervision source.
+   - varying selection strategy and supervision source.
 
 ## Success Criteria
 

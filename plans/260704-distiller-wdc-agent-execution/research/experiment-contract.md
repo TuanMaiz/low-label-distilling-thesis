@@ -1,50 +1,89 @@
 ---
-title: "Experiment Contract: Cost-Aware Distillation of LLM-Generated Labels for Entity Matching"
+title: "Experiment Contract: Cost-Aware Active LLM Labeling for Entity Matching"
 status: active
 created: 2026-07-04
 plan: "/mnt/d/Study/Cao-hoc/luan-van/code/plans/260704-distiller-wdc-agent-execution/plan.md"
 phase: 1
 ---
 
-# Experiment Contract: Cost-Aware Distillation of LLM-Generated Labels for Entity Matching
+# Experiment Contract: Cost-Aware Active LLM Labeling for Entity Matching
 
 ## Working Title
 
-Cost-Aware Distillation of LLM-Generated Labels for Entity Matching.
+Cost-Aware Active LLM Labeling for Low-Budget Entity Matching.
 
 ## Research Question
 
-Can compact Entity Matching students distilled from LLM-generated teacher labels approach gold-label supervised students while being cheaper at inference time than using the LLM directly as the matcher?
+Under low-label budgets on WDC Products, can active selection of LLM-labeled
+training pairs produce compact Entity Matching students that outperform random
+LLM-label distillation at the same labeling cost, while becoming cheaper than
+using the LLM directly as the matcher at repeated inference time?
 
 ## Safe Thesis Claim
 
-This thesis evaluates label-level knowledge distillation for WDC Products: an LLM teacher generates training labels, then a compact student learns from those labels and performs final inference without teacher calls. It compares this against two references: a gold-label supervised compact student for quality, and direct LLM matching for inference cost. It does not claim that LLM-label distillation for Entity Resolution is new. The safe contribution is a controlled WDC-focused study of label efficiency, compact student distillation, teacher-label cost, direct LLM inference cost, and teacher/student failure behavior.
+This thesis evaluates cost-aware active LLM labeling for WDC Products: a
+selection strategy chooses a small set of candidate training pairs, an LLM
+teacher labels them once, and a compact student learns from those labels for
+cheap final inference without teacher calls. It compares active selection
+against random LLM-label distillation, a gold-label supervised compact student
+for quality context, and direct LLM matching for repeated inference cost. It
+does not claim that LLM-label distillation, active learning, or data selection
+for Entity Resolution is new. The safe contribution is a controlled WDC-focused
+study of which pairs are worth spending LLM calls on under low budgets, how
+selection affects teacher noise, when the resulting student is cost-effective,
+and which WDC failure slices benefit or fail.
+
+## Analytical Lens
+
+The core method is close to prior LLM-labeling and DistillER-style work. The
+thesis differentiates itself by the questions it asks:
+
+| Lens | Thesis Question | Main Evidence |
+|---|---|---|
+| Cost | When does one-time selected teacher labeling plus compact inference become cheaper than repeated direct LLM inference? | token/cost logs, per-budget cost, break-even query count |
+| Low-label budgets | How do random and active LLM-label distillation behave at small supervision budgets? | `16 / 32 / 64 / 128`, optional `256 / full` curves |
+| Data selection | Which pairs should receive scarce LLM labels: random, uncertain, diverse, hard-negative, or hybrid selections? | same-budget strategy comparison, selected-pair composition, label-efficiency curves |
+| WDC difficulty slices | Which product-pair conditions cause teacher, direct LLM, or student errors? | hard negatives, missing fields, brand/title/model conflicts, long descriptions, price/currency mismatch |
+| Teacher noise | Do active strategies select informative examples or mainly ambiguous examples where the LLM teacher is wrong? | teacher-vs-gold disagreement joined with selected-pair strategy and student predictions |
+| External validity | Does the WDC pattern survive on another dataset? | optional Abt-Buy, Walmart-Amazon, or DBLP-style replication after WDC pilot |
 
 ## Novelty Boundary
 
-DistillER already studies knowledge distillation for Entity Resolution with LLM teachers, data selection, teacher labels, student models, and explanation variants. This thesis should cite it as closest related work and position itself as:
+DistillER and Steiner/Bizer-style LLM-labeling work already study knowledge
+distillation or machine labeling for Entity Resolution with LLM teachers, data
+selection, teacher labels, student models, and cost/performance tradeoffs.
+Classic and deep active-learning work for ER also studies label scarcity.
+Direct LLM matching on WDC Products exists in prior LLM-for-EM work. This
+thesis should cite those papers and position itself as:
 
-- WDC Products pairwise stress test.
+- WDC Products pairwise stress test under low-label budgets.
+- active selection of scarce LLM teacher-label calls, compared with random
+  LLM-label distillation under the same budgets.
 - compact student comparison under low-label budgets.
-- explicit cost accounting for teacher-generated labels and direct LLM inference.
-- failure analysis of LLM teacher labels and student predictions.
+- explicit break-even cost accounting for teacher-generated labels and direct
+  LLM inference.
+- failure-slice analysis of selected LLM teacher labels, direct LLM predictions,
+  and student predictions.
+- optional external-validity check on one additional dataset after WDC.
 - master-thesis-scale reproduction/adaptation, not a new general framework.
 
 ## Experiment Arms
 
-There are three experiment arms. They answer different questions and should not be collapsed into one baseline.
+There are four experiment arms. They answer different questions and should not be collapsed into one baseline.
 
 | Arm | Name | What It Does | Main Question | Cost Role |
 |---|---|---|---|---|
-| A | `gold_label_student` | train compact student on gold labels | how good is trusted supervised training? | performance standard; not the cost-saving method |
-| B | `direct_llm_matcher` | ask the LLM to classify evaluation pairs directly | how good/expensive is using the LLM at inference time? | inference-cost baseline |
-| C | `llm_label_distilled_student` | ask LLM to label training pairs, then train compact student | can one-time teacher labeling produce cheap student inference? | proposed method |
+| A | `gold_random_student` | train compact student on randomly sampled gold labels | how good is trusted supervised training under the same budget? | quality context; not the cost-saving method |
+| B | `direct_llm_matcher` | ask the LLM to classify evaluation pairs directly | how good/expensive is using the LLM at inference time? | repeated inference-cost baseline |
+| C | `llm_random_student` | randomly sample training pairs, ask the LLM to label them, then train compact student | what does plain random LLM-label distillation buy? | random distillation control |
+| D | `llm_active_student` | actively select training pairs, ask the LLM to label them, then train compact student | does choosing better pairs improve quality per LLM dollar? | proposed active labeling method |
 
-This is not cherry-picking if all three arms, splits, budgets, prompts, and cost fields are fixed before running.
+This is not cherry-picking if all arms, candidate pools, selection strategies,
+splits, budgets, prompts, and cost fields are fixed before running.
 
 ## Dataset Contract
 
-Dataset: `wdc_products`.
+Primary dataset: `wdc_products`.
 
 Source artifact:
 
@@ -83,18 +122,63 @@ Existing low-label training budgets:
 
 Important correction: budget `256` does not currently exist in the cache. If the pilot uses `256`, Phase 3 or an earlier setup task must update `DEFAULT_LOW_LABEL_BUDGETS` or run the sampler with `256`.
 
+Active-selection candidate pool:
+
+- Use only the WDC training split as the candidate pool.
+- Do not use validation or test gold labels to select teacher-label training
+  pairs.
+- Selection strategies must produce a fixed manifest before teacher labels are
+  inspected.
+- Each selected manifest must record `selection_strategy`, `budget`, `seed`,
+  `rank`, any selection score used, and active bucket metadata where applicable.
+
+Optional later datasets:
+
+- Add only after the WDC pilot and analysis pipeline are working.
+- Use them as external-validity checks, not as the main thesis claim.
+- Prefer one simple additional EM benchmark first, such as Abt-Buy or
+  Walmart-Amazon, before adding more domains.
+
 ## Student Supervision Variants
 
 These variants apply only to compact student training. `direct_llm_matcher` is not a supervision variant because it does not train a student.
 
-| Variant | Training Label Source | Experiment Arm | Required For Pilot | Purpose |
-|---|---|---|---:|---|
-| `gold_label` | dataset gold labels | A | yes | supervised compact-student performance standard |
-| `llm_label` | validated answer-only teacher labels | C | yes | main distillation variant |
-| `mixed_gold_llm` | small gold seed plus LLM labels | C | optional | practical fallback if pure LLM labels are noisy |
-| `old_structured_rationale` | recorded Phase 03 result | historical only | no | negative-history context only |
+| Variant | Training Label Source | Selection | Experiment Arm | Required For Pilot | Purpose |
+|---|---|---|---|---:|---|
+| `gold_random` | dataset gold labels | random balanced low-label sample | A | yes | supervised compact-student performance context |
+| `llm_random` | validated answer-only teacher labels | random balanced low-label sample | C | yes | random distillation control |
+| `llm_active_uncertainty` | validated answer-only teacher labels | uncertain candidate pairs | D | optional for first pilot, yes for full study if feasible | decision-boundary active selection |
+| `llm_active_diversity` | validated answer-only teacher labels | diverse representative candidate pairs | D | optional | coverage-oriented active selection |
+| `llm_active_bucketed_v1` | validated answer-only teacher labels | equal default coverage of four WDC-motivated candidate buckets | D | recommended first active variant | practical active-selection candidate |
+| `llm_active_hybrid` | validated answer-only teacher labels | blended uncertainty/hard-negative/diversity score | D | optional comparison | superseded pilot selector |
+| `mixed_gold_llm_active` | small gold seed plus active LLM labels | active selection plus gold seed | D | optional | fallback if pure LLM labels are noisy |
+| `old_structured_rationale` | recorded Phase 03 result | historical only | historical only | no | negative-history context only |
 
 Validation and test evaluation must always use gold labels.
+
+## Selection Strategy Contract
+
+The first active-selection study should stay simple enough for a master's thesis:
+
+| Strategy | Candidate Signal | Why Include It | First-Run Status |
+|---|---|---|---|
+| `random` | existing balanced low-label sampler | control for current plan | required |
+| `uncertainty` | compact seed model confidence near decision boundary, or disagreement between cheap heuristics | tests classic active-learning intuition | optional if seed scores are available |
+| `diversity` | embedding or lexical coverage across product pairs | avoids spending all labels on near-duplicates | optional |
+| `hard_negative` | high title/token overlap but gold/candidate expectation of non-match, using training split only | targets WDC product false positives | optional |
+| `llm_active_bucketed_v1` | 25 percent each from easy-match, hard-match, easy-non-match, and hard-negative candidate buckets | defendable first thesis variant if only one active strategy is affordable | recommended |
+| `hybrid` | combine diversity with uncertainty or hard-negative candidates | retained as older pilot comparison | optional |
+
+Minimum accepted comparison:
+
+```text
+same budget, same teacher, same student, same validation split:
+  llm_random
+  vs llm_active_bucketed_v1
+```
+
+Do not inspect validation/test outcomes before freezing the selected pair
+manifest for a strategy.
 
 ## Direct LLM Matcher Contract
 
@@ -131,6 +215,10 @@ Rules:
    - `non_match`
 6. Any extra text, uncertainty, malformed JSON, or missing label is invalid unless a strict parser can map it safely.
 
+Teacher labels for active strategies should be generated only after the
+selection manifest is written. Cache rows should preserve the selection strategy
+or be joinable to the manifest by `pair_id`.
+
 ## Student Contract
 
 First student: existing `google/flan-t5-base` pipeline, because this codebase already has train/evaluate entry points and previous Phase 3 results.
@@ -148,23 +236,34 @@ Minimum pilot:
 
 | Arm | Budget / Eval Set | Variant | Required |
 |---|---|---|---:|
-| A | train 128, validation eval | `gold_label` | yes |
+| A | train 128, validation eval | `gold_random` | yes |
 | B | fixed validation eval | `direct_llm_matcher` | yes |
-| C | train 128, validation eval | `llm_label` | yes |
-| C | train 128, validation eval | `mixed_gold_llm` | optional |
+| C | train 128, validation eval | `llm_random` | yes |
+| D | train 128, validation eval | `llm_active_bucketed_v1` | yes, if active-selection scores are available |
+| D | train 128, validation eval | `mixed_gold_llm_active` | optional |
 
 Preferred pilot if sampler is extended:
 
 | Arm | Budget / Eval Set | Variant | Required |
 |---|---|---|---:|
-| A | train 256, validation eval | `gold_label` | yes |
+| A | train 256, validation eval | `gold_random` | yes |
 | B | fixed validation eval | `direct_llm_matcher` | yes |
-| C | train 256, validation eval | `llm_label` | yes |
-| C | train 256, validation eval | `mixed_gold_llm` | optional |
+| C | train 256, validation eval | `llm_random` | yes |
+| D | train 256, validation eval | `llm_active_bucketed_v1` | yes if 128 pilot is promising |
+| D | train 256, validation eval | `mixed_gold_llm_active` | optional |
 
 Full study after pilot:
 
-`16 / 32 / 64 / 128 / 256`, plus `full` reference if compute allows.
+`16 / 32 / 64 / 128 / 256`, plus `full` reference if compute allows. Run
+`random` and the best active strategy across all budgets first; add other active
+strategies only if the core curve is stable.
+
+Optional external-validity run after WDC:
+
+| Dataset Role | Candidate | Purpose |
+|---|---|---|
+| first replication | Abt-Buy or Walmart-Amazon | check whether WDC cost/performance pattern holds on a common product benchmark |
+| later contrast | DBLP-ACM or DBLP-Scholar | check whether product-specific findings transfer to bibliographic matching |
 
 ## Metrics
 
@@ -192,8 +291,20 @@ Cost metrics:
 - valid label count.
 - invalid label count.
 - cost per valid teacher label.
+- selected-pair composition by strategy.
+- teacher-vs-gold disagreement rate by strategy.
+- student gain or loss versus `llm_random` at the same budget.
 - student inference cost if measurable or estimated.
 - break-even query count: number of future predictions where distillation becomes cheaper than direct LLM inference.
+
+Failure-slice metrics:
+
+- teacher-vs-gold disagreement rate by slice.
+- student-vs-gold error rate by slice.
+- teacher-wrong/student-wrong, teacher-wrong/student-correct, and
+  teacher-correct/student-wrong counts.
+- slice-level match precision, match recall, match F1, macro F1, and accuracy
+  where sample size is sufficient.
 
 ## Cost Comparison Logic
 
@@ -202,7 +313,7 @@ Gold labels are the trusted quality standard, not the main cost baseline. The co
 ```text
 direct_llm_matcher cost = LLM cost paid for every prediction
 
-llm_label_distilled_student cost =
+llm_selected_distilled_student cost =
   one-time LLM teacher-labeling cost
   + compact student training cost
   + cheap compact student inference cost
@@ -212,9 +323,26 @@ The thesis should report quality and cost together:
 
 | Question | Compare |
 |---|---|
-| quality gap from trusted labels | `gold_label` student vs `llm_label` distilled student |
-| cost advantage over direct LLM use | `direct_llm_matcher` vs `llm_label` distilled student |
-| practical stabilization | `llm_label` vs `mixed_gold_llm` |
+| quality gap from trusted labels | `gold_random` student vs `llm_random` and `llm_active_*` students |
+| selection value under same cost | `llm_random` vs `llm_active_*` at the same budget |
+| cost advantage over direct LLM use | `direct_llm_matcher` vs selected-label distilled student |
+| practical stabilization | `llm_active_*` vs `mixed_gold_llm_active` |
+
+## Failure-Slice Logic
+
+The thesis should not stop at aggregate F1. WDC Products is useful because it
+contains product-specific difficulty patterns. Phase 7 should join gold labels,
+teacher labels, direct LLM predictions, and student predictions by `pair_id`,
+then analyze at least these slices when fields are available:
+
+| Slice | Why It Matters |
+|---|---|
+| hard negatives | likely false positives from superficially similar products |
+| missing brand/title/description | tests robustness to incomplete product records |
+| brand conflict | product records may share titles but disagree on brand |
+| model-number conflict or overlap | product matching often depends on small identifiers |
+| long descriptions | tests prompt truncation and noisy attribute effects |
+| price/currency mismatch | catches pairs that are semantically similar but commercially different |
 
 ## Current Baseline Context
 
@@ -231,11 +359,15 @@ Interpretation: structured rationales increased recall but badly hurt precision 
 
 Teacher labels:
 
-`data/cache/wdc_products/teacher_labels/train_{budget}.openrouter.answer_only_v1.labels.jsonl`
+`data/cache/wdc_products/teacher_labels/train_{budget}.{selection_strategy}.openrouter.answer_only_v1.labels.jsonl`
 
 Teacher rejects:
 
-`data/cache/wdc_products/teacher_labels/train_{budget}.openrouter.answer_only_v1.rejects.jsonl`
+`data/cache/wdc_products/teacher_labels/train_{budget}.{selection_strategy}.openrouter.answer_only_v1.rejects.jsonl`
+
+Selection manifests:
+
+`data/cache/wdc_products/selection/train_{budget}.{selection_strategy}.manifest.jsonl`
 
 Direct LLM predictions:
 
@@ -287,9 +419,9 @@ After pilot training:
 
 | Decision | Condition |
 |---|---|
-| Continue | `llm_label` is close enough to `gold_label` for quality and cheaper than projected direct LLM inference at scale, or `mixed_gold_llm` clearly helps |
-| Revise | pure LLM labels are weak but error pattern suggests better prompt, threshold, or mixed supervision |
-| Stop | LLM-label student is worse than the old label-only baseline with no useful diagnostic story |
+| Continue | `llm_active_*` outperforms or usefully diagnoses `llm_random` at the same budget, and the best selected-label student is cheaper than projected direct LLM inference at scale |
+| Revise | active selection mostly selects noisy examples, but error pattern suggests a simpler hybrid, better seed model, or mixed gold+LLM supervision |
+| Stop | random and active LLM-label students are worse than the old label-only baseline with no useful diagnostic story |
 
 After full budget study:
 
@@ -303,11 +435,13 @@ After full budget study:
 
 - Full DistillER reproduction.
 - Multi-teacher comparison.
-- Routing or active-learning policy.
+- Complex iterative active-learning policy with repeated retraining.
 - Explanation/rationale generation as the main claim.
 - More than one dataset before WDC pilot.
 - More than one student before WDC pilot.
 
 ## Immediate Next Phase
 
-Phase 2 should update project guidance so future agents stop treating structured-rationale distillation as the active thesis and follow this label-level LLM-to-student distillation contract.
+Phase 3 should run the already planned answer-only teacher and direct-LLM
+pipeline, then add fixed selection manifests for `random` and the first active
+strategy before generating active teacher-label caches.

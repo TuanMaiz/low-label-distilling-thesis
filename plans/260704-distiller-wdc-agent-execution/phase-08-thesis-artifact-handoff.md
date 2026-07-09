@@ -22,7 +22,7 @@ Package experiment evidence into writing-ready materials for the official thesis
 ## Architecture
 
 ```text
-metrics + figures + failure examples + cost summary
+metrics + selection summaries + figures + failure examples + cost summary
   -> thesis artifact index
   -> writing plan updates
   -> advisor package
@@ -39,6 +39,7 @@ metrics + figures + failure examples + cost summary
 1. Create artifact index with:
    - dataset statistics.
    - run matrix.
+   - selection strategy matrix and manifest paths.
    - metrics table paths.
    - figure paths.
    - failure table paths.
@@ -49,8 +50,8 @@ metrics + figures + failure examples + cost summary
    - what limitation must be admitted.
 3. Map artifacts to thesis chapters:
    - Chapter 3: pipeline and system files.
-   - Chapter 4: experiment matrix and hyperparameters.
-   - Chapter 5: metrics, plots, failure analysis, cost analysis.
+   - Chapter 4: experiment matrix, selection strategies, and hyperparameters.
+   - Chapter 5: metrics, active-vs-random plots, failure analysis, cost analysis.
 4. Prepare advisor checkpoint package:
    - one-page summary.
    - main table.
@@ -62,6 +63,7 @@ metrics + figures + failure examples + cost summary
 
 - [ ] Thesis artifact index exists.
 - [ ] Every thesis result has a source file path.
+- [ ] Every selected-label result links back to a selection manifest.
 - [ ] Advisor package is ready.
 - [ ] Writing plan has concrete evidence to use.
 

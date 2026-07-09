@@ -26,7 +26,7 @@ Make the pivot explicit in project guidance and preserve the failed rationale-di
 The old rationale modules become optional ablation support. The new active path becomes:
 
 ```text
-WDC pair -> LLM label -> validated label cache -> compact student target
+WDC pair -> random/active selection manifest -> LLM label -> validated label cache -> compact student target
 ```
 
 instead of:
@@ -61,7 +61,7 @@ WDC pair -> structured rationale -> rationale target -> seq2seq student
 
 ## Success Criteria
 
-- [x] Future agents see label-level LLM-to-student distillation as the active plan.
+- [x] Future agents see active LLM-label selection plus compact student distillation as the active plan.
 - [x] Old rationale code is not treated as the main workflow.
 - [x] Pivot reason is documented, not hidden.
 
