@@ -6,7 +6,7 @@ usage() {
 Reproduce Phase 3 artifacts.
 
 Usage:
-  scripts/run_phase03_reproducible.sh <command>
+  scripts/run_phase03_reproducible.sh <command> [command args]
 
 Safe local commands:
   manifests       Regenerate fixed train_128 random and active manifests.
@@ -21,11 +21,16 @@ Live OpenRouter commands:
   direct          Run direct LLM matcher on the validation split/sample.
   all-live        Run manifests + teacher-all + direct + validate.
 
+Direct matcher examples:
+  scripts/run_phase03_reproducible.sh direct --model openai/gpt-5.4-mini
+  scripts/run_phase03_reproducible.sh direct --model openai/gpt-5.4-mini --limit 100
+  scripts/run_phase03_reproducible.sh direct --model openai/gpt-5.4-mini --input data/cache/wdc_products/serialized/test.jsonl
+
 Environment overrides:
   PYTHON=.venv/bin/python
   BUDGET=128
   SEED=42
-  MODEL=openai/gpt-4o-mini
+  MODEL=openai/gpt-5.4-mini
   TEMPERATURE=0.0
   PROMPT_VERSION=answer_only_v1
   ACTIVE_STRATEGY=llm_active_bucketed_v1
@@ -47,7 +52,9 @@ cd "${repo_root}"
 PYTHON="${PYTHON:-.venv/bin/python}"
 BUDGET="${BUDGET:-128}"
 SEED="${SEED:-42}"
-MODEL="${MODEL:-${OPENROUTER_MODEL:-openai/gpt-4o-mini}}"
+MODEL="${MODEL:-${OPENROUTER_MODEL:-openai/gpt-5.4-mini}}"
+MODEL_TAG="${MODEL//\//-}"
+MODEL_TAG="${MODEL_TAG//./-}"
 TEMPERATURE="${TEMPERATURE:-0.0}"
 PROMPT_VERSION="${PROMPT_VERSION:-answer_only_v1}"
 ACTIVE_STRATEGY="${ACTIVE_STRATEGY:-llm_active_bucketed_v1}"
@@ -62,12 +69,12 @@ LOW_LABEL_INPUT="data/cache/wdc_products/low_label/train_${BUDGET}.jsonl"
 TRAIN_INPUT="data/cache/wdc_products/serialized/train.jsonl"
 RANDOM_MANIFEST="data/cache/wdc_products/selection_manifests/train_${BUDGET}.random.jsonl"
 ACTIVE_MANIFEST="data/cache/wdc_products/selection_manifests/train_${BUDGET}.${ACTIVE_STRATEGY}.jsonl"
-RANDOM_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.random.openrouter.${PROMPT_VERSION}.labels.jsonl"
-RANDOM_REJECTS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.random.openrouter.${PROMPT_VERSION}.rejects.jsonl"
-ACTIVE_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.${ACTIVE_STRATEGY}.openrouter.${PROMPT_VERSION}.labels.jsonl"
-ACTIVE_REJECTS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.${ACTIVE_STRATEGY}.openrouter.${PROMPT_VERSION}.rejects.jsonl"
+RANDOM_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.random.openrouter.${MODEL_TAG}.${PROMPT_VERSION}.labels.jsonl"
+RANDOM_REJECTS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.random.openrouter.${MODEL_TAG}.${PROMPT_VERSION}.rejects.jsonl"
+ACTIVE_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.${ACTIVE_STRATEGY}.openrouter.${MODEL_TAG}.${PROMPT_VERSION}.labels.jsonl"
+ACTIVE_REJECTS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.${ACTIVE_STRATEGY}.openrouter.${MODEL_TAG}.${PROMPT_VERSION}.rejects.jsonl"
 direct_split="$(basename "${DIRECT_INPUT}" .jsonl)"
-DIRECT_PREDICTIONS="outputs/distiller_wdc/direct_llm/${direct_split}.openrouter.${PROMPT_VERSION}.predictions.jsonl"
+DIRECT_PREDICTIONS="outputs/distiller_wdc/direct_llm/${direct_split}.openrouter.${MODEL_TAG}.${PROMPT_VERSION}.predictions.jsonl"
 
 require_python() {
   if [[ ! -x "${PYTHON}" ]]; then
@@ -143,7 +150,7 @@ direct_matcher() {
   if [[ -n "${DIRECT_LIMIT}" ]]; then
     args+=(--limit "${DIRECT_LIMIT}")
   fi
-  run_cmd "${args[@]}"
+  run_cmd "${args[@]}" "$@"
 }
 
 validate_if_exists() {
@@ -171,6 +178,9 @@ run_tests() {
 }
 
 command="${1:-}"
+if [[ $# -gt 0 ]]; then
+  shift
+fi
 case "${command}" in
   manifests)
     build_manifests
@@ -196,13 +206,13 @@ case "${command}" in
     teacher_active
     ;;
   direct)
-    direct_matcher
+    direct_matcher "$@"
     ;;
   all-live)
     build_manifests
     teacher_random
     teacher_active
-    direct_matcher
+    direct_matcher "$@"
     validate_caches
     ;;
   -h|--help|help|"")

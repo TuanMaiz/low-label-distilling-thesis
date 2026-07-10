@@ -24,6 +24,25 @@ distilled student, and one actively selected LLM-label distilled student.
 - Non-functional: save checkpoints, predictions, metrics, and run metadata in stable output folders.
 - Decision: end this phase with a clear continue/revise/stop recommendation.
 
+## Ready Inputs
+
+As of 2026-07-10, the 128-budget Phase 5 inputs are ready:
+
+- Gold random target:
+  `data/cache/wdc_products/targets/train_128.gold_random.targets.jsonl`
+- Random LLM-label target:
+  `data/cache/wdc_products/targets/train_128.llm_random.openai-gpt-5-4-mini.targets.jsonl`
+- Active LLM-label target:
+  `data/cache/wdc_products/targets/train_128.llm_active_bucketed_v1.openai-gpt-5-4-mini.targets.jsonl`
+- Validation gold target:
+  `data/cache/wdc_products/targets/validation.label_only.targets.jsonl`
+- Test gold target:
+  `data/cache/wdc_products/targets/test.label_only.targets.jsonl`
+- Direct LLM validation baseline:
+  `outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.predictions.jsonl`
+- Direct LLM validation cost summary:
+  `outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.cost.json`
+
 ## Architecture
 
 ```text

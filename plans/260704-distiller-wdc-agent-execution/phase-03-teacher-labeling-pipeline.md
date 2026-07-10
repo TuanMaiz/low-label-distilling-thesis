@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Teacher Labeling, Active Selection, And Direct LLM Baseline"
-status: in_progress
+status: completed
 priority: P1
 effort: "3-5 days"
 dependencies: [1]
@@ -156,8 +156,9 @@ Updated 2026-07-07:
 - Local manifests now exist:
   - `data/cache/wdc_products/selection_manifests/train_128.random.jsonl`
   - `data/cache/wdc_products/selection_manifests/train_128.llm_active_bucketed_v1.jsonl`
-- Live OpenRouter generation has not been run yet in this working tree, so
-  teacher-label caches and direct prediction artifacts are still pending.
+- Live OpenRouter generation has been run for the 128-budget pilot with
+  `openai/gpt-5.4-mini`: random and active teacher-label caches exist, and the
+  full validation direct prediction artifact exists.
 - The `llm_active_bucketed_v1` manifest is label-free for scoring. Gold labels
   are retained only for audit/evaluation. Its default budget allocation is
   32/32/32/32 for the four candidate buckets at budget 128.
@@ -168,31 +169,31 @@ Predeclared first-run defaults before inspecting results:
 |---|---|
 | Prompt version | `answer_only_v1` |
 | Provider | `openrouter` |
-| Default model slug | `openai/gpt-4o-mini` (`openrouter:openai/gpt-4o-mini` in cache rows) |
+| Default model slug | `openai/gpt-5.4-mini` (`openrouter:openai/gpt-5.4-mini` in cache rows) |
 | Temperature | `0.0` |
 | Teacher-label first budget | `train_128` |
 | First selection strategy | `random` |
 | First active strategy | `llm_active_bucketed_v1`, after fixed manifest creation |
 | Active bucket ratios | `0.25` each for easy-match, hard-match, easy-non-match, hard-negative candidates |
-| Teacher-label output | `data/cache/wdc_products/teacher_labels/train_128.random.openrouter.answer_only_v1.labels.jsonl` |
-| Teacher-label rejects | `data/cache/wdc_products/teacher_labels/train_128.random.openrouter.answer_only_v1.rejects.jsonl` |
-| Active teacher-label output | `data/cache/wdc_products/teacher_labels/train_128.llm_active_bucketed_v1.openrouter.answer_only_v1.labels.jsonl` |
+| Teacher-label output | `data/cache/wdc_products/teacher_labels/train_128.random.openrouter.openai-gpt-5-4-mini.answer_only_v1.labels.jsonl` |
+| Teacher-label rejects | `data/cache/wdc_products/teacher_labels/train_128.random.openrouter.openai-gpt-5-4-mini.answer_only_v1.rejects.jsonl` |
+| Active teacher-label output | `data/cache/wdc_products/teacher_labels/train_128.llm_active_bucketed_v1.openrouter.openai-gpt-5-4-mini.answer_only_v1.labels.jsonl` |
 | Direct-eval default | full `validation` split unless cost forces a predeclared `--limit N --sample-seed 42` sample |
-| Direct-eval output | `outputs/distiller_wdc/direct_llm/validation.openrouter.answer_only_v1.predictions.jsonl` |
-| Direct-eval cost summary | `outputs/distiller_wdc/direct_llm/validation.openrouter.answer_only_v1.cost.json` |
+| Direct-eval output | `outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.predictions.jsonl` |
+| Direct-eval cost summary | `outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.cost.json` |
 
 ## Success Criteria
 
 - [x] `train_128.random` selection manifest exists.
 - [x] `train_128.llm_active_bucketed_v1` selection manifest exists if active pilot is approved.
-- [ ] `train_128.random` teacher-label cache exists.
-- [ ] `train_128.llm_active_bucketed_v1` teacher-label cache exists if active pilot is approved.
+- [x] `train_128.random` teacher-label cache exists.
+- [x] `train_128.llm_active_bucketed_v1` teacher-label cache exists if active pilot is approved.
 - [ ] `train_256` teacher-label cache exists if the sampler/selector is extended.
-- [ ] Direct LLM prediction cache exists for the fixed evaluation set or sample.
-- [ ] Invalid teacher output rate is reported on live cache.
-- [ ] Label distribution is reported on live cache.
-- [ ] Estimated teacher-labeling cost per budget is reported on live cache.
-- [ ] Estimated direct LLM inference cost per evaluated pair is reported on live cache.
+- [x] Direct LLM prediction cache exists for the fixed evaluation set or sample.
+- [x] Invalid teacher output rate is reported on live cache.
+- [x] Label distribution is reported on live cache.
+- [x] Estimated teacher-labeling cost per budget is reported on live cache.
+- [x] Estimated direct LLM inference cost per evaluated pair is reported on live cache.
 - [x] Unit tests pass.
 
 ## Risk Assessment

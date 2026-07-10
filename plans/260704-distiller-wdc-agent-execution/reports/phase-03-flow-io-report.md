@@ -7,8 +7,9 @@ fixed pair-selection manifests, sends selected or evaluation pairs through an
 answer-only LLM matcher, caches valid/invalid outputs, and prepares auditable
 cost/quality metadata for later target building and analysis.
 
-Live OpenRouter calls are still pending. The implemented and generated local
-artifacts are selection manifests and pipeline code.
+Live OpenRouter calls have been completed for the 128-budget pilot with
+`openai/gpt-5.4-mini`: random and active teacher-label caches exist, and the
+full validation direct LLM baseline exists with token/cost/metric summaries.
 
 ## High-Level Flow
 
@@ -144,7 +145,7 @@ Sanity checks:
 | Input | system prompt + user prompt |
 | Output | normalized `LLMResponse` |
 | Default provider | OpenRouter chat completions |
-| Default model | `openai/gpt-4o-mini` |
+| Default model | `openai/gpt-5.4-mini` |
 | Default temperature | `0.0` |
 
 Provider output fields:
@@ -185,10 +186,10 @@ data/cache/wdc_products/selection_manifests/train_128.llm_active_bucketed_v1.jso
 Expected outputs:
 
 ```text
-data/cache/wdc_products/teacher_labels/train_128.random.openrouter.answer_only_v1.labels.jsonl
-data/cache/wdc_products/teacher_labels/train_128.random.openrouter.answer_only_v1.rejects.jsonl
-data/cache/wdc_products/teacher_labels/train_128.llm_active_bucketed_v1.openrouter.answer_only_v1.labels.jsonl
-data/cache/wdc_products/teacher_labels/train_128.llm_active_bucketed_v1.openrouter.answer_only_v1.rejects.jsonl
+data/cache/wdc_products/teacher_labels/train_128.random.openrouter.openai-gpt-5-4-mini.answer_only_v1.labels.jsonl
+data/cache/wdc_products/teacher_labels/train_128.random.openrouter.openai-gpt-5-4-mini.answer_only_v1.rejects.jsonl
+data/cache/wdc_products/teacher_labels/train_128.llm_active_bucketed_v1.openrouter.openai-gpt-5-4-mini.answer_only_v1.labels.jsonl
+data/cache/wdc_products/teacher_labels/train_128.llm_active_bucketed_v1.openrouter.openai-gpt-5-4-mini.answer_only_v1.rejects.jsonl
 ```
 
 Valid cache row meaning:
@@ -288,8 +289,8 @@ data/cache/wdc_products/serialized/validation.jsonl
 Expected outputs:
 
 ```text
-outputs/distiller_wdc/direct_llm/validation.openrouter.answer_only_v1.predictions.jsonl
-outputs/distiller_wdc/direct_llm/validation.openrouter.answer_only_v1.cost.json
+outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.predictions.jsonl
+outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.cost.json
 ```
 
 Cache row meaning:
@@ -305,6 +306,123 @@ Sanity checks:
 - Otherwise declare fixed `--limit N --sample-seed 42` before inspecting results.
 - Direct LLM matcher does not train a student.
 - Direct LLM cost grows with every prediction, unlike distilled-student inference.
+
+### Direct Metric Provenance For Thesis Writing
+
+The direct LLM metric block in the `.cost.json` file is computed from the
+direct-prediction JSONL rows, not manually entered. Each prediction row stores:
+
+| Field | Meaning |
+|---|---|
+| `label` | parsed direct LLM output: `match` or `non_match` |
+| `gold_label` | WDC dataset truth copied from the serialized validation/test row |
+| `valid` | whether the raw LLM answer was parsed into the answer-only label set |
+
+The metric computation uses only valid prediction rows:
+
+```python
+predictions = [row.label == "match" for row in valid_rows]
+labels = [row.gold_label == "match" for row in valid_rows]
+```
+
+Then `utils/metrics.py` treats `match` as the positive class:
+
+| Count | Meaning |
+|---|---|
+| `tp` | predicted `match`, gold `match` |
+| `fp` | predicted `match`, gold `non_match` |
+| `tn` | predicted `non_match`, gold `non_match` |
+| `fn` | predicted `non_match`, gold `match` |
+
+For the clean GPT-5.4-mini validation direct baseline:
+
+```text
+tp = 438
+fp = 65
+tn = 1935
+fn = 62
+```
+
+The reported metrics therefore come from:
+
+```text
+match precision = tp / (tp + fp) = 438 / (438 + 65) = 0.8708
+match recall    = tp / (tp + fn) = 438 / (438 + 62) = 0.8760
+match F1        = 2PR / (P + R) = 0.8734
+accuracy        = (tp + tn) / total = (438 + 1935) / 2500 = 0.9492
+macro F1        = average(match F1, non-match F1) = 0.9208
+```
+
+Cost values in the same `.cost.json` summary come from summing the per-row
+OpenRouter usage fields stored in the prediction JSONL:
+
+```text
+input_tokens
+output_tokens
+estimated_cost_usd
+```
+
+For the clean GPT-5.4-mini validation direct baseline, the summary is:
+
+```text
+rows = 2500
+valid_count = 2500
+invalid_count = 0
+input_tokens = 969364
+output_tokens = 15439
+estimated_total_cost_usd = 0.7964985
+```
+
+Code path:
+
+```text
+supervision/direct_llm_matcher.py
+  -> _direct_metrics(...)
+  -> utils/metrics.py::compute_metrics(...)
+  -> analysis/cost_summary.py::summarize_rows(...)
+  -> write_summary_json(...)
+```
+
+### Direct Baseline Compared With Prior Work
+
+Use this table as thesis-writing context for whether the direct LLM baseline is
+plausible. These comparisons are not strict apples-to-apples because WDC
+variants, split construction, sample sizes, prompts, and model access differ
+across papers. The safest wording is that the GPT-5.4-mini direct result is
+within the range of strong LLM-as-matcher reports on WDC Products.
+
+| Source | Setup | Dataset/eval note | Match F1 |
+|---|---|---|---:|
+| This thesis, old direct baseline | `openai/gpt-4o-mini`, answer-only direct matcher | WDC validation, 2500 pairs | 0.7636 |
+| This thesis, current direct baseline | `openai/gpt-5.4-mini`, answer-only direct matcher | WDC validation, 2500 pairs | 0.8734 |
+| Peeters and Bizer 2023 | ChatGPT zero-shot, best basic prompt | WDC sampled validation, 433 pairs | 0.8624 |
+| Peeters and Bizer 2023 | ChatGPT zero-shot plus rules | WDC sampled validation, 433 pairs | 0.8829 |
+| Peeters and Bizer 2023 | ChatGPT plus 20 related demonstrations | WDC sampled validation, 433 pairs | 0.9020 |
+| AnyMatch 2024 | MatchGPT with GPT-3.5-Turbo03 | WDC in multi-dataset zero-shot table | 0.7651 |
+| AnyMatch 2024 | MatchGPT with GPT-4 | WDC in multi-dataset zero-shot table | 0.8583 |
+| AnyMatch 2024 | AnyMatch small model | WDC zero-shot | 0.6331 |
+| Steiner and Bizer 2026 | Distilled student from GPT-5.2 teacher | WDC student F1, not direct LLM | 0.7217 |
+| Steiner and Bizer 2026 | Distilled student from Qwen 3.6 Plus teacher | WDC student F1, not direct LLM | 0.7249 |
+
+Interpretation for writing:
+
+- `gpt-4o-mini` was plausible for a cheaper direct LLM baseline but much more
+  conservative on matches: match recall was 0.6880.
+- `gpt-5.4-mini` improved match recall to 0.8760 and match F1 to 0.8734,
+  placing it near strong direct LLM WDC reports.
+- The comparison should be framed as contextual alignment, not a leaderboard
+  claim, because the thesis uses its own fixed validation split and answer-only
+  prompt.
+- For the thesis cost story, the important question remains whether low-budget
+  LLM-labeled students can approach this direct LLM quality at much cheaper
+  repeated inference cost.
+
+References to cite/check during thesis writing:
+
+- Peeters and Bizer, 2023, "Using ChatGPT for Entity Matching".
+- AnyMatch, 2024.
+- Steiner and Bizer, 2026, "Labeling Training Data for Entity Matching Using
+  Large Language Models".
 
 ## Flow 9: Phase 4 Handoff
 
@@ -334,24 +452,24 @@ Sanity checks:
 |---|---|
 | `train_128.random` manifest | exists, 128 rows |
 | `train_128.llm_active_bucketed_v1` manifest | exists, 128 rows after local regeneration |
-| Random teacher-label cache | pending live OpenRouter call |
-| Active teacher-label cache | pending live OpenRouter call |
-| Direct validation prediction cache | pending live OpenRouter call |
+| Random teacher-label cache | exists, 128 valid rows, 0 rejects, `openai/gpt-5.4-mini` |
+| Active teacher-label cache | exists, 128 valid rows, 0 rejects, `openai/gpt-5.4-mini` |
+| Direct validation prediction cache | exists, 2500 valid rows, 0 invalid, `openai/gpt-5.4-mini` |
 | Validator/cost summary code | implemented |
-| Unit tests | passing as of last run: 17 tests |
+| Unit tests | passing as of last run: 21 tests |
 
 ## End-To-End Sanity Checklist
 
-- [ ] Manifests are fixed and versioned before LLM calls.
-- [ ] Prompt does not expose gold labels.
-- [ ] Teacher-label cache stores both LLM `label` and dataset `gold_label`.
-- [ ] Direct LLM cache stores both LLM `label` and dataset `gold_label`.
-- [ ] Invalid model outputs are measurable, not silently coerced.
-- [ ] Token and cost fields are present for every LLM call when provider returns usage.
-- [ ] Selection strategy is present in teacher-label caches.
-- [ ] Random and active teacher-label caches are validated separately.
-- [ ] Phase 4 target builder uses teacher `label` for LLM variants.
-- [ ] Validation/test evaluation uses gold labels.
+- [x] Manifests are fixed and versioned before LLM calls.
+- [x] Prompt does not expose gold labels.
+- [x] Teacher-label cache stores both LLM `label` and dataset `gold_label`.
+- [x] Direct LLM cache stores both LLM `label` and dataset `gold_label`.
+- [x] Invalid model outputs are measurable, not silently coerced.
+- [x] Token and cost fields are present for every LLM call when provider returns usage.
+- [x] Selection strategy is present in teacher-label caches.
+- [x] Random and active teacher-label caches are validated separately.
+- [x] Phase 4 target builder uses teacher `label` for LLM variants.
+- [x] Validation/test evaluation uses gold labels.
 
 ## Commands For Sanity Check
 
@@ -389,16 +507,16 @@ Underlying commands:
 
 .venv/bin/python -m supervision.generate_teacher_labels \
   --pairs data/cache/wdc_products/selection_manifests/train_128.random.jsonl \
-  --model openai/gpt-4o-mini \
+  --model openai/gpt-5.4-mini \
   --temperature 0.0
 
 .venv/bin/python -m supervision.generate_teacher_labels \
   --pairs data/cache/wdc_products/selection_manifests/train_128.llm_active_bucketed_v1.jsonl \
-  --model openai/gpt-4o-mini \
+  --model openai/gpt-5.4-mini \
   --temperature 0.0
 
 .venv/bin/python -m supervision.direct_llm_matcher \
   --input data/cache/wdc_products/serialized/validation.jsonl \
-  --model openai/gpt-4o-mini \
+  --model openai/gpt-5.4-mini \
   --temperature 0.0
 ```

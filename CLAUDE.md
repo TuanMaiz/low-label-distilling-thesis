@@ -57,10 +57,11 @@ failure-slice study: which pairs are worth spending LLM teacher calls on, where
 selection fails, how much it costs, and whether patterns replicate on one
 optional later dataset.
 
-As of 2026-07-08, Phase 3 answer-only LLM pipeline code, fixed `train_128`
-selection manifests, live OpenRouter teacher-label caches, and Phase 4
-128-budget student target files exist. Direct LLM validation/test prediction
-artifacts have not been generated in this working tree yet.
+As of 2026-07-10, Phase 3 answer-only LLM pipeline code, fixed `train_128`
+selection manifests, live OpenRouter `openai/gpt-5.4-mini` teacher-label
+caches, the full validation direct-LLM baseline, and Phase 4 128-budget student
+target files exist. Phase 5 student training/evaluation is the next active
+step.
 
 ## Build & Run Commands
 
@@ -104,13 +105,10 @@ calling the teacher.
 
 Follow the active plan phases:
 
-1. Phase 3 live run: generate direct LLM predictions for the full validation
-   split, or declare a fixed `--limit N --sample-seed 42` validation sample
-   before inspecting any results.
-2. Phase 5: train/evaluate the 128-budget pilot against the existing gold-label
+1. Phase 5: train/evaluate the 128-budget pilot against the existing gold-label
    compact-student reference, random LLM-label control, active LLM-label method,
    and the direct LLM baseline.
-3. Phase 7: analyze teacher-label noise and bucket-level failure slices after
+2. Phase 7: analyze teacher-label noise and bucket-level failure slices after
    student outputs exist.
 
 The anti-cherry-pick rule is important: fixed evaluation split/sample, prompt
@@ -118,12 +116,12 @@ version, model slug, budgets, and cost fields must be declared before results
 are inspected.
 
 Predeclared Phase 3 defaults: prompt version `answer_only_v1`, provider
-`openrouter`, default model `openai/gpt-4o-mini`, temperature `0.0`, first
+`openrouter`, default model `openai/gpt-5.4-mini`, temperature `0.0`, first
 teacher budget `train_128`, first selection strategy `random`, first active
 strategy `llm_active_bucketed_v1` with default 25 percent quotas for
 `easy_match_candidate`, `hard_match_candidate`, `easy_non_match_candidate`, and
 `hard_negative_candidate`, and direct-eval output under
-`outputs/distiller_wdc/direct_llm/validation.openrouter.answer_only_v1.*`.
+`outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.*`.
 
 ## Tech Stack
 

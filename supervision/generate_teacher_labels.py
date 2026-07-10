@@ -11,16 +11,23 @@ from analysis.cost_summary import summarize_rows
 from supervision.config import (
     DEFAULT_DATASET,
     DEFAULT_ENV_FILE,
+    DEFAULT_MAX_TOKENS,
     DEFAULT_OPENROUTER_BASE_URL,
     DEFAULT_PROMPT_VERSION,
     DEFAULT_SAMPLE_SEED,
     DEFAULT_TEMPERATURE,
     infer_budget_from_path,
     infer_selection_strategy_from_path,
+    model_slug_path_part,
     teacher_label_output_path,
     teacher_reject_output_path,
 )
-from supervision.llm_providers import AnswerOnlyLLM, LLMResponse, build_answer_only_provider
+from supervision.llm_providers import (
+    AnswerOnlyLLM,
+    LLMResponse,
+    build_answer_only_provider,
+    resolve_openrouter_model,
+)
 from supervision.prompts import build_answer_only_prompt, parse_answer_only_label
 from supervision.teacher_label_schema import TeacherLabel, gold_label_from_pair
 
@@ -282,33 +289,39 @@ def main() -> None:
     parser.add_argument("--openrouter-base-url", default=DEFAULT_OPENROUTER_BASE_URL)
     parser.add_argument("--openrouter-timeout", type=int, default=90)
     parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
-    parser.add_argument("--max-tokens", type=int, default=8)
+    parser.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
     parser.add_argument("--input-cost-per-million", type=float)
     parser.add_argument("--output-cost-per-million", type=float)
     args = parser.parse_args()
 
     budget = args.budget or infer_budget_from_path(args.pairs)
     selection_strategy = args.selection_strategy or infer_selection_strategy_from_path(args.pairs)
+    resolved_model = resolve_openrouter_model(model=args.model, env_file=args.env_file)
     output_path = args.output or (
         teacher_label_output_path(
             budget,
             selection_strategy=selection_strategy,
             prompt_version=args.prompt_version,
+            model=resolved_model,
         )
         if budget
-        else Path("data/cache/wdc_products/teacher_labels/teacher_labels.openrouter.answer_only_v1.labels.jsonl")
+        else Path(
+            "data/cache/wdc_products/teacher_labels/"
+            f"teacher_labels.openrouter.{model_slug_path_part(resolved_model)}.{args.prompt_version}.labels.jsonl"
+        )
     )
     reject_path = args.rejects or (
         teacher_reject_output_path(
             budget,
             selection_strategy=selection_strategy,
             prompt_version=args.prompt_version,
+            model=resolved_model,
         )
         if budget
         else _default_reject_path(output_path)
     )
     provider = build_answer_only_provider(
-        model=args.model,
+        model=resolved_model,
         api_key=args.api_key,
         env_file=args.env_file,
         openrouter_base_url=args.openrouter_base_url,

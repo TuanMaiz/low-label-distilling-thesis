@@ -11,6 +11,7 @@ from typing import Any, Protocol
 
 from supervision.config import (
     DEFAULT_ENV_FILE,
+    DEFAULT_MAX_TOKENS,
     DEFAULT_OPENROUTER_BASE_URL,
     DEFAULT_OPENROUTER_MODEL,
     DEFAULT_TEMPERATURE,
@@ -149,7 +150,7 @@ class OpenRouterAnswerOnlyClient:
         base_url: str = DEFAULT_OPENROUTER_BASE_URL,
         timeout: int = 90,
         temperature: float = DEFAULT_TEMPERATURE,
-        max_tokens: int = 8,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         pricing: TokenPricing | None = None,
     ):
         resolved_model = resolve_openrouter_model(model=model, env_file=env_file)
@@ -236,7 +237,7 @@ def build_answer_only_provider(
     openrouter_base_url: str = DEFAULT_OPENROUTER_BASE_URL,
     openrouter_timeout: int = 90,
     openrouter_temperature: float = DEFAULT_TEMPERATURE,
-    openrouter_max_tokens: int = 8,
+    openrouter_max_tokens: int = DEFAULT_MAX_TOKENS,
     input_cost_per_million: float | None = None,
     output_cost_per_million: float | None = None,
 ) -> AnswerOnlyLLM:

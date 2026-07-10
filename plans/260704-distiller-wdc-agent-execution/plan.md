@@ -145,8 +145,8 @@ Teacher LLM calls are used only to prepare training labels. Final inference must
 | Direct LLM predictions | `outputs/distiller_wdc/direct_llm/*.predictions.jsonl` |
 | Selection manifests | `data/cache/wdc_products/selection/*.jsonl` |
 | Teacher-label cache | `data/cache/wdc_products/teacher_labels/*.jsonl` |
-| Random LLM-label targets | `data/cache/wdc_products/targets/*.llm_random.targets.jsonl` |
-| Active-label targets | `data/cache/wdc_products/targets/*.llm_active_*.targets.jsonl` |
+| Random LLM-label targets | `data/cache/wdc_products/targets/*.llm_random.*.targets.jsonl` |
+| Active-label targets | `data/cache/wdc_products/targets/*.llm_active_*.*.targets.jsonl` |
 | Mixed targets | `data/cache/wdc_products/targets/*.mixed_gold_llm_active.targets.jsonl` |
 | Student outputs | `outputs/distiller_wdc/...` |
 | Aggregated metrics | `outputs/distiller_wdc/summary/*.csv` |
@@ -163,7 +163,7 @@ clear signal. They are not required for the WDC thesis-core claim.
 |-------|------|--------|----------|--------|--------------|
 | 1 | [Research Contract](./phase-01-research-contract.md) | Completed | P1 | 1 day | None |
 | 2 | [Pivot Cleanup](./phase-02-pivot-cleanup.md) | Completed | P1 | 0.5-1 day | Phase 1 |
-| 3 | [Teacher Labeling, Active Selection, And Direct LLM Baseline](./phase-03-teacher-labeling-pipeline.md) | In Progress | P1 | 3-5 days | Phase 1 |
+| 3 | [Teacher Labeling, Active Selection, And Direct LLM Baseline](./phase-03-teacher-labeling-pipeline.md) | Completed | P1 | 3-5 days | Phase 1 |
 | 4 | [Training Target Builder](./phase-04-training-target-builder.md) | Completed | P1 | 2-3 days | Phase 3 |
 | 5 | [Pilot Student Runs And Direct LLM Baseline](./phase-05-pilot-student-runs.md) | Pending | P1 | 1-2 weeks | Phase 4 |
 | 6 | [Full Budget Study](./phase-06-full-budget-study.md) | Pending | P1 | 2-3 weeks | Phase 5 |
@@ -191,8 +191,8 @@ Representative training and evaluation commands should keep the existing pattern
 
 ```bash
 .venv/bin/python -m experiments.train_mt5 \
-  --train-targets data/cache/wdc_products/targets/train_128.llm_active_bucketed_v1.targets.jsonl \
-  --validation-targets data/cache/wdc_products/targets/validation.gold_label.targets.jsonl \
+  --train-targets data/cache/wdc_products/targets/train_128.llm_active_bucketed_v1.openai-gpt-5-4-mini.targets.jsonl \
+  --validation-targets data/cache/wdc_products/targets/validation.label_only.targets.jsonl \
   --output-dir outputs/distiller_wdc/flan-t5-base/train_128/llm_active_bucketed_v1 \
   --model-name google/flan-t5-base
 ```

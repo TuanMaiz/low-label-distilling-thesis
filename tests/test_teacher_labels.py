@@ -19,6 +19,7 @@ from supervision.direct_llm_matcher import run_direct_llm_matcher, select_evalua
 from supervision.generate_teacher_labels import generate_teacher_labels
 from supervision.llm_providers import LLMResponse
 from supervision.prompts import build_answer_only_prompt, parse_answer_only_label
+from supervision.config import direct_prediction_output_path, teacher_label_output_path
 from supervision.teacher_label_schema import TeacherLabel
 from supervision.validate_teacher_labels import validate_cache
 
@@ -73,6 +74,26 @@ class _FakeProvider:
 
 
 class TeacherLabelPipelineTest(unittest.TestCase):
+    def test_default_artifact_paths_include_model_slug(self):
+        teacher_path = teacher_label_output_path(
+            128,
+            selection_strategy="random",
+            model="openai/gpt-5.4-mini",
+        )
+        direct_path = direct_prediction_output_path(
+            "validation",
+            model="openai/gpt-5.4-mini",
+        )
+
+        self.assertEqual(
+            teacher_path.name,
+            "train_128.random.openrouter.openai-gpt-5-4-mini.answer_only_v1.labels.jsonl",
+        )
+        self.assertEqual(
+            direct_path.name,
+            "validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.predictions.jsonl",
+        )
+
     def test_prompt_is_answer_only_and_does_not_expose_gold_label(self):
         pair = _pair_row(label=1)
 

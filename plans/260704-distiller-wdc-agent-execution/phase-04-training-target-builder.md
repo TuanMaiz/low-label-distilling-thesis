@@ -77,7 +77,7 @@ low-label train pairs
 
 ## Implementation Status
 
-Updated 2026-07-08:
+Updated 2026-07-10:
 
 - Extended `supervision/build_targets.py` with `gold_random`, `llm_random`,
   and `llm_active_bucketed_v1` variants.
@@ -88,18 +88,19 @@ Updated 2026-07-08:
 - Active target rows preserve `selection_bucket`, bucket rank/quota, selection
   rank, score, seed, teacher model, prompt version, token counts, and cost.
 - Added `scripts/run_phase04_targets.sh` for reproducible target generation.
-- Generated the 128-budget pilot targets:
+- Generated the 128-budget pilot targets for the current `openai/gpt-5.4-mini`
+  teacher caches:
   - `data/cache/wdc_products/targets/train_128.gold_random.targets.jsonl`
-  - `data/cache/wdc_products/targets/train_128.llm_random.targets.jsonl`
-  - `data/cache/wdc_products/targets/train_128.llm_active_bucketed_v1.targets.jsonl`
+  - `data/cache/wdc_products/targets/train_128.llm_random.openai-gpt-5-4-mini.targets.jsonl`
+  - `data/cache/wdc_products/targets/train_128.llm_active_bucketed_v1.openai-gpt-5-4-mini.targets.jsonl`
 - Optional `mixed_gold_llm_active` and 256-budget targets are deferred until the
   128 pilot result justifies them.
 
 ## Success Criteria
 
 - [x] `train_128.gold_random.targets.jsonl` exists or equivalent old label-only target is mapped.
-- [x] `train_128.llm_random.targets.jsonl` exists.
-- [x] `train_128.llm_active_bucketed_v1.targets.jsonl` exists if active pilot is approved.
+- [x] `train_128.llm_random.openai-gpt-5-4-mini.targets.jsonl` exists.
+- [x] `train_128.llm_active_bucketed_v1.openai-gpt-5-4-mini.targets.jsonl` exists if active pilot is approved.
 - [ ] `train_256.llm_random.targets.jsonl` exists if the `256` manifest is created.
 - [ ] `train_256.llm_active_bucketed_v1.targets.jsonl` exists if active pilot expands.
 - [x] Validation/test targets use gold labels only.

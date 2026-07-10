@@ -11,6 +11,7 @@ from analysis.cost_summary import summarize_rows, write_summary_json
 from supervision.config import (
     DEFAULT_DATASET,
     DEFAULT_ENV_FILE,
+    DEFAULT_MAX_TOKENS,
     DEFAULT_OPENROUTER_BASE_URL,
     DEFAULT_PROMPT_VERSION,
     DEFAULT_SAMPLE_SEED,
@@ -19,7 +20,12 @@ from supervision.config import (
     direct_prediction_output_path,
 )
 from supervision.generate_teacher_labels import append_jsonl, iter_jsonl, utc_now
-from supervision.llm_providers import AnswerOnlyLLM, LLMResponse, build_answer_only_provider
+from supervision.llm_providers import (
+    AnswerOnlyLLM,
+    LLMResponse,
+    build_answer_only_provider,
+    resolve_openrouter_model,
+)
 from supervision.prompts import build_answer_only_prompt, parse_answer_only_label
 from supervision.teacher_label_schema import DirectLLMPrediction, gold_label_from_pair
 from utils.metrics import compute_metrics
@@ -258,15 +264,20 @@ def main() -> None:
     parser.add_argument("--openrouter-base-url", default=DEFAULT_OPENROUTER_BASE_URL)
     parser.add_argument("--openrouter-timeout", type=int, default=90)
     parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
-    parser.add_argument("--max-tokens", type=int, default=8)
+    parser.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
     parser.add_argument("--input-cost-per-million", type=float)
     parser.add_argument("--output-cost-per-million", type=float)
     args = parser.parse_args()
 
     split = args.input.stem
-    output_path = args.output or direct_prediction_output_path(split, prompt_version=args.prompt_version)
+    resolved_model = resolve_openrouter_model(model=args.model, env_file=args.env_file)
+    output_path = args.output or direct_prediction_output_path(
+        split,
+        prompt_version=args.prompt_version,
+        model=resolved_model,
+    )
     provider = build_answer_only_provider(
-        model=args.model,
+        model=resolved_model,
         api_key=args.api_key,
         env_file=args.env_file,
         openrouter_base_url=args.openrouter_base_url,

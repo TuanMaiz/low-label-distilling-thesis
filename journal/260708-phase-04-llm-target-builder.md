@@ -42,3 +42,15 @@ The earlier sandbox DNS-failure reject rows were deleted after the successful
 OpenRouter run. The `teacher_labels/` directory now keeps only the successful
 `.labels.jsonl` caches. The successful label caches validate cleanly and were
 used for target generation.
+
+## Superseded Artifact Note
+
+Updated 2026-07-10: the model-less LLM target files listed above were
+superseded after switching the Phase 3 teacher/direct model to
+`openai/gpt-5.4-mini`. Phase 5 should use:
+
+- `data/cache/wdc_products/targets/train_128.llm_random.openai-gpt-5-4-mini.targets.jsonl`
+- `data/cache/wdc_products/targets/train_128.llm_active_bucketed_v1.openai-gpt-5-4-mini.targets.jsonl`
+
+The old model-less LLM target files were removed to avoid accidental training
+from stale GPT-4o-mini teacher labels.

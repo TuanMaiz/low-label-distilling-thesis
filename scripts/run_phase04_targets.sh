@@ -16,6 +16,7 @@ Commands:
 Environment overrides:
   PYTHON=.venv/bin/python
   BUDGET=128
+  MODEL=openai/gpt-5.4-mini
   PROMPT_VERSION=answer_only_v1
   ACTIVE_STRATEGY=llm_active_bucketed_v1
 EOF
@@ -27,17 +28,20 @@ cd "${repo_root}"
 
 PYTHON="${PYTHON:-.venv/bin/python}"
 BUDGET="${BUDGET:-128}"
+MODEL="${MODEL:-${OPENROUTER_MODEL:-openai/gpt-5.4-mini}}"
+MODEL_TAG="${MODEL//\//-}"
+MODEL_TAG="${MODEL_TAG//./-}"
 PROMPT_VERSION="${PROMPT_VERSION:-answer_only_v1}"
 ACTIVE_STRATEGY="${ACTIVE_STRATEGY:-llm_active_bucketed_v1}"
 
 LOW_LABEL_INPUT="data/cache/wdc_products/low_label/train_${BUDGET}.jsonl"
 RANDOM_MANIFEST="data/cache/wdc_products/selection_manifests/train_${BUDGET}.random.jsonl"
 ACTIVE_MANIFEST="data/cache/wdc_products/selection_manifests/train_${BUDGET}.${ACTIVE_STRATEGY}.jsonl"
-RANDOM_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.random.openrouter.${PROMPT_VERSION}.labels.jsonl"
-ACTIVE_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.${ACTIVE_STRATEGY}.openrouter.${PROMPT_VERSION}.labels.jsonl"
+RANDOM_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.random.openrouter.${MODEL_TAG}.${PROMPT_VERSION}.labels.jsonl"
+ACTIVE_LABELS="data/cache/wdc_products/teacher_labels/train_${BUDGET}.${ACTIVE_STRATEGY}.openrouter.${MODEL_TAG}.${PROMPT_VERSION}.labels.jsonl"
 GOLD_RANDOM_TARGETS="data/cache/wdc_products/targets/train_${BUDGET}.gold_random.targets.jsonl"
-LLM_RANDOM_TARGETS="data/cache/wdc_products/targets/train_${BUDGET}.llm_random.targets.jsonl"
-ACTIVE_TARGETS="data/cache/wdc_products/targets/train_${BUDGET}.${ACTIVE_STRATEGY}.targets.jsonl"
+LLM_RANDOM_TARGETS="data/cache/wdc_products/targets/train_${BUDGET}.llm_random.${MODEL_TAG}.targets.jsonl"
+ACTIVE_TARGETS="data/cache/wdc_products/targets/train_${BUDGET}.${ACTIVE_STRATEGY}.${MODEL_TAG}.targets.jsonl"
 
 require_python() {
   if [[ ! -x "${PYTHON}" ]]; then

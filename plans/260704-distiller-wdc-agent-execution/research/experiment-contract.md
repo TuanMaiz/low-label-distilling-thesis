@@ -202,7 +202,7 @@ Provider: OpenRouter, reusing the existing provider pattern.
 
 Default model convention from the current rationale pipeline:
 
-`openrouter:openai/gpt-4o-mini`
+`openrouter:openai/gpt-5.4-mini`
 
 Rules:
 
@@ -359,11 +359,11 @@ Interpretation: structured rationales increased recall but badly hurt precision 
 
 Teacher labels:
 
-`data/cache/wdc_products/teacher_labels/train_{budget}.{selection_strategy}.openrouter.answer_only_v1.labels.jsonl`
+`data/cache/wdc_products/teacher_labels/train_{budget}.{selection_strategy}.openrouter.{model_tag}.answer_only_v1.labels.jsonl`
 
 Teacher rejects:
 
-`data/cache/wdc_products/teacher_labels/train_{budget}.{selection_strategy}.openrouter.answer_only_v1.rejects.jsonl`
+`data/cache/wdc_products/teacher_labels/train_{budget}.{selection_strategy}.openrouter.{model_tag}.answer_only_v1.rejects.jsonl`
 
 Selection manifests:
 
@@ -371,15 +371,18 @@ Selection manifests:
 
 Direct LLM predictions:
 
-`outputs/distiller_wdc/direct_llm/{split}.openrouter.answer_only_v1.predictions.jsonl`
+`outputs/distiller_wdc/direct_llm/{split}.openrouter.{model_tag}.answer_only_v1.predictions.jsonl`
 
 Direct LLM cost summary:
 
-`outputs/distiller_wdc/direct_llm/{split}.openrouter.answer_only_v1.cost.json`
+`outputs/distiller_wdc/direct_llm/{split}.openrouter.{model_tag}.answer_only_v1.cost.json`
 
 Targets:
 
-`data/cache/wdc_products/targets/train_{budget}.{variant}.targets.jsonl`
+`data/cache/wdc_products/targets/train_{budget}.{variant}.{model_tag}.targets.jsonl`
+
+Gold-label targets may omit `{model_tag}` because they are not tied to an LLM
+teacher model.
 
 Outputs:
 

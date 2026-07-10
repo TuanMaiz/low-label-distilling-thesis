@@ -8,9 +8,10 @@ from pathlib import Path
 DEFAULT_DATASET = "wdc_products"
 DEFAULT_PROVIDER = "openrouter"
 DEFAULT_PROMPT_VERSION = "answer_only_v1"
-DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
+DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.4-mini"
 DEFAULT_OPENROUTER_MODEL_SLUG = f"{DEFAULT_PROVIDER}:{DEFAULT_OPENROUTER_MODEL}"
 DEFAULT_TEMPERATURE = 0.0
+DEFAULT_MAX_TOKENS = 16
 DEFAULT_SAMPLE_SEED = 42
 DEFAULT_ENV_FILE = ".env"
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -19,6 +20,12 @@ WDC_CACHE_DIR = Path("data/cache/wdc_products")
 SELECTION_MANIFEST_DIR = WDC_CACHE_DIR / "selection_manifests"
 TEACHER_LABEL_DIR = WDC_CACHE_DIR / "teacher_labels"
 DIRECT_OUTPUT_DIR = Path("outputs/distiller_wdc/direct_llm")
+
+
+def model_slug_path_part(model: str | None = None) -> str:
+    """Return a filesystem-safe model slug for model-specific artifacts."""
+    model_name = model or DEFAULT_OPENROUTER_MODEL
+    return re.sub(r"[^A-Za-z0-9]+", "-", model_name).strip("-").lower()
 
 
 def infer_budget_from_path(path: Path) -> str | None:
@@ -40,10 +47,12 @@ def teacher_label_output_path(
     selection_strategy: str | None = None,
     provider: str = DEFAULT_PROVIDER,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
+    model: str | None = DEFAULT_OPENROUTER_MODEL,
 ) -> Path:
     """Return the declared teacher-label cache path for a WDC train budget."""
     strategy_part = f".{selection_strategy}" if selection_strategy else ""
-    return TEACHER_LABEL_DIR / f"train_{budget}{strategy_part}.{provider}.{prompt_version}.labels.jsonl"
+    model_part = f".{model_slug_path_part(model)}" if model else ""
+    return TEACHER_LABEL_DIR / f"train_{budget}{strategy_part}.{provider}{model_part}.{prompt_version}.labels.jsonl"
 
 
 def teacher_reject_output_path(
@@ -51,10 +60,12 @@ def teacher_reject_output_path(
     selection_strategy: str | None = None,
     provider: str = DEFAULT_PROVIDER,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
+    model: str | None = DEFAULT_OPENROUTER_MODEL,
 ) -> Path:
     """Return the declared teacher-label reject path for a WDC train budget."""
     strategy_part = f".{selection_strategy}" if selection_strategy else ""
-    return TEACHER_LABEL_DIR / f"train_{budget}{strategy_part}.{provider}.{prompt_version}.rejects.jsonl"
+    model_part = f".{model_slug_path_part(model)}" if model else ""
+    return TEACHER_LABEL_DIR / f"train_{budget}{strategy_part}.{provider}{model_part}.{prompt_version}.rejects.jsonl"
 
 
 def selection_manifest_path(budget: str | int, selection_strategy: str) -> Path:
@@ -66,9 +77,11 @@ def direct_prediction_output_path(
     split: str,
     provider: str = DEFAULT_PROVIDER,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
+    model: str | None = DEFAULT_OPENROUTER_MODEL,
 ) -> Path:
     """Return the declared direct-LLM prediction cache path for a split."""
-    return DIRECT_OUTPUT_DIR / f"{split}.{provider}.{prompt_version}.predictions.jsonl"
+    model_part = f".{model_slug_path_part(model)}" if model else ""
+    return DIRECT_OUTPUT_DIR / f"{split}.{provider}{model_part}.{prompt_version}.predictions.jsonl"
 
 
 def direct_cost_output_path(prediction_path: Path) -> Path:
