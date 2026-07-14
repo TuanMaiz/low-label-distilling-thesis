@@ -76,11 +76,16 @@ class _TinyTokenizer:
         del padding, truncation, return_tensors
         import torch
 
-        ids = [min(ord(char), 255) for char in text[:max_length]]
-        ids = ids + [self.pad_token_id] * (max_length - len(ids))
+        texts = [text] if isinstance(text, str) else text
+        rows = []
+        for value in texts:
+            ids = [min(ord(char), 255) for char in value[:max_length]]
+            rows.append(ids + [self.pad_token_id] * (max_length - len(ids)))
         return {
-            "input_ids": torch.tensor([ids]),
-            "attention_mask": torch.tensor([[1 if value != self.pad_token_id else 0 for value in ids]]),
+            "input_ids": torch.tensor(rows),
+            "attention_mask": torch.tensor(
+                [[1 if item != self.pad_token_id else 0 for item in row] for row in rows]
+            ),
         }
 
 
@@ -204,6 +209,28 @@ class Seq2SeqStudentTest(unittest.TestCase):
 
         self.assertEqual(item["input_ids"].shape[0], 8)
         self.assertIn(-100, item["labels"].tolist())
+
+    def test_dataset_tokenizes_only_during_initialization(self):
+        class _CountingTokenizer(_TinyTokenizer):
+            def __init__(self):
+                self.calls = 0
+
+            def __call__(self, *args, **kwargs):
+                self.calls += 1
+                return super().__call__(*args, **kwargs)
+
+        tokenizer = _CountingTokenizer()
+        dataset = ERSeq2SeqDataset(
+            rows=[{"input_text": "abc", "target_text": "match"}],
+            tokenizer=tokenizer,
+            max_input_length=8,
+            max_target_length=8,
+        )
+
+        self.assertEqual(tokenizer.calls, 2)
+        dataset[0]
+        dataset[0]
+        self.assertEqual(tokenizer.calls, 2)
 
     def test_seq2seq_loader_uses_slow_tokenizer(self):
         calls = {}

@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -56,26 +57,40 @@ def _label_from_row(row: dict) -> bool:
     return bool(label)
 
 
+def inference_timing_metrics(inference_seconds: float, row_count: int) -> dict:
+    """Return structured throughput metrics without applying a pricing assumption."""
+    return {
+        "student_inference_seconds": inference_seconds,
+        "student_inference_rows_per_second": (
+            row_count / inference_seconds if inference_seconds > 0 else None
+        ),
+        "student_inference_seconds_per_pair": (
+            inference_seconds / row_count if row_count else None
+        ),
+    }
+
+
 class PredictionDataset:
     def __init__(self, rows: list[dict], tokenizer, max_input_length: int) -> None:
         self.rows = rows
-        self.tokenizer = tokenizer
         self.max_input_length = max_input_length
+        encoded = tokenizer(
+            [row["input_text"] for row in rows],
+            max_length=max_input_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        self.input_ids = encoded["input_ids"]
+        self.attention_mask = encoded["attention_mask"]
 
     def __len__(self) -> int:
         return len(self.rows)
 
     def __getitem__(self, idx: int):
-        encoded = self.tokenizer(
-            self.rows[idx]["input_text"],
-            max_length=self.max_input_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt",
-        )
         return {
-            "input_ids": encoded["input_ids"].squeeze(0),
-            "attention_mask": encoded["attention_mask"].squeeze(0),
+            "input_ids": self.input_ids[idx],
+            "attention_mask": self.attention_mask[idx],
         }
 
 
@@ -87,18 +102,22 @@ def generate_predictions(
     max_input_length: int = 512,
     max_new_tokens: int = 64,
     device: str | None = None,
+    precision: str = "auto",
 ) -> dict:
     import torch
     from torch.utils.data import DataLoader
     from tqdm import tqdm
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+    from utils.torch_runtime import autocast_context, resolve_precision
 
     rows = list(iter_jsonl(input_path))
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    evaluation_started = time.perf_counter()
 
     tokenizer = AutoTokenizer.from_pretrained(checkpoint, use_fast=False)
     model = AutoModelForSeq2SeqLM.from_pretrained(checkpoint)
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    resolved_precision = resolve_precision(device, precision)
     model.to(device)
     model.eval()
 
@@ -107,7 +126,11 @@ def generate_predictions(
 
     predictions: list[dict] = []
     cursor = 0
-    with torch.no_grad():
+    device_object = torch.device(device)
+    if device_object.type == "cuda":
+        torch.cuda.synchronize(device_object)
+    inference_started = time.perf_counter()
+    with torch.inference_mode(), autocast_context(device, resolved_precision):
         for batch in tqdm(loader, desc="Generating"):
             batch = {key: value.to(device) for key, value in batch.items()}
             generated = model.generate(
@@ -129,13 +152,34 @@ def generate_predictions(
                     }
                 )
                 cursor += 1
+    if device_object.type == "cuda":
+        torch.cuda.synchronize(device_object)
+    inference_seconds = time.perf_counter() - inference_started
 
-    with output_path.open("w", encoding="utf-8") as handle:
+    temporary_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    with temporary_output_path.open("w", encoding="utf-8") as handle:
         for row in predictions:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    temporary_output_path.replace(output_path)
 
     metrics = evaluate_prediction_rows(predictions)
     metrics["predictions"] = str(output_path)
+    metrics["precision"] = resolved_precision
+    metrics.update(inference_timing_metrics(inference_seconds, len(rows)))
+    metrics.update(
+        {
+            "evaluation_wall_seconds": time.perf_counter() - evaluation_started,
+            "inference_device": str(device_object),
+            "inference_device_name": (
+                torch.cuda.get_device_name(device_object)
+                if device_object.type == "cuda"
+                else "cpu"
+            ),
+            "inference_batch_size": batch_size,
+            "inference_max_input_length": max_input_length,
+            "inference_max_new_tokens": max_new_tokens,
+        }
+    )
     return metrics
 
 
@@ -158,7 +202,12 @@ def evaluate_prediction_rows(rows: list[dict]) -> dict:
 
 def write_metrics(path: Path, metrics: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8")
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    temporary_path.write_text(
+        json.dumps(metrics, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    temporary_path.replace(path)
 
 
 def append_summary_csv(path: Path, row: dict) -> None:
@@ -197,6 +246,7 @@ def main() -> None:
     parser.add_argument("--max-input-length", type=int, default=512)
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument("--device")
+    parser.add_argument("--precision", choices=("auto", "fp32", "fp16", "bf16"), default="auto")
     args = parser.parse_args()
 
     metrics = generate_predictions(
@@ -207,6 +257,7 @@ def main() -> None:
         max_input_length=args.max_input_length,
         max_new_tokens=args.max_new_tokens,
         device=args.device,
+        precision=args.precision,
     )
     metrics.update({"variant": args.variant, "budget": args.budget, "split": args.split})
     write_metrics(args.metrics, metrics)

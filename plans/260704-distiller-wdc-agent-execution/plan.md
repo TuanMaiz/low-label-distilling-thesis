@@ -152,12 +152,30 @@ Teacher LLM calls are used only to prepare training labels. Final inference must
 | Aggregated metrics | `outputs/distiller_wdc/summary/*.csv` |
 | Failure analysis | `outputs/distiller_wdc/analysis/*.csv` |
 | Thesis figures | `outputs/distiller_wdc/figures/*.png` |
+| Phase 5 Colab runner | `scripts/run_phase05_colab.sh` |
+| Phase 5 aggregator | `experiments/aggregate_phase05_results.py` |
+| Phase 5 cost assumptions | `configs/phase05_cost_assumptions.json` |
+| Phase 5 Colab runbook | `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md` |
+| Phase 5 compact handoff | `outputs/distiller_wdc/artifacts/phase05_train_128_results.tar.gz` |
 
 Optional external-validity artifacts for later datasets should live under the
 same `outputs/distiller_wdc/` summary conventions only after the WDC pilot has a
 clear signal. They are not required for the WDC thesis-core claim.
 
 ## Phases
+
+Execution status on 2026-07-13: the fixed Phase 5 128-budget inputs, direct-LLM
+validation artifacts, Colab runtime dependencies, resumable runner, aggregator,
+and handoff runbook are prepared in this branch for a fresh clone. The runner
+also has binary-output length limits, hardware-aware mixed precision and
+validation batching, one-time tokenization, token-weighted validation loss, and
+stage-boundary recovery with stale-artifact archiving and atomic completion
+markers. Training and inference seconds remain the primary cost evidence; the
+aggregator applies all versioned low/base/high analytical GPU-hour sensitivity
+rates and reports training cost, per-pair inference cost, fixed-scale savings,
+and break-even queries. Phase 5 stays pending until the three GPU student runs return
+validation predictions and metrics; no Phase 5 success criterion is satisfied
+by execution tooling alone.
 
 | Phase | Name | Status | Priority | Effort | Dependencies |
 |-------|------|--------|----------|--------|--------------|
@@ -196,6 +214,28 @@ Representative training and evaluation commands should keep the existing pattern
   --output-dir outputs/distiller_wdc/flan-t5-base/train_128/llm_active_bucketed_v1 \
   --model-name google/flan-t5-base
 ```
+
+The fixed Phase 5 pilot should be executed on a Colab GPU from this branch:
+
+```bash
+scripts/run_phase05_colab.sh setup
+scripts/run_phase05_colab.sh all
+```
+
+The wrapper preflights the branch, CUDA availability, fixed row counts, and
+direct-baseline artifacts; trains and validates the three 128-budget variants;
+aggregates the pilot table; and packages a compact results archive. It does not
+call the teacher LLM or read the test target.
+
+The Colab wrapper fixes `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8`, keeps
+`MAX_INPUT_LENGTH=512` and training batch size 4, tokenizes each dataset once,
+and computes validation loss over non-padding label tokens. With `PRECISION`
+and `VALIDATION_BATCH_SIZE` left on `auto`, it uses BF16 and validation batch 32
+on BF16-capable CUDA hardware, FP16 and validation batch 16 on other CUDA
+hardware, and FP32 with the training batch size on CPU smoke checks. Completed
+training and evaluation stages are recognized only from their checkpoint and
+atomic summary/prediction/metric markers; stale downstream artifacts are
+archived before retraining.
 
 ## Main Risks
 

@@ -57,11 +57,31 @@ failure-slice study: which pairs are worth spending LLM teacher calls on, where
 selection fails, how much it costs, and whether patterns replicate on one
 optional later dataset.
 
-As of 2026-07-10, Phase 3 answer-only LLM pipeline code, fixed `train_128`
+As of 2026-07-13, Phase 3 answer-only LLM pipeline code, fixed `train_128`
 selection manifests, live OpenRouter `openai/gpt-5.4-mini` teacher-label
 caches, the full validation direct-LLM baseline, and Phase 4 128-budget student
-target files exist. Phase 5 student training/evaluation is the next active
-step.
+target files exist. The Phase 5 change set prepares the fresh-clone inputs,
+Colab dependency file, resumable runner, result aggregator, and runbook needed
+to execute the fixed pilot on a GPU after it is committed and pushed. Phase 5
+itself remains pending until the Colab validation artifacts are returned and
+reviewed.
+
+The Phase 5 Colab defaults are optimized for binary answer-only training
+without changing the fixed experiment inputs: target and generation limits are
+8 tokens; inputs remain capped and padded at 512 tokens; train, validation, and
+prediction rows are tokenized once per process; validation loss is weighted by
+non-padding label tokens; and automatic runtime selection uses BF16 plus a
+validation batch of 32 on BF16-capable CUDA hardware, FP16 plus 16 on other
+CUDA hardware, and FP32 plus the training batch size for CPU smoke checks.
+Training batch size remains 4.
+
+Phase 5 cost reporting preserves synchronized training and inference seconds as
+the provider-independent primary evidence. Aggregation applies every
+predeclared low/base/high GPU-hour scenario in
+`configs/phase05_cost_assumptions.json`, records the assumptions SHA-256, and
+reports training cost, per-pair student inference cost, comparison-scale
+savings, and break-even query count. These rates are analytical sensitivity
+assumptions, not observed Colab charges or current provider quotes.
 
 ## Build & Run Commands
 
@@ -75,6 +95,39 @@ cd /mnt/d/Study/Cao-hoc/luan-van/code
 source .venv/bin/activate
 .venv/bin/python -m unittest discover -s tests
 ```
+
+Phase 5 is intended to run on a Colab GPU from a fresh clone of this branch:
+
+```bash
+scripts/run_phase05_colab.sh setup
+scripts/run_phase05_colab.sh all
+```
+
+See
+`plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md`
+for cloning, Google Drive persistence, recovery, and result handoff. The runner
+must not evaluate the test target or call the teacher LLM.
+
+Recovery is stage-boundary based. Atomic `training_summary.json`, validation
+prediction, and validation metric writes serve as completion markers alongside
+the best checkpoint. Each completed stage also has an atomic contract containing
+the Git commit, runtime configuration, and SHA-256 hashes of its target and
+upstream contract files. A run-level contract also fixes the actual GPU name,
+resolved precision, and resolved validation batch across all variants. A rerun
+skips only when the completion markers and current contracts match. A missing
+or mismatched contract blocks reuse and
+requires a new `OUTPUT_ROOT` or explicit `FORCE=1`; forced reruns archive stale
+contracts and downstream artifacts. Interrupted variants restart from the
+beginning rather than resuming mid-epoch. Compact result packages include the
+contracts so returned results retain their provenance.
+
+Student validation records local FLAN-T5 generation time, wall time, throughput,
+seconds per pair, device name, precision, batch size, and generation limits.
+These measurements—not an unrelated small OpenRouter model—provide the student
+inference evidence; provider pricing may later be applied to the measured GPU
+time under a declared pricing assumption. The aggregator reports signed match
+F1, macro F1, and accuracy deltas for every student versus both `llm_random` and
+`gold_random`.
 
 Use the existing 128-row label-only FLAN-T5-base result as historical baseline
 context. New low-budget training targets should map the trusted supervised
@@ -105,11 +158,13 @@ calling the teacher.
 
 Follow the active plan phases:
 
-1. Phase 5: train/evaluate the 128-budget pilot against the existing gold-label
-   compact-student reference, random LLM-label control, active LLM-label method,
-   and the direct LLM baseline.
-2. Phase 7: analyze teacher-label noise and bucket-level failure slices after
-   student outputs exist.
+1. Commit and push the Phase 5 Colab change set, then run
+   `scripts/run_phase05_colab.sh all` from a fresh Colab clone of this branch.
+2. Return `phase05_train_128_results.tar.gz`; only then compare the three
+   students with the fixed direct LLM baseline and write the Phase 5
+   continue/revise/stop decision.
+3. Keep the test split untouched until the validation decision, then proceed to
+   Phase 7 failure and cost analysis after student outputs exist.
 
 The anti-cherry-pick rule is important: fixed evaluation split/sample, prompt
 version, model slug, budgets, and cost fields must be declared before results

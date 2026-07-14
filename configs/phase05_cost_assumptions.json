@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "currency": "USD",
+  "method": "predeclared_gpu_hour_sensitivity_analysis",
+  "pricing_basis": "analytical replacement-cost scenarios, not observed Colab charges or provider quotes",
+  "declared_at": "2026-07-14",
+  "scenarios": [
+    {
+      "name": "low",
+      "usd_per_gpu_hour": 0.25
+    },
+    {
+      "name": "base",
+      "usd_per_gpu_hour": 1.0
+    },
+    {
+      "name": "high",
+      "usd_per_gpu_hour": 4.0
+    }
+  ],
+  "notes": [
+    "All scenarios must be reported together; do not select one after inspecting model quality.",
+    "Measured GPU seconds remain the primary provider-independent evidence.",
+    "Replace or supplement these analytical scenarios with dated sourced rates only in a separately versioned assumptions file."
+  ]
+}

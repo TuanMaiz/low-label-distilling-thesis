@@ -15,6 +15,16 @@ Run the smallest experiment that can decide whether the thesis direction has
 signal: gold-label compact student, direct LLM matcher, random LLM-label
 distilled student, and one actively selected LLM-label distilled student.
 
+Execution readiness on 2026-07-13: the fresh-clone inputs, Colab dependency
+file, resumable runner, aggregator, and runbook are prepared. The runtime now
+uses 8-token binary targets and generations, hardware-aware mixed precision and
+validation batches, one-time tokenization, token-weighted validation loss, and
+stage-boundary recovery with stale-artifact archiving, atomic completion
+markers, and commit/configuration/target-hash contracts. Evaluation captures
+structured local student timing and throughput, and aggregation computes signed
+deltas versus both random controls. Phase status and all success criteria remain
+pending until GPU validation artifacts return.
+
 ## Requirements
 
 - Functional: train and evaluate `gold_random`, `llm_random`, and `llm_active_bucketed_v1` at budget `128`.
@@ -43,6 +53,11 @@ As of 2026-07-10, the 128-budget Phase 5 inputs are ready:
 - Direct LLM validation cost summary:
   `outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.cost.json`
 
+These inputs are allow-listed for version control so a fresh clone of the
+committed branch can pass the Colab preflight without rebuilding Phase 3 or
+Phase 4. The Colab runner reads the validation target but never reads the test
+target.
+
 ## Architecture
 
 ```text
@@ -61,8 +76,10 @@ student + direct LLM metrics
 
 - Reuse: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/train_mt5.py`
 - Reuse: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/evaluate_student.py`
-- Create optional: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/run_llm_label_pilot.py`
-- Create optional: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/aggregate_results.py`
+- Colab runner: `/mnt/d/Study/Cao-hoc/luan-van/code/scripts/run_phase05_colab.sh`
+- Aggregator: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/aggregate_phase05_results.py`
+- Colab requirements: `/mnt/d/Study/Cao-hoc/luan-van/code/requirements-colab.txt`
+- Runbook: `/mnt/d/Study/Cao-hoc/luan-van/code/plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md`
 - Outputs: `/mnt/d/Study/Cao-hoc/luan-van/code/outputs/distiller_wdc/`
 
 ## Implementation Steps
@@ -85,8 +102,72 @@ student + direct LLM metrics
    - direct LLM inference cost.
    - teacher-labeling cost.
    - estimated student inference cost.
-   - gain or loss versus `llm_random`.
-10. Write a pilot decision note.
+   - signed match F1, macro F1, and accuracy deltas versus `llm_random` and
+     `gold_random`.
+10. Package the compact Colab handoff as
+    `phase05_train_128_results.tar.gz`, excluding large checkpoint weights.
+11. Write a pilot decision note only after the returned validation artifacts
+    have been reviewed.
+
+## Fixed Colab Runtime Defaults
+
+- `MAX_INPUT_LENGTH=512`; do not shorten it for this pilot.
+- `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8` for the fixed binary outputs.
+- Training batch size remains 4 so runtime optimization does not alter update
+  behavior.
+- `PRECISION=auto`: BF16 on supporting CUDA GPUs, FP16 with gradient scaling on
+  other CUDA GPUs, and FP32 on CPU smoke checks.
+- `VALIDATION_BATCH_SIZE=auto`: 32 with BF16 CUDA, 16 with other CUDA, and the
+  training batch size on CPU.
+- Training, validation, and final-prediction inputs are tokenized once per
+  process; fixed 512-token padding remains in force.
+- Validation loss is weighted by non-padding label-token count so early
+  stopping and checkpoint selection are invariant to validation batch grouping.
+
+## Recovery Contract
+
+- A checkpoint plus atomically replaced `training_summary.json` marks a
+  completed training stage.
+- Atomically replaced validation predictions plus metrics mark a completed
+  evaluation stage.
+- Training and evaluation each write an atomic contract containing the Git
+  commit, relevant runtime configuration, and SHA-256 hashes of targets and
+  upstream contract inputs.
+- A run-level contract fixes the actual device name, resolved precision, and
+  resolved validation batch across every variant in one `OUTPUT_ROOT`.
+- A stage is reusable only when both completion artifacts and its current
+  contract match. A missing or mismatched contract blocks reuse; use a new
+  `OUTPUT_ROOT` or explicit `FORCE=1` to replace it intentionally.
+- An interrupted training process restarts that variant from the beginning; it
+  does not claim unsupported mid-epoch resume.
+- Before forced retraining or reevaluation, prior contracts, summaries, and
+  downstream validation artifacts are renamed with `.stale.<timestamp>`
+  suffixes.
+- Compact result packaging includes the run-level contract and both stage
+  contracts for every variant.
+
+## Student Inference Evidence
+
+- Validation measures FLAN-T5 generation locally on the selected Colab device
+  and records synchronized generation seconds, total evaluation wall time,
+  rows per second, seconds per pair, device name, precision, batch size, and
+  sequence limits in `validation.metrics.json`.
+- A small OpenRouter model is not a valid price proxy for the local FLAN-T5
+  student because it is a different model served on an opaque provider stack.
+  Instead, training records synchronized wall seconds and aggregation applies
+  all low/base/high rates predeclared in
+  `configs/phase05_cost_assumptions.json` to measured training and inference
+  time: low = $0.25, base = $1.00, and high = $4.00 per GPU-hour. The rates are
+  analytical sensitivity assumptions, not observed charges or provider quotes.
+- The aggregate table preserves these timing fields and reports signed match
+  F1, macro F1, and accuracy deltas for each student against `llm_random` and
+  `gold_random`. Positive means the row outperforms the named reference.
+- The cost-scenario table reports one-time teacher plus training cost, per-pair
+  student inference cost, savings at the fixed direct-baseline scale, and the
+  first whole-number query count where the student reaches cost parity or
+  becomes cheaper. Break-even is null when the measured student per-pair cost
+  is not below direct matching. The priced training boundary is the synchronized
+  trainer loop stated in `training_time_scope`, not model download or tokenization.
 
 ## Success Criteria
 

@@ -35,36 +35,35 @@ class ERSeq2SeqDataset:
         max_target_length: int = 192,
     ) -> None:
         self.rows = rows
-        self.tokenizer = tokenizer
         self.max_input_length = max_input_length
         self.max_target_length = max_target_length
+        inputs = tokenizer(
+            [row["input_text"] for row in rows],
+            max_length=max_input_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        targets = tokenizer(
+            [row["target_text"] for row in rows],
+            max_length=max_target_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        self.input_ids = inputs["input_ids"]
+        self.attention_mask = inputs["attention_mask"]
+        self.labels = targets["input_ids"].clone()
+        self.labels[self.labels == tokenizer.pad_token_id] = -100
 
     def __len__(self) -> int:
         return len(self.rows)
 
     def __getitem__(self, idx: int):
-        row = self.rows[idx]
-        inputs = self.tokenizer(
-            row["input_text"],
-            max_length=self.max_input_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt",
-        )
-        targets = self.tokenizer(
-            row["target_text"],
-            max_length=self.max_target_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt",
-        )
-        labels = targets["input_ids"].squeeze(0)
-        labels[labels == self.tokenizer.pad_token_id] = -100
-
         return {
-            "input_ids": inputs["input_ids"].squeeze(0),
-            "attention_mask": inputs["attention_mask"].squeeze(0),
-            "labels": labels,
+            "input_ids": self.input_ids[idx],
+            "attention_mask": self.attention_mask[idx],
+            "labels": self.labels[idx],
         }
 
 
@@ -75,4 +74,3 @@ def load_seq2seq(model_name: str = DEFAULT_SEQ2SEQ_MODEL):
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     return tokenizer, model
-

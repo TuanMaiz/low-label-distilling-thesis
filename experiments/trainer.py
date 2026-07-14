@@ -1,12 +1,14 @@
 """Training loop with optional W&B logging for seq2seq ER students."""
 
-from typing import Optional, Dict, List, Callable
+import math
+from typing import Optional, Dict, List
 from pathlib import Path
 import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import get_scheduler
 from tqdm import tqdm
+
+from utils.torch_runtime import autocast_context, create_grad_scaler, resolve_precision
 
 try:
     import wandb
@@ -33,6 +35,7 @@ class Trainer:
         wandb_project: Optional[str] = "distiller-wdc-er",
         wandb_entity: Optional[str] = None,
         wandb_run_name: Optional[str] = None,
+        precision: str = "auto",
     ):
         """
         Initialize the trainer.
@@ -56,6 +59,8 @@ class Trainer:
         self.weight_decay = weight_decay
         self.warmup_steps = warmup_steps
         self.label_smoothing = label_smoothing
+        self.precision_requested = precision
+        self.precision = resolve_precision(device, precision)
 
         # Move model to device
         self.model.to(self.device)
@@ -66,6 +71,7 @@ class Trainer:
             lr=learning_rate,
             weight_decay=weight_decay
         )
+        self.grad_scaler = create_grad_scaler(self.device, self.precision)
 
         self.wandb_project = wandb_project
         self.wandb_entity = wandb_entity
@@ -118,27 +124,39 @@ class Trainer:
             batch = {k: v.to(self.device) for k, v in batch.items()}
 
             # Forward pass
-            outputs = self.model(
-                input_ids=batch["input_ids"],
-                attention_mask=batch["attention_mask"],
-                labels=batch["labels"]
-            )
+            with autocast_context(self.device, self.precision):
+                outputs = self.model(
+                    input_ids=batch["input_ids"],
+                    attention_mask=batch["attention_mask"],
+                    labels=batch["labels"]
+                )
 
             loss = outputs.loss
             total_loss += loss.item()
             num_batches += 1
 
             # Backward pass
-            loss.backward()
+            if self.grad_scaler is not None:
+                self.grad_scaler.scale(loss).backward()
+                self.grad_scaler.unscale_(self.optimizer)
+            else:
+                loss.backward()
 
             # Gradient clipping
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
             # Optimizer step
-            self.optimizer.step()
-            if self.scheduler is not None:
+            optimizer_stepped = True
+            if self.grad_scaler is not None:
+                scale_before_step = self.grad_scaler.get_scale()
+                self.grad_scaler.step(self.optimizer)
+                self.grad_scaler.update()
+                optimizer_stepped = self.grad_scaler.get_scale() >= scale_before_step
+            else:
+                self.optimizer.step()
+            if self.scheduler is not None and optimizer_stepped:
                 self.scheduler.step()
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(set_to_none=True)
 
             self.global_step += 1
 
@@ -173,23 +191,34 @@ class Trainer:
             Average validation loss
         """
         self.model.eval()
-        total_loss = 0
-        num_batches = 0
+        total_weighted_loss = 0.0
+        total_label_tokens = 0
 
         for batch in tqdm(val_loader, desc="Validation"):
             batch = {k: v.to(self.device) for k, v in batch.items()}
 
-            outputs = self.model(
-                input_ids=batch["input_ids"],
-                attention_mask=batch["attention_mask"],
-                labels=batch["labels"]
-            )
+            with autocast_context(self.device, self.precision):
+                outputs = self.model(
+                    input_ids=batch["input_ids"],
+                    attention_mask=batch["attention_mask"],
+                    labels=batch["labels"]
+                )
 
-            loss = outputs.loss
-            total_loss += loss.item()
-            num_batches += 1
+            loss_value = outputs.loss.item()
+            if not math.isfinite(loss_value):
+                raise RuntimeError(
+                    f"Non-finite validation loss under precision={self.precision}; "
+                    "retry with PRECISION=fp32 or inspect the checkpoint inputs"
+                )
+            label_tokens = int((batch["labels"] != -100).sum().item())
+            total_weighted_loss += loss_value * label_tokens
+            total_label_tokens += label_tokens
 
-        avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
+        avg_loss = (
+            total_weighted_loss / total_label_tokens
+            if total_label_tokens > 0
+            else 0.0
+        )
 
         if self.use_wandb:
             wandb.log({"val/loss": avg_loss, "epoch": epoch})

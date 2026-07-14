@@ -1,0 +1,651 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Run the fixed Phase 5 FLAN-T5-base pilot on a Google Colab GPU.
+
+Usage:
+  scripts/run_phase05_colab.sh setup
+  scripts/run_phase05_colab.sh preflight
+  scripts/run_phase05_colab.sh run [all|gold_random|llm_random|llm_active_bucketed_v1]
+  scripts/run_phase05_colab.sh aggregate [--allow-partial]
+  scripts/run_phase05_colab.sh package-results
+  scripts/run_phase05_colab.sh package-checkpoints
+  scripts/run_phase05_colab.sh all
+
+Recommended Colab flow after cloning the repository branch:
+  scripts/run_phase05_colab.sh setup
+  scripts/run_phase05_colab.sh all
+
+The all command resumes at completed stage boundaries. Completed
+training/evaluation artifacts are skipped unless FORCE=1 is set; interrupted
+training restarts that variant. It never calls a teacher LLM and never reads
+the test target.
+
+Environment overrides:
+  PYTHON=python
+  OUTPUT_ROOT=outputs/distiller_wdc
+  MODEL_NAME=google/flan-t5-base
+  BUDGET=128
+  BATCH_SIZE=4
+  VALIDATION_BATCH_SIZE=auto  # A100/BF16: 32; other CUDA: 16
+  EVAL_BATCH_SIZE=8
+  NUM_EPOCHS=8
+  LEARNING_RATE=5e-5
+  WEIGHT_DECAY=0.01
+  WARMUP_STEPS=0
+  MAX_INPUT_LENGTH=512
+  MAX_TARGET_LENGTH=8
+  MAX_NEW_TOKENS=8
+  EARLY_STOPPING_PATIENCE=3
+  SEED=42
+  DEVICE=cuda
+  PRECISION=auto             # A100/BF16: bf16; other CUDA: fp16
+  COST_ASSUMPTIONS=configs/phase05_cost_assumptions.json
+  USE_WANDB=0
+  FORCE=0
+  EXPECTED_BRANCH=codex/distiller-wdc-implementation
+  ALLOW_BRANCH_MISMATCH=0
+  ALLOW_CPU=0
+EOF
+}
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "${script_dir}/.." && pwd)"
+cd "${repo_root}"
+
+PYTHON="${PYTHON:-python}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/distiller_wdc}"
+MODEL_NAME="${MODEL_NAME:-google/flan-t5-base}"
+BUDGET="${BUDGET:-128}"
+BATCH_SIZE="${BATCH_SIZE:-4}"
+VALIDATION_BATCH_SIZE="${VALIDATION_BATCH_SIZE:-auto}"
+EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-8}"
+NUM_EPOCHS="${NUM_EPOCHS:-8}"
+LEARNING_RATE="${LEARNING_RATE:-5e-5}"
+WEIGHT_DECAY="${WEIGHT_DECAY:-0.01}"
+WARMUP_STEPS="${WARMUP_STEPS:-0}"
+MAX_INPUT_LENGTH="${MAX_INPUT_LENGTH:-512}"
+MAX_TARGET_LENGTH="${MAX_TARGET_LENGTH:-8}"
+MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-8}"
+EARLY_STOPPING_PATIENCE="${EARLY_STOPPING_PATIENCE:-3}"
+SEED="${SEED:-42}"
+DEVICE="${DEVICE:-cuda}"
+PRECISION="${PRECISION:-auto}"
+COST_ASSUMPTIONS="${COST_ASSUMPTIONS:-configs/phase05_cost_assumptions.json}"
+USE_WANDB="${USE_WANDB:-0}"
+FORCE="${FORCE:-0}"
+EXPECTED_BRANCH="${EXPECTED_BRANCH:-codex/distiller-wdc-implementation}"
+ALLOW_BRANCH_MISMATCH="${ALLOW_BRANCH_MISMATCH:-0}"
+ALLOW_CPU="${ALLOW_CPU:-0}"
+
+TARGETS_ROOT="data/cache/wdc_products/targets"
+VALIDATION_TARGETS="${TARGETS_ROOT}/validation.label_only.targets.jsonl"
+DIRECT_COST="outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.cost.json"
+DIRECT_PREDICTIONS="outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.predictions.jsonl"
+RUN_ROOT="${OUTPUT_ROOT}/flan-t5-base/train_${BUDGET}"
+RUNTIME_CONTRACT="${RUN_ROOT}/runtime_contract.json"
+SUMMARY_ROOT="${OUTPUT_ROOT}/summary"
+ARTIFACT_ROOT="${OUTPUT_ROOT}/artifacts"
+
+variants=(gold_random llm_random llm_active_bucketed_v1)
+
+run_cmd() {
+  printf '+'
+  printf ' %q' "$@"
+  printf '\n'
+  "$@"
+}
+
+archive_if_exists() {
+  local path="$1"
+  if [[ -e "${path}" ]]; then
+    local archived="${path}.stale.$(date -u +%Y%m%dT%H%M%S%N)"
+    mv "${path}" "${archived}"
+    echo "archived stale artifact: ${archived}"
+  fi
+}
+
+CONTRACT_ARGS=()
+RUNTIME_IDENTITY_INITIALIZED=0
+RESOLVED_PRECISION=""
+RESOLVED_VALIDATION_BATCH_SIZE=""
+RUNTIME_DEVICE_NAME=""
+
+initialize_runtime_identity() {
+  if [[ "${RUNTIME_IDENTITY_INITIALIZED}" == "1" ]]; then
+    return
+  fi
+  local identity=()
+  mapfile -t identity < <(
+    "${PYTHON}" -m utils.torch_runtime \
+      --device "${DEVICE}" \
+      --precision "${PRECISION}" \
+      --train-batch-size "${BATCH_SIZE}" \
+      --validation-batch-size "${VALIDATION_BATCH_SIZE}"
+  )
+  if [[ "${#identity[@]}" -ne 3 ]]; then
+    echo "Could not resolve the Phase 5 runtime identity." >&2
+    exit 1
+  fi
+  RESOLVED_PRECISION="${identity[0]}"
+  RESOLVED_VALIDATION_BATCH_SIZE="${identity[1]}"
+  RUNTIME_DEVICE_NAME="${identity[2]}"
+  RUNTIME_IDENTITY_INITIALIZED=1
+}
+
+load_recorded_runtime_identity() {
+  local identity=()
+  mapfile -t identity < <(
+    "${PYTHON}" -m utils.artifact_contract read-fields \
+      --path "${RUNTIME_CONTRACT}" \
+      --name resolved_precision \
+      --name resolved_validation_batch_size \
+      --name runtime_device_name
+  )
+  if [[ "${#identity[@]}" -ne 3 ]]; then
+    echo "Could not read the recorded Phase 5 runtime identity." >&2
+    exit 1
+  fi
+  RESOLVED_PRECISION="${identity[0]}"
+  RESOLVED_VALIDATION_BATCH_SIZE="${identity[1]}"
+  RUNTIME_DEVICE_NAME="${identity[2]}"
+  RUNTIME_IDENTITY_INITIALIZED=1
+}
+
+build_runtime_contract_args() {
+  initialize_runtime_identity
+  CONTRACT_ARGS=(
+    --field "stage=runtime"
+    --field "device=${DEVICE}"
+    --field "precision=${PRECISION}"
+    --field "resolved_precision=${RESOLVED_PRECISION}"
+    --field "validation_batch_size=${VALIDATION_BATCH_SIZE}"
+    --field "resolved_validation_batch_size=${RESOLVED_VALIDATION_BATCH_SIZE}"
+    --field "runtime_device_name=${RUNTIME_DEVICE_NAME}"
+    --file "runner=scripts/run_phase05_colab.sh"
+    --file "runtime=utils/torch_runtime.py"
+  )
+}
+
+ensure_run_runtime_contract() {
+  build_runtime_contract_args
+  if [[ -f "${RUNTIME_CONTRACT}" ]]; then
+    if "${PYTHON}" -m utils.artifact_contract check --path "${RUNTIME_CONTRACT}" "${CONTRACT_ARGS[@]}"; then
+      return
+    fi
+    if [[ "${FORCE}" != "1" ]]; then
+      echo "Refusing to mix Phase 5 runtime identities in one output root." >&2
+      echo "Use a new OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
+      exit 1
+    fi
+    archive_if_exists "${RUNTIME_CONTRACT}"
+    build_runtime_contract_args
+    write_current_contract "${RUNTIME_CONTRACT}"
+    return
+  fi
+  if [[ -d "${RUN_ROOT}" ]] && find "${RUN_ROOT}" -mindepth 2 -maxdepth 2 \
+      \( -name training_summary.json -o -name validation.metrics.json \) \
+      -print -quit | grep -q . && [[ "${FORCE}" != "1" ]]; then
+    echo "Existing Phase 5 artifacts have no run-level runtime contract." >&2
+    echo "Use a new OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
+    exit 1
+  fi
+  write_current_contract "${RUNTIME_CONTRACT}"
+}
+
+build_training_contract_args() {
+  local variant="$1"
+  local train_targets="$2"
+  initialize_runtime_identity
+  ensure_run_runtime_contract
+  CONTRACT_ARGS=(
+    --field "stage=training"
+    --field "git_commit=$(git rev-parse HEAD)"
+    --field "variant=${variant}"
+    --field "model_name=${MODEL_NAME}"
+    --field "budget=${BUDGET}"
+    --field "batch_size=${BATCH_SIZE}"
+    --field "validation_batch_size=${VALIDATION_BATCH_SIZE}"
+    --field "num_epochs=${NUM_EPOCHS}"
+    --field "learning_rate=${LEARNING_RATE}"
+    --field "weight_decay=${WEIGHT_DECAY}"
+    --field "warmup_steps=${WARMUP_STEPS}"
+    --field "max_input_length=${MAX_INPUT_LENGTH}"
+    --field "max_target_length=${MAX_TARGET_LENGTH}"
+    --field "early_stopping_patience=${EARLY_STOPPING_PATIENCE}"
+    --field "seed=${SEED}"
+    --field "device=${DEVICE}"
+    --field "precision=${PRECISION}"
+    --field "resolved_precision=${RESOLVED_PRECISION}"
+    --field "resolved_validation_batch_size=${RESOLVED_VALIDATION_BATCH_SIZE}"
+    --field "runtime_device_name=${RUNTIME_DEVICE_NAME}"
+    --file "train_targets=${train_targets}"
+    --file "validation_targets=${VALIDATION_TARGETS}"
+    --file "runner=scripts/run_phase05_colab.sh"
+    --file "train_entrypoint=experiments/train_mt5.py"
+    --file "trainer=experiments/trainer.py"
+    --file "student_model=models/seq2seq_student.py"
+    --file "runtime=utils/torch_runtime.py"
+  )
+}
+
+build_evaluation_contract_args() {
+  local variant="$1"
+  local training_contract="$2"
+  initialize_runtime_identity
+  CONTRACT_ARGS=(
+    --field "stage=evaluation"
+    --field "git_commit=$(git rev-parse HEAD)"
+    --field "variant=${variant}"
+    --field "budget=${BUDGET}"
+    --field "eval_batch_size=${EVAL_BATCH_SIZE}"
+    --field "max_input_length=${MAX_INPUT_LENGTH}"
+    --field "max_new_tokens=${MAX_NEW_TOKENS}"
+    --field "device=${DEVICE}"
+    --field "precision=${PRECISION}"
+    --field "resolved_precision=${RESOLVED_PRECISION}"
+    --field "runtime_device_name=${RUNTIME_DEVICE_NAME}"
+    --file "training_contract=${training_contract}"
+    --file "validation_targets=${VALIDATION_TARGETS}"
+    --file "runner=scripts/run_phase05_colab.sh"
+    --file "evaluation_entrypoint=experiments/evaluate_student.py"
+    --file "metrics=utils/metrics.py"
+    --file "runtime=utils/torch_runtime.py"
+  )
+}
+
+require_matching_contract() {
+  local path="$1"
+  local stage="$2"
+  if ! "${PYTHON}" -m utils.artifact_contract check --path "${path}" "${CONTRACT_ARGS[@]}"; then
+    echo "Refusing to reuse ${stage} artifacts with a missing or mismatched contract." >&2
+    echo "Use a different OUTPUT_ROOT, or set FORCE=1 to replace this stage intentionally." >&2
+    exit 1
+  fi
+}
+
+write_current_contract() {
+  local path="$1"
+  run_cmd "${PYTHON}" -m utils.artifact_contract write --path "${path}" "${CONTRACT_ARGS[@]}"
+}
+
+target_for_variant() {
+  case "$1" in
+    gold_random)
+      printf '%s\n' "${TARGETS_ROOT}/train_${BUDGET}.gold_random.targets.jsonl"
+      ;;
+    llm_random)
+      printf '%s\n' "${TARGETS_ROOT}/train_${BUDGET}.llm_random.openai-gpt-5-4-mini.targets.jsonl"
+      ;;
+    llm_active_bucketed_v1)
+      printf '%s\n' "${TARGETS_ROOT}/train_${BUDGET}.llm_active_bucketed_v1.openai-gpt-5-4-mini.targets.jsonl"
+      ;;
+    *)
+      echo "Unknown Phase 5 variant: $1" >&2
+      return 2
+      ;;
+  esac
+}
+
+require_file() {
+  if [[ ! -f "$1" ]]; then
+    echo "Required file is missing: $1" >&2
+    exit 1
+  fi
+}
+
+require_rows() {
+  local path="$1"
+  local expected="$2"
+  local actual
+  actual="$(wc -l < "${path}")"
+  if [[ "${actual}" -ne "${expected}" ]]; then
+    echo "Unexpected row count for ${path}: ${actual}; expected ${expected}" >&2
+    exit 1
+  fi
+}
+
+setup_colab() {
+  run_cmd "${PYTHON}" -m pip install --quiet -r requirements-colab.txt
+  run_cmd "${PYTHON}" -c 'import torch, transformers; print(f"torch={torch.__version__} transformers={transformers.__version__} cuda={torch.cuda.is_available()}")'
+}
+
+preflight() {
+  if ! command -v git >/dev/null 2>&1; then
+    echo "git is required" >&2
+    exit 1
+  fi
+  if ! command -v "${PYTHON}" >/dev/null 2>&1 && [[ ! -x "${PYTHON}" ]]; then
+    echo "Python executable not found: ${PYTHON}" >&2
+    exit 1
+  fi
+
+  local branch
+  branch="$(git branch --show-current)"
+  if [[ "${branch}" != "${EXPECTED_BRANCH}" && "${ALLOW_BRANCH_MISMATCH}" != "1" ]]; then
+    echo "Expected branch ${EXPECTED_BRANCH}, found ${branch:-detached HEAD}." >&2
+    echo "Set ALLOW_BRANCH_MISMATCH=1 only if this checkout intentionally contains the same experiment contract." >&2
+    exit 1
+  fi
+
+  local variant target
+  for variant in "${variants[@]}"; do
+    target="$(target_for_variant "${variant}")"
+    require_file "${target}"
+    require_rows "${target}" "${BUDGET}"
+  done
+  require_file "${VALIDATION_TARGETS}"
+  require_rows "${VALIDATION_TARGETS}" 2500
+  require_file "${DIRECT_COST}"
+  require_file "${DIRECT_PREDICTIONS}"
+  require_file "${COST_ASSUMPTIONS}"
+
+  if [[ "${DEVICE}" != cuda* && "${ALLOW_CPU}" != "1" ]]; then
+    echo "Phase 5 Colab runs require DEVICE=cuda." >&2
+    echo "Set ALLOW_CPU=1 only for an intentional non-Colab smoke check." >&2
+    exit 1
+  fi
+  initialize_runtime_identity
+
+  echo "Phase 5 preflight passed: branch=${branch} budget=${BUDGET} device=${RUNTIME_DEVICE_NAME} precision=${RESOLVED_PRECISION}"
+}
+
+train_variant() {
+  local variant="$1"
+  local train_targets output_dir checkpoint summary predictions metrics log_path
+  local training_contract evaluation_contract
+  train_targets="$(target_for_variant "${variant}")"
+  output_dir="${RUN_ROOT}/${variant}"
+  checkpoint="${output_dir}/best_model/config.json"
+  summary="${output_dir}/training_summary.json"
+  predictions="${output_dir}/validation.predictions.jsonl"
+  metrics="${output_dir}/validation.metrics.json"
+  log_path="${output_dir}/training.log"
+  training_contract="${output_dir}/training_contract.json"
+  evaluation_contract="${output_dir}/evaluation_contract.json"
+  mkdir -p "${output_dir}"
+  build_training_contract_args "${variant}" "${train_targets}"
+
+  if [[ "${FORCE}" != "1" && -f "${checkpoint}" && -f "${summary}" ]]; then
+    require_matching_contract "${training_contract}" "training"
+    echo "skip completed training: ${variant}"
+    return
+  fi
+
+  archive_if_exists "${training_contract}"
+  archive_if_exists "${evaluation_contract}"
+  archive_if_exists "${summary}"
+  archive_if_exists "${predictions}"
+  archive_if_exists "${metrics}"
+
+  args=(
+    "${PYTHON}" -m experiments.train_mt5
+    --train-targets "${train_targets}"
+    --validation-targets "${VALIDATION_TARGETS}"
+    --output-dir "${output_dir}"
+    --model-name "${MODEL_NAME}"
+    --batch-size "${BATCH_SIZE}"
+    --num-epochs "${NUM_EPOCHS}"
+    --learning-rate "${LEARNING_RATE}"
+    --weight-decay "${WEIGHT_DECAY}"
+    --warmup-steps "${WARMUP_STEPS}"
+    --max-input-length "${MAX_INPUT_LENGTH}"
+    --max-target-length "${MAX_TARGET_LENGTH}"
+    --seed "${SEED}"
+    --device "${DEVICE}"
+    --precision "${PRECISION}"
+    --early-stopping-patience "${EARLY_STOPPING_PATIENCE}"
+  )
+  if [[ "${VALIDATION_BATCH_SIZE}" != "auto" ]]; then
+    args+=(--validation-batch-size "${VALIDATION_BATCH_SIZE}")
+  fi
+  if [[ "${USE_WANDB}" == "1" ]]; then
+    args+=(--use-wandb)
+  fi
+
+  printf '+' | tee "${log_path}"
+  printf ' %q' "${args[@]}" | tee -a "${log_path}"
+  printf '\n' | tee -a "${log_path}"
+  "${args[@]}" 2>&1 | tee -a "${log_path}"
+  build_training_contract_args "${variant}" "${train_targets}"
+  write_current_contract "${training_contract}"
+}
+
+evaluate_variant() {
+  local variant="$1"
+  local output_dir checkpoint predictions metrics log_path
+  local training_contract evaluation_contract
+  output_dir="${RUN_ROOT}/${variant}"
+  checkpoint="${output_dir}/best_model"
+  predictions="${output_dir}/validation.predictions.jsonl"
+  metrics="${output_dir}/validation.metrics.json"
+  log_path="${output_dir}/evaluation.log"
+  training_contract="${output_dir}/training_contract.json"
+  evaluation_contract="${output_dir}/evaluation_contract.json"
+  require_file "${checkpoint}/config.json"
+  require_file "${training_contract}"
+  build_evaluation_contract_args "${variant}" "${training_contract}"
+
+  if [[ "${FORCE}" != "1" && -f "${predictions}" && -f "${metrics}" ]]; then
+    require_matching_contract "${evaluation_contract}" "evaluation"
+    echo "skip completed evaluation: ${variant}"
+    return
+  fi
+
+  archive_if_exists "${evaluation_contract}"
+  archive_if_exists "${predictions}"
+  archive_if_exists "${metrics}"
+
+  args=(
+    "${PYTHON}" -m experiments.evaluate_student
+    --checkpoint "${checkpoint}"
+    --input "${VALIDATION_TARGETS}"
+    --predictions "${predictions}"
+    --metrics "${metrics}"
+    --variant "${variant}"
+    --budget "${BUDGET}"
+    --split validation
+    --batch-size "${EVAL_BATCH_SIZE}"
+    --max-input-length "${MAX_INPUT_LENGTH}"
+    --max-new-tokens "${MAX_NEW_TOKENS}"
+    --device "${DEVICE}"
+    --precision "${PRECISION}"
+  )
+
+  printf '+' | tee "${log_path}"
+  printf ' %q' "${args[@]}" | tee -a "${log_path}"
+  printf '\n' | tee -a "${log_path}"
+  "${args[@]}" 2>&1 | tee -a "${log_path}"
+  build_evaluation_contract_args "${variant}" "${training_contract}"
+  write_current_contract "${evaluation_contract}"
+}
+
+run_variant() {
+  train_variant "$1"
+  evaluate_variant "$1"
+  aggregate --allow-partial
+}
+
+run_selected() {
+  local selected="${1:-all}"
+  local variant
+  if [[ "${selected}" == "all" ]]; then
+    for variant in "${variants[@]}"; do
+      run_variant "${variant}"
+    done
+  else
+    target_for_variant "${selected}" >/dev/null
+    run_variant "${selected}"
+  fi
+}
+
+aggregate() {
+  run_cmd "${PYTHON}" -m experiments.aggregate_phase05_results \
+    --output-root "${OUTPUT_ROOT}" \
+    --targets-root "${TARGETS_ROOT}" \
+    --direct-cost "${DIRECT_COST}" \
+    --cost-assumptions "${COST_ASSUMPTIONS}" \
+    --budget "${BUDGET}" \
+    "$@"
+}
+
+write_manifest() {
+  local path="$1"
+  mkdir -p "$(dirname "${path}")"
+  {
+    printf 'created_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'git_commit=%s\n' "$(git rev-parse HEAD)"
+    printf 'git_branch=%s\n' "$(git branch --show-current)"
+    printf 'model_name=%s\n' "${MODEL_NAME}"
+    printf 'budget=%s\n' "${BUDGET}"
+    printf 'seed=%s\n' "${SEED}"
+    printf 'batch_size=%s\n' "${BATCH_SIZE}"
+    printf 'validation_batch_size=%s\n' "${VALIDATION_BATCH_SIZE}"
+    printf 'eval_batch_size=%s\n' "${EVAL_BATCH_SIZE}"
+    printf 'num_epochs=%s\n' "${NUM_EPOCHS}"
+    printf 'learning_rate=%s\n' "${LEARNING_RATE}"
+    printf 'weight_decay=%s\n' "${WEIGHT_DECAY}"
+    printf 'warmup_steps=%s\n' "${WARMUP_STEPS}"
+    printf 'device=%s\n' "${DEVICE}"
+    printf 'precision=%s\n' "${PRECISION}"
+    printf 'resolved_precision=%s\n' "${RESOLVED_PRECISION}"
+    printf 'resolved_validation_batch_size=%s\n' "${RESOLVED_VALIDATION_BATCH_SIZE}"
+    printf 'runtime_device_name=%s\n' "${RUNTIME_DEVICE_NAME}"
+    printf 'max_target_length=%s\n' "${MAX_TARGET_LENGTH}"
+    printf 'max_new_tokens=%s\n' "${MAX_NEW_TOKENS}"
+    printf 'cost_assumptions=%s\n' "${COST_ASSUMPTIONS}"
+  } > "${path}"
+}
+
+validate_training_contracts() {
+  local variant train_targets variant_dir training_contract
+  require_file "${RUNTIME_CONTRACT}"
+  load_recorded_runtime_identity
+  build_runtime_contract_args
+  require_matching_contract "${RUNTIME_CONTRACT}" "run-level runtime"
+  for variant in "${variants[@]}"; do
+    train_targets="$(target_for_variant "${variant}")"
+    variant_dir="${RUN_ROOT}/${variant}"
+    training_contract="${variant_dir}/training_contract.json"
+    require_file "${training_contract}"
+    build_training_contract_args "${variant}" "${train_targets}"
+    require_matching_contract "${training_contract}" "training"
+  done
+}
+
+validate_packaged_stage_contracts() {
+  local variant variant_dir training_contract evaluation_contract
+  validate_training_contracts
+  for variant in "${variants[@]}"; do
+    variant_dir="${RUN_ROOT}/${variant}"
+    training_contract="${variant_dir}/training_contract.json"
+    evaluation_contract="${variant_dir}/evaluation_contract.json"
+    require_file "${evaluation_contract}"
+    build_evaluation_contract_args "${variant}" "${training_contract}"
+    require_matching_contract "${evaluation_contract}" "evaluation"
+  done
+}
+
+package_results() {
+  validate_packaged_stage_contracts
+  aggregate
+  mkdir -p "${ARTIFACT_ROOT}"
+  local stage archive variant variant_dir
+  stage="$(mktemp -d)"
+  trap 'rm -rf "${stage}"' EXIT
+  archive="${ARTIFACT_ROOT}/phase05_train_${BUDGET}_results.tar.gz"
+  mkdir -p "${stage}/phase05_results/students" "${stage}/phase05_results/direct_llm" \
+    "${stage}/phase05_results/summary" "${stage}/phase05_results/targets"
+
+  for variant in "${variants[@]}"; do
+    variant_dir="${RUN_ROOT}/${variant}"
+    require_file "${variant_dir}/training_summary.json"
+    require_file "${variant_dir}/training_contract.json"
+    require_file "${variant_dir}/evaluation_contract.json"
+    require_file "${variant_dir}/validation.predictions.jsonl"
+    require_file "${variant_dir}/validation.metrics.json"
+    mkdir -p "${stage}/phase05_results/students/${variant}"
+    cp "${variant_dir}/training_summary.json" \
+      "${variant_dir}/training_contract.json" \
+      "${variant_dir}/evaluation_contract.json" \
+      "${variant_dir}/training.log" \
+      "${variant_dir}/evaluation.log" \
+      "${variant_dir}/validation.predictions.jsonl" \
+      "${variant_dir}/validation.metrics.json" \
+      "${stage}/phase05_results/students/${variant}/"
+    cp "$(target_for_variant "${variant}")" "${stage}/phase05_results/targets/"
+  done
+
+  cp "${SUMMARY_ROOT}/phase05_train_${BUDGET}.pilot.json" \
+    "${SUMMARY_ROOT}/phase05_train_${BUDGET}.pilot.csv" \
+    "${SUMMARY_ROOT}/phase05_train_${BUDGET}.cost_scenarios.csv" \
+    "${stage}/phase05_results/summary/"
+  cp "${COST_ASSUMPTIONS}" "${stage}/phase05_results/summary/"
+  cp "${DIRECT_COST}" "${DIRECT_PREDICTIONS}" "${stage}/phase05_results/direct_llm/"
+  cp "${VALIDATION_TARGETS}" "${stage}/phase05_results/targets/"
+  cp "${RUNTIME_CONTRACT}" "${stage}/phase05_results/"
+  write_manifest "${stage}/phase05_results/run_manifest.txt"
+  tar -czf "${archive}" -C "${stage}" phase05_results
+  rm -rf "${stage}"
+  trap - EXIT
+  echo "Results archive ready: ${archive}"
+}
+
+package_checkpoints() {
+  validate_training_contracts
+  mkdir -p "${ARTIFACT_ROOT}"
+  local variant checkpoint archive
+  for variant in "${variants[@]}"; do
+    checkpoint="${RUN_ROOT}/${variant}/best_model"
+    require_file "${checkpoint}/config.json"
+    archive="${ARTIFACT_ROOT}/phase05_train_${BUDGET}_${variant}_checkpoint.tar.gz"
+    tar -czf "${archive}" -C "${RUN_ROOT}" \
+      "${variant}/best_model" \
+      "${variant}/training_contract.json" \
+      runtime_contract.json
+    echo "Checkpoint archive ready: ${archive}"
+  done
+}
+
+command="${1:-}"
+if [[ $# -gt 0 ]]; then
+  shift
+fi
+
+case "${command}" in
+  setup)
+    setup_colab
+    ;;
+  preflight)
+    preflight
+    ;;
+  run)
+    preflight
+    run_selected "${1:-all}"
+    ;;
+  aggregate)
+    aggregate "$@"
+    ;;
+  package-results)
+    package_results
+    ;;
+  package-checkpoints)
+    package_checkpoints
+    ;;
+  all)
+    preflight
+    run_selected all
+    aggregate
+    package_results
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    echo "Unknown command: ${command}" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
