@@ -9,10 +9,14 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from models.classification_student import ensure_padding_token
+from models.classification_student import (
+    ERClassificationPredictionDataset,
+    ensure_padding_token,
+)
 from models.seq2seq_student import iter_jsonl
 from models.student_config import StudentConfig, load_student_config
 from utils.metrics import compute_metrics
+from utils.classification_threshold import load_decision_threshold
 
 
 def parse_decision(text: str) -> Optional[bool]:
@@ -216,8 +220,15 @@ def classify_predictions(
     resolved_precision = resolve_precision(device, precision)
     model.to(device)
     model.eval()
-    dataset = PredictionDataset(rows, tokenizer, max_input_length=max_input_length)
+    dataset = ERClassificationPredictionDataset(
+        rows,
+        tokenizer,
+        max_input_length=max_input_length,
+    )
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    decision_threshold, threshold_source, threshold_payload = load_decision_threshold(
+        checkpoint
+    )
 
     predictions: list[dict] = []
     cursor = 0
@@ -229,7 +240,13 @@ def classify_predictions(
         for batch in tqdm(loader, desc="Classifying"):
             batch = {key: value.to(device) for key, value in batch.items()}
             probabilities = torch.softmax(model(**batch).logits.float(), dim=-1)
-            predicted_ids = probabilities.argmax(dim=-1)
+            match_probabilities = probabilities[:, config.label_to_id["match"]]
+            predicted_matches = match_probabilities >= decision_threshold
+            predicted_ids = torch.where(
+                predicted_matches,
+                torch.tensor(config.label_to_id["match"], device=probabilities.device),
+                torch.tensor(config.label_to_id["non-match"], device=probabilities.device),
+            )
             for row_index in range(predicted_ids.shape[0]):
                 row = rows[cursor]
                 prediction_id = int(predicted_ids[row_index].item())
@@ -276,6 +293,11 @@ def classify_predictions(
             "inference_batch_size": batch_size,
             "inference_max_input_length": max_input_length,
             "inference_max_new_tokens": None,
+            "decision_threshold": decision_threshold,
+            "decision_threshold_source": threshold_source,
+            "decision_threshold_selection_metric": (
+                threshold_payload.get("selection_metric") if threshold_payload else None
+            ),
         }
     )
     return metrics

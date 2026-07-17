@@ -11,6 +11,12 @@ import torch
 PRECISION_CHOICES = ("auto", "fp32", "fp16", "bf16")
 
 
+def cuda_supports_native_bf16() -> bool:
+    """Return true only for CUDA devices with native Ampere-or-newer BF16 support."""
+    major, _minor = torch.cuda.get_device_capability()
+    return major >= 8 and torch.cuda.is_bf16_supported()
+
+
 def resolve_precision(device: str, requested: str = "auto") -> str:
     """Resolve an explicit precision or choose a safe default for the device."""
     precision = requested.strip().lower()
@@ -23,12 +29,14 @@ def resolve_precision(device: str, requested: str = "auto") -> str:
     if precision == "auto":
         if device_type != "cuda":
             return "fp32"
-        return "bf16" if torch.cuda.is_bf16_supported() else "fp16"
+        return "bf16" if cuda_supports_native_bf16() else "fp16"
 
     if precision in {"fp16", "bf16"} and device_type != "cuda":
         raise ValueError(f"{precision} requires a CUDA device; received {device!r}")
-    if precision == "bf16" and not torch.cuda.is_bf16_supported():
-        raise ValueError("bf16 was requested, but the CUDA device does not report BF16 support")
+    if precision == "bf16" and not cuda_supports_native_bf16():
+        raise ValueError(
+            "bf16 was requested, but the CUDA device does not have native BF16 support"
+        )
     return precision
 
 

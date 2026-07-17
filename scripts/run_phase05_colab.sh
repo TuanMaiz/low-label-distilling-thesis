@@ -16,7 +16,9 @@ Usage:
 
 Recommended Colab flow after cloning the repository branch:
   bash scripts/run_phase05_colab.sh setup
-  STUDENT_CONFIG=configs/students/modernbert_base.json bash scripts/run_phase05_colab.sh all
+  STUDENT_CONFIG=configs/students/modernbert_base.json \
+    STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
+    bash scripts/run_phase05_colab.sh all
 
 The all command resumes at completed stage boundaries. Completed
 training/evaluation artifacts are skipped unless FORCE=1 is set; interrupted
@@ -28,13 +30,18 @@ Environment overrides:
   STUDENT_CONFIG=configs/students/flan_t5_base.json
   STUDENT_OUTPUT_ROOT=outputs/students
   BUDGET=128
-  BATCH_SIZE=4
+  BATCH_SIZE=auto             # classifier: 16; seq2seq: 4
   VALIDATION_BATCH_SIZE=auto  # A100/BF16: 32; other CUDA: 16
   EVAL_BATCH_SIZE=8
   NUM_EPOCHS=8
   LEARNING_RATE=5e-5
   WEIGHT_DECAY=0.01
   WARMUP_STEPS=0
+  WARMUP_RATIO=auto           # classifier: 0.10; seq2seq: 0
+  CLASSIFIER_HEAD_EPOCHS=2
+  CLASSIFIER_HEAD_LEARNING_RATE=1e-3
+  CLASSIFIER_ENCODER_LEARNING_RATE=1e-5
+  CLASSIFIER_UNFREEZE_LAST_N_LAYERS=4
   MAX_INPUT_LENGTH=512
   MAX_TARGET_LENGTH=8
   MAX_NEW_TOKENS=8
@@ -59,13 +66,18 @@ PYTHON="${PYTHON:-python}"
 STUDENT_CONFIG="${STUDENT_CONFIG:-configs/students/flan_t5_base.json}"
 STUDENT_OUTPUT_ROOT="${STUDENT_OUTPUT_ROOT:-${OUTPUT_ROOT:-outputs/students}}"
 BUDGET="${BUDGET:-128}"
-BATCH_SIZE="${BATCH_SIZE:-4}"
+BATCH_SIZE="${BATCH_SIZE:-auto}"
 VALIDATION_BATCH_SIZE="${VALIDATION_BATCH_SIZE:-auto}"
 EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-8}"
 NUM_EPOCHS="${NUM_EPOCHS:-8}"
 LEARNING_RATE="${LEARNING_RATE:-5e-5}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0.01}"
 WARMUP_STEPS="${WARMUP_STEPS:-0}"
+WARMUP_RATIO="${WARMUP_RATIO:-auto}"
+CLASSIFIER_HEAD_EPOCHS="${CLASSIFIER_HEAD_EPOCHS:-2}"
+CLASSIFIER_HEAD_LEARNING_RATE="${CLASSIFIER_HEAD_LEARNING_RATE:-1e-3}"
+CLASSIFIER_ENCODER_LEARNING_RATE="${CLASSIFIER_ENCODER_LEARNING_RATE:-1e-5}"
+CLASSIFIER_UNFREEZE_LAST_N_LAYERS="${CLASSIFIER_UNFREEZE_LAST_N_LAYERS:-4}"
 MAX_INPUT_LENGTH="${MAX_INPUT_LENGTH:-512}"
 MAX_TARGET_LENGTH="${MAX_TARGET_LENGTH:-8}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-8}"
@@ -88,6 +100,18 @@ STUDENT_ID="$(read_student_config_field student_id)"
 LEGACY_MODEL_NAME_OVERRIDE="${MODEL_NAME:-}"
 MODEL_NAME="$(read_student_config_field model_name)"
 STUDENT_ARCHITECTURE="$(read_student_config_field architecture)"
+if [[ "${BATCH_SIZE}" == "auto" ]]; then
+  BATCH_SIZE=4
+  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+    BATCH_SIZE=16
+  fi
+fi
+if [[ "${WARMUP_RATIO}" == "auto" ]]; then
+  WARMUP_RATIO=0
+  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+    WARMUP_RATIO=0.10
+  fi
+fi
 if [[ -n "${LEGACY_MODEL_NAME_OVERRIDE}" && "${LEGACY_MODEL_NAME_OVERRIDE}" != "${MODEL_NAME}" ]]; then
   echo "MODEL_NAME no longer selects a student independently." >&2
   echo "Create or choose a STUDENT_CONFIG with its own model_name and student_id." >&2
@@ -251,6 +275,7 @@ build_training_contract_args() {
     --field "learning_rate=${LEARNING_RATE}"
     --field "weight_decay=${WEIGHT_DECAY}"
     --field "warmup_steps=${WARMUP_STEPS}"
+    --field "warmup_ratio=${WARMUP_RATIO}"
     --field "max_input_length=${MAX_INPUT_LENGTH}"
     --field "early_stopping_patience=${EARLY_STOPPING_PATIENCE}"
     --field "seed=${SEED}"
@@ -274,7 +299,18 @@ build_training_contract_args() {
       --file "student_backend=models/seq2seq_student.py"
     )
   else
-    CONTRACT_ARGS+=(--file "student_backend=models/classification_student.py")
+    CONTRACT_ARGS+=(
+      --field "pair_truncation=longest_first"
+      --field "checkpoint_metric=validation_macro_f1"
+      --field "decision_threshold_selection=validation_macro_f1"
+      --field "classifier_head_epochs=${CLASSIFIER_HEAD_EPOCHS}"
+      --field "classifier_head_learning_rate=${CLASSIFIER_HEAD_LEARNING_RATE}"
+      --field "classifier_encoder_learning_rate=${CLASSIFIER_ENCODER_LEARNING_RATE}"
+      --field "classifier_unfreeze_last_n_layers=${CLASSIFIER_UNFREEZE_LAST_N_LAYERS}"
+      --file "student_backend=models/classification_student.py"
+      --file "threshold_selection=utils/classification_threshold.py"
+      --file "metrics=utils/metrics.py"
+    )
   fi
 }
 
@@ -306,6 +342,11 @@ build_evaluation_contract_args() {
   )
   if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" ]]; then
     CONTRACT_ARGS+=(--field "max_new_tokens=${MAX_NEW_TOKENS}")
+  else
+    CONTRACT_ARGS+=(
+      --file "decision_threshold=${RUN_ROOT}/${variant}/best_model/decision_threshold.json"
+      --file "threshold_selection=utils/classification_threshold.py"
+    )
   fi
 }
 
@@ -423,7 +464,15 @@ train_variant() {
   mkdir -p "${output_dir}"
   build_training_contract_args "${variant}" "${train_targets}"
 
-  if [[ "${FORCE}" != "1" && -f "${checkpoint}" && -f "${summary}" ]]; then
+  local threshold_marker="${output_dir}/decision_threshold.json"
+  local completion_ready=0
+  if [[ -f "${checkpoint}" && -f "${summary}" ]]; then
+    completion_ready=1
+    if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" && ! -f "${threshold_marker}" ]]; then
+      completion_ready=0
+    fi
+  fi
+  if [[ "${FORCE}" != "1" && "${completion_ready}" == "1" ]]; then
     require_matching_contract "${training_contract}" "training"
     echo "skip completed training: ${variant}"
     return
@@ -434,6 +483,7 @@ train_variant() {
   archive_if_exists "${summary}"
   archive_if_exists "${predictions}"
   archive_if_exists "${metrics}"
+  archive_if_exists "${threshold_marker}"
 
   args=(
     "${PYTHON}" -m experiments.train_student
@@ -446,6 +496,7 @@ train_variant() {
     --learning-rate "${LEARNING_RATE}"
     --weight-decay "${WEIGHT_DECAY}"
     --warmup-steps "${WARMUP_STEPS}"
+    --warmup-ratio "${WARMUP_RATIO}"
     --max-input-length "${MAX_INPUT_LENGTH}"
     --max-target-length "${MAX_TARGET_LENGTH}"
     --seed "${SEED}"
@@ -453,6 +504,14 @@ train_variant() {
     --precision "${PRECISION}"
     --early-stopping-patience "${EARLY_STOPPING_PATIENCE}"
   )
+  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+    args+=(
+      --classifier-head-epochs "${CLASSIFIER_HEAD_EPOCHS}"
+      --classifier-head-learning-rate "${CLASSIFIER_HEAD_LEARNING_RATE}"
+      --classifier-encoder-learning-rate "${CLASSIFIER_ENCODER_LEARNING_RATE}"
+      --classifier-unfreeze-last-n-layers "${CLASSIFIER_UNFREEZE_LAST_N_LAYERS}"
+    )
+  fi
   if [[ "${VALIDATION_BATCH_SIZE}" != "auto" ]]; then
     args+=(--validation-batch-size "${VALIDATION_BATCH_SIZE}")
   fi
@@ -481,6 +540,10 @@ evaluate_variant() {
   evaluation_contract="${output_dir}/evaluation_contract.json"
   require_file "${checkpoint}/config.json"
   require_file "${training_contract}"
+  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+    require_file "${checkpoint}/decision_threshold.json"
+    require_file "${output_dir}/decision_threshold.json"
+  fi
   build_evaluation_contract_args "${variant}" "${training_contract}"
 
   if [[ "${FORCE}" != "1" && -f "${predictions}" && -f "${metrics}" ]]; then
@@ -571,6 +634,13 @@ write_manifest() {
     printf 'learning_rate=%s\n' "${LEARNING_RATE}"
     printf 'weight_decay=%s\n' "${WEIGHT_DECAY}"
     printf 'warmup_steps=%s\n' "${WARMUP_STEPS}"
+    printf 'warmup_ratio=%s\n' "${WARMUP_RATIO}"
+    if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+      printf 'classifier_head_epochs=%s\n' "${CLASSIFIER_HEAD_EPOCHS}"
+      printf 'classifier_head_learning_rate=%s\n' "${CLASSIFIER_HEAD_LEARNING_RATE}"
+      printf 'classifier_encoder_learning_rate=%s\n' "${CLASSIFIER_ENCODER_LEARNING_RATE}"
+      printf 'classifier_unfreeze_last_n_layers=%s\n' "${CLASSIFIER_UNFREEZE_LAST_N_LAYERS}"
+    fi
     printf 'device=%s\n' "${DEVICE}"
     printf 'precision=%s\n' "${PRECISION}"
     printf 'resolved_precision=%s\n' "${RESOLVED_PRECISION}"
@@ -631,6 +701,9 @@ package_results() {
     require_file "${variant_dir}/evaluation_contract.json"
     require_file "${variant_dir}/validation.predictions.jsonl"
     require_file "${variant_dir}/validation.metrics.json"
+    if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+      require_file "${variant_dir}/decision_threshold.json"
+    fi
     mkdir -p "${stage}/phase05_results/students/${variant}"
     cp "${variant_dir}/training_summary.json" \
       "${variant_dir}/training_contract.json" \
@@ -640,6 +713,10 @@ package_results() {
       "${variant_dir}/validation.predictions.jsonl" \
       "${variant_dir}/validation.metrics.json" \
       "${stage}/phase05_results/students/${variant}/"
+    if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+      cp "${variant_dir}/decision_threshold.json" \
+        "${stage}/phase05_results/students/${variant}/"
+    fi
     cp "$(target_for_variant "${variant}")" "${stage}/phase05_results/targets/"
   done
 

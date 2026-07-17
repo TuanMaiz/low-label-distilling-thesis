@@ -1,7 +1,7 @@
 """Training loop with optional W&B logging for Hugging Face ER students."""
 
 import math
-from typing import Optional, Dict, List
+from typing import Callable, Optional, Dict, List
 from pathlib import Path
 import torch
 from torch.optim import AdamW
@@ -9,6 +9,11 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from utils.torch_runtime import autocast_context, create_grad_scaler, resolve_precision
+from utils.classification_threshold import (
+    THRESHOLD_FILENAME,
+    select_decision_threshold,
+    write_decision_threshold,
+)
 
 try:
     import wandb
@@ -36,6 +41,11 @@ class Trainer:
         wandb_entity: Optional[str] = None,
         wandb_run_name: Optional[str] = None,
         precision: str = "auto",
+        optimizer_param_groups: Optional[list[dict]] = None,
+        checkpoint_metric: str = "val_loss",
+        unfreeze_after_epoch: int | None = None,
+        unfreeze_callback: Callable[[], int] | None = None,
+        positive_label_id: int = 1,
     ):
         """
         Initialize the trainer.
@@ -61,13 +71,20 @@ class Trainer:
         self.label_smoothing = label_smoothing
         self.precision_requested = precision
         self.precision = resolve_precision(device, precision)
+        if checkpoint_metric not in {"val_loss", "macro_f1"}:
+            raise ValueError("checkpoint_metric must be 'val_loss' or 'macro_f1'")
+        self.checkpoint_metric = checkpoint_metric
+        self.unfreeze_after_epoch = unfreeze_after_epoch
+        self.unfreeze_callback = unfreeze_callback
+        self.unfrozen_encoder_layers = 0
+        self.positive_label_id = positive_label_id
 
         # Move model to device
         self.model.to(self.device)
 
         # Setup optimizer
         self.optimizer = AdamW(
-            self.model.parameters(),
+            optimizer_param_groups or self.model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay
         )
@@ -81,6 +98,9 @@ class Trainer:
 
         self.global_step = 0
         self.best_val_loss = float("inf")
+        self.best_macro_f1 = float("-inf")
+        self.best_same_f1 = float("-inf")
+        self.best_decision_threshold: float | None = None
 
     def setup_wandb(self, config: Dict) -> None:
         """Initialize W&B logging."""
@@ -179,7 +199,12 @@ class Trainer:
         return avg_loss
 
     @torch.no_grad()
-    def evaluate(self, val_loader: DataLoader, epoch: int = 0) -> float:
+    def evaluate(
+        self,
+        val_loader: DataLoader,
+        epoch: int = 0,
+        collect_classification_metrics: bool = False,
+    ) -> float | dict:
         """
         Evaluate on validation set.
 
@@ -193,6 +218,8 @@ class Trainer:
         self.model.eval()
         total_weighted_loss = 0.0
         total_label_tokens = 0
+        match_probabilities: list[float] = []
+        classification_labels: list[bool] = []
 
         for batch in tqdm(val_loader, desc="Validation"):
             batch = {k: v.to(self.device) for k, v in batch.items()}
@@ -213,6 +240,16 @@ class Trainer:
             label_tokens = int((batch["labels"] != -100).sum().item())
             total_weighted_loss += loss_value * label_tokens
             total_label_tokens += label_tokens
+            if collect_classification_metrics:
+                if outputs.logits.ndim != 2 or outputs.logits.shape[-1] != 2:
+                    raise ValueError("macro-F1 checkpointing requires binary classifier logits")
+                probabilities = torch.softmax(outputs.logits.float(), dim=-1)[
+                    :, self.positive_label_id
+                ]
+                match_probabilities.extend(probabilities.cpu().tolist())
+                classification_labels.extend(
+                    (batch["labels"] == self.positive_label_id).cpu().tolist()
+                )
 
         avg_loss = (
             total_weighted_loss / total_label_tokens
@@ -220,10 +257,28 @@ class Trainer:
             else 0.0
         )
 
-        if self.use_wandb:
-            wandb.log({"val/loss": avg_loss, "epoch": epoch})
+        result: float | dict = avg_loss
+        if collect_classification_metrics:
+            threshold_result = select_decision_threshold(
+                match_probabilities,
+                classification_labels,
+            )
+            result = {"val_loss": avg_loss, **threshold_result}
 
-        return avg_loss
+        if self.use_wandb:
+            log_payload = {"val/loss": avg_loss, "epoch": epoch}
+            if isinstance(result, dict):
+                validation_metrics = result["validation_metrics"]
+                log_payload.update(
+                    {
+                        "val/macro_f1": validation_metrics["macro_f1"],
+                        "val/same_f1": validation_metrics["same_f1"],
+                        "val/decision_threshold": result["decision_threshold"],
+                    }
+                )
+            wandb.log(log_payload)
+
+        return result
 
     def train(
         self,
@@ -251,7 +306,10 @@ class Trainer:
 
         history = {
             "train_loss": [],
-            "val_loss": []
+            "val_loss": [],
+            "val_macro_f1": [],
+            "val_same_f1": [],
+            "val_decision_threshold": [],
         }
 
         patience_counter = 0
@@ -261,6 +319,15 @@ class Trainer:
             print(f"Epoch {epoch}/{num_epochs}")
             print(f"{'=' * 50}")
 
+            if (
+                self.unfreeze_after_epoch is not None
+                and epoch == self.unfreeze_after_epoch + 1
+            ):
+                if self.unfreeze_callback is None:
+                    raise ValueError("unfreeze_after_epoch requires an unfreeze_callback")
+                self.unfrozen_encoder_layers = self.unfreeze_callback()
+                print(f"Unfroze {self.unfrozen_encoder_layers} final encoder layers")
+
             # Train
             train_loss = self.train_epoch(train_loader, epoch)
             history["train_loss"].append(train_loss)
@@ -269,19 +336,66 @@ class Trainer:
 
             # Validate
             if val_loader is not None:
-                val_loss = self.evaluate(val_loader, epoch)
+                evaluation = self.evaluate(
+                    val_loader,
+                    epoch,
+                    collect_classification_metrics=self.checkpoint_metric == "macro_f1",
+                )
+                if isinstance(evaluation, dict):
+                    val_loss = evaluation["val_loss"]
+                    validation_metrics = evaluation["validation_metrics"]
+                    macro_f1 = validation_metrics["macro_f1"]
+                    same_f1 = validation_metrics["same_f1"]
+                    decision_threshold = evaluation["decision_threshold"]
+                    history["val_macro_f1"].append(macro_f1)
+                    history["val_same_f1"].append(same_f1)
+                    history["val_decision_threshold"].append(decision_threshold)
+                    print(
+                        f"Val Macro F1: {macro_f1:.4f}; Match F1: {same_f1:.4f}; "
+                        f"Threshold: {decision_threshold:.6f}"
+                    )
+                else:
+                    val_loss = evaluation
+                    macro_f1 = None
+                    same_f1 = None
+                    decision_threshold = None
                 history["val_loss"].append(val_loss)
                 print(f"Val Loss: {val_loss:.4f}")
 
                 # Check for improvement
-                if val_loss < self.best_val_loss:
+                if self.checkpoint_metric == "macro_f1":
+                    improved = (macro_f1, same_f1) > (
+                        self.best_macro_f1,
+                        self.best_same_f1,
+                    )
+                else:
+                    improved = val_loss < self.best_val_loss
+                if improved:
                     self.best_val_loss = val_loss
+                    if macro_f1 is not None and same_f1 is not None:
+                        self.best_macro_f1 = macro_f1
+                        self.best_same_f1 = same_f1
+                        self.best_decision_threshold = decision_threshold
                     patience_counter = 0
 
                     # Save best model
                     checkpoint_path = save_dir / "best_model"
                     self.model.save_pretrained(checkpoint_path)
                     self.tokenizer.save_pretrained(checkpoint_path)
+                    if isinstance(evaluation, dict):
+                        threshold_payload = {
+                            **evaluation,
+                            "checkpoint_metric": self.checkpoint_metric,
+                            "epoch": epoch,
+                        }
+                        write_decision_threshold(
+                            checkpoint_path / THRESHOLD_FILENAME,
+                            threshold_payload,
+                        )
+                        write_decision_threshold(
+                            save_dir / THRESHOLD_FILENAME,
+                            threshold_payload,
+                        )
                     print(f"Saved best model to {checkpoint_path}")
                 else:
                     patience_counter += 1

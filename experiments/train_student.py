@@ -14,7 +14,12 @@ from torch.utils.data import DataLoader
 from transformers import get_scheduler
 
 from experiments.trainer import Trainer
-from models.classification_student import ERClassificationDataset, load_sequence_classifier
+from models.classification_student import (
+    ERClassificationDataset,
+    load_sequence_classifier,
+    prepare_staged_finetuning,
+    unfreeze_last_encoder_layers,
+)
 from models.seq2seq_student import ERSeq2SeqDataset, load_seq2seq, load_target_rows
 from models.student_config import StudentConfig, load_student_config
 from utils.torch_runtime import (
@@ -92,6 +97,11 @@ def train_configured_student(
     early_stopping_patience: int = 3,
     validation_batch_size: int | None = None,
     precision: str = "auto",
+    warmup_ratio: float = 0.0,
+    classifier_head_epochs: int = 2,
+    classifier_head_learning_rate: float = 1e-3,
+    classifier_encoder_learning_rate: float = 1e-5,
+    classifier_unfreeze_last_n_layers: int = 4,
 ) -> dict:
     config = load_student_config(student_config)
     set_seed(seed)
@@ -118,21 +128,53 @@ def train_configured_student(
         shuffle=False,
     )
 
+    optimizer_param_groups = None
+    checkpoint_metric = "val_loss"
+    unfreeze_after_epoch = None
+    unfreeze_callback = None
+    if config.architecture == "sequence_classification":
+        if not 0 <= classifier_head_epochs < num_epochs:
+            raise ValueError("classifier_head_epochs must be between 0 and num_epochs - 1")
+        optimizer_param_groups = prepare_staged_finetuning(
+            model,
+            encoder_learning_rate=classifier_encoder_learning_rate,
+            head_learning_rate=classifier_head_learning_rate,
+        )
+        checkpoint_metric = "macro_f1"
+        unfreeze_after_epoch = classifier_head_epochs
+        unfreeze_callback = lambda: unfreeze_last_encoder_layers(
+            model,
+            classifier_unfreeze_last_n_layers,
+        )
+
+    total_training_steps = max(1, len(train_loader) * num_epochs)
+    if not 0.0 <= warmup_ratio <= 1.0:
+        raise ValueError("warmup_ratio must be between 0 and 1")
+    resolved_warmup_steps = max(
+        warmup_steps,
+        int(np.ceil(total_training_steps * warmup_ratio)),
+    )
+
     trainer = Trainer(
         model=model,
         tokenizer=tokenizer,
         device=resolved_device,
         learning_rate=learning_rate,
         weight_decay=weight_decay,
-        warmup_steps=warmup_steps,
+        warmup_steps=resolved_warmup_steps,
         precision=precision,
         wandb_project="distiller-wdc-er" if use_wandb else None,
+        optimizer_param_groups=optimizer_param_groups,
+        checkpoint_metric=checkpoint_metric,
+        unfreeze_after_epoch=unfreeze_after_epoch,
+        unfreeze_callback=unfreeze_callback,
+        positive_label_id=config.label_to_id.get("match", 1),
     )
     trainer.scheduler = get_scheduler(
         "linear",
         optimizer=trainer.optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=max(1, len(train_loader) * num_epochs),
+        num_warmup_steps=resolved_warmup_steps,
+        num_training_steps=total_training_steps,
     )
     training_device = torch.device(resolved_device)
     if training_device.type == "cuda":
@@ -164,11 +206,48 @@ def train_configured_student(
         "num_epochs": num_epochs,
         "learning_rate": learning_rate,
         "weight_decay": weight_decay,
-        "warmup_steps": warmup_steps,
+        "warmup_steps_requested": warmup_steps,
+        "warmup_ratio": warmup_ratio,
+        "warmup_steps": resolved_warmup_steps,
         "max_input_length": max_input_length,
         "max_target_length": max_target_length if config.architecture == "seq2seq" else None,
         "seed": seed,
         "early_stopping_patience": early_stopping_patience,
+        "checkpoint_metric": checkpoint_metric,
+        "best_validation_loss": trainer.best_val_loss,
+        "best_validation_macro_f1": (
+            trainer.best_macro_f1 if config.architecture == "sequence_classification" else None
+        ),
+        "best_validation_match_f1": (
+            trainer.best_same_f1 if config.architecture == "sequence_classification" else None
+        ),
+        "decision_threshold": trainer.best_decision_threshold,
+        "classifier_head_epochs": (
+            classifier_head_epochs if config.architecture == "sequence_classification" else None
+        ),
+        "classifier_head_learning_rate": (
+            classifier_head_learning_rate
+            if config.architecture == "sequence_classification"
+            else None
+        ),
+        "classifier_encoder_learning_rate": (
+            classifier_encoder_learning_rate
+            if config.architecture == "sequence_classification"
+            else None
+        ),
+        "classifier_unfreeze_last_n_layers": (
+            classifier_unfreeze_last_n_layers
+            if config.architecture == "sequence_classification"
+            else None
+        ),
+        "classifier_unfrozen_encoder_layers": (
+            trainer.unfrozen_encoder_layers
+            if config.architecture == "sequence_classification"
+            else None
+        ),
+        "classification_pair_truncation": (
+            "longest_first" if config.architecture == "sequence_classification" else None
+        ),
         "precision_requested": precision,
         "precision": trainer.precision,
         "torch_version": torch.__version__,
@@ -210,6 +289,7 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=5e-5)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--warmup-steps", type=int, default=0)
+    parser.add_argument("--warmup-ratio", type=float, default=0.0)
     parser.add_argument("--max-input-length", type=int, default=512)
     parser.add_argument("--max-target-length", type=int, default=8)
     parser.add_argument("--seed", type=int, default=42)
@@ -217,6 +297,10 @@ def main() -> None:
     parser.add_argument("--use-wandb", action="store_true")
     parser.add_argument("--early-stopping-patience", type=int, default=3)
     parser.add_argument("--precision", choices=PRECISION_CHOICES, default="auto")
+    parser.add_argument("--classifier-head-epochs", type=int, default=2)
+    parser.add_argument("--classifier-head-learning-rate", type=float, default=1e-3)
+    parser.add_argument("--classifier-encoder-learning-rate", type=float, default=1e-5)
+    parser.add_argument("--classifier-unfreeze-last-n-layers", type=int, default=4)
     args = parser.parse_args()
     summary = train_configured_student(
         student_config=args.student_config,
@@ -229,6 +313,7 @@ def main() -> None:
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
         warmup_steps=args.warmup_steps,
+        warmup_ratio=args.warmup_ratio,
         max_input_length=args.max_input_length,
         max_target_length=args.max_target_length,
         seed=args.seed,
@@ -236,6 +321,10 @@ def main() -> None:
         use_wandb=args.use_wandb,
         early_stopping_patience=args.early_stopping_patience,
         precision=args.precision,
+        classifier_head_epochs=args.classifier_head_epochs,
+        classifier_head_learning_rate=args.classifier_head_learning_rate,
+        classifier_encoder_learning_rate=args.classifier_encoder_learning_rate,
+        classifier_unfreeze_last_n_layers=args.classifier_unfreeze_last_n_layers,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
