@@ -16,7 +16,7 @@ Usage:
 
 Recommended Colab flow after cloning the repository branch:
   bash scripts/run_phase05_colab.sh setup
-  STUDENT_CONFIG=configs/students/gemma_3_270m.json bash scripts/run_phase05_colab.sh all
+  STUDENT_CONFIG=configs/students/modernbert_base.json bash scripts/run_phase05_colab.sh all
 
 The all command resumes at completed stage boundaries. Completed
 training/evaluation artifacts are skipped unless FORCE=1 is set; interrupted

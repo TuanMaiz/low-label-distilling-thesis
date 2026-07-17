@@ -1,6 +1,6 @@
 {
-  "student_id": "gemma-3-270m",
-  "model_name": "google/gemma-3-270m",
+  "student_id": "modernbert-base",
+  "model_name": "answerdotai/ModernBERT-base",
   "architecture": "sequence_classification",
   "tokenizer_use_fast": true,
   "num_labels": 2,
