@@ -89,7 +89,7 @@ def train_configured_student(
     learning_rate: float = 5e-5,
     weight_decay: float = 0.01,
     warmup_steps: int = 0,
-    max_input_length: int = 512,
+    max_input_length: int | None = None,
     max_target_length: int = 8,
     seed: int = 42,
     device: str | None = None,
@@ -104,6 +104,10 @@ def train_configured_student(
     classifier_unfreeze_last_n_layers: int = 4,
 ) -> dict:
     config = load_student_config(student_config)
+    if max_input_length is None:
+        max_input_length = (
+            2400 if config.architecture == "sequence_classification" else 512
+        )
     set_seed(seed)
     resolved_device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     resolved_validation_batch_size = resolve_runtime_validation_batch_size(
@@ -246,7 +250,7 @@ def train_configured_student(
             else None
         ),
         "classification_pair_truncation": (
-            "longest_first" if config.architecture == "sequence_classification" else None
+            "disabled" if config.architecture == "sequence_classification" else None
         ),
         "precision_requested": precision,
         "precision": trainer.precision,
@@ -290,7 +294,7 @@ def main() -> None:
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--warmup-steps", type=int, default=0)
     parser.add_argument("--warmup-ratio", type=float, default=0.0)
-    parser.add_argument("--max-input-length", type=int, default=512)
+    parser.add_argument("--max-input-length", type=int)
     parser.add_argument("--max-target-length", type=int, default=8)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device")

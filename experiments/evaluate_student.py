@@ -195,7 +195,7 @@ def classify_predictions(
     input_path: Path,
     output_path: Path,
     batch_size: int = 8,
-    max_input_length: int = 512,
+    max_input_length: int = 2400,
     device: str | None = None,
     precision: str = "auto",
 ) -> dict:
@@ -364,13 +364,20 @@ def main() -> None:
     parser.add_argument("--budget", default="unknown")
     parser.add_argument("--split", default="validation")
     parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--max-input-length", type=int, default=512)
+    parser.add_argument("--max-input-length", type=int)
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument("--device")
     parser.add_argument("--precision", choices=("auto", "fp32", "fp16", "bf16"), default="auto")
     args = parser.parse_args()
 
     config = load_student_config(args.student_config) if args.student_config else None
+    resolved_max_input_length = args.max_input_length
+    if resolved_max_input_length is None:
+        resolved_max_input_length = (
+            2400
+            if config is not None and config.architecture == "sequence_classification"
+            else 512
+        )
     if config is not None and config.architecture == "sequence_classification":
         metrics = classify_predictions(
             config=config,
@@ -378,7 +385,7 @@ def main() -> None:
             input_path=args.input,
             output_path=args.predictions,
             batch_size=args.batch_size,
-            max_input_length=args.max_input_length,
+            max_input_length=resolved_max_input_length,
             device=args.device,
             precision=args.precision,
         )
@@ -388,7 +395,7 @@ def main() -> None:
             input_path=args.input,
             output_path=args.predictions,
             batch_size=args.batch_size,
-            max_input_length=args.max_input_length,
+            max_input_length=resolved_max_input_length,
             max_new_tokens=args.max_new_tokens,
             device=args.device,
             precision=args.precision,

@@ -13,7 +13,7 @@ The repair keeps the model, seed, budget, targets, teacher labels, selection man
 
 ## What Happened
 
-- Changed classifier tokenization to pass records A and B as a pair with `longest_first` truncation under the existing combined 512-token limit.
+- Changed classifier tokenization to pass records A and B as one complete pair, raised the fixed-input cap to 2,400 after measuring a 2,334-token maximum, and disabled truncation so future overflow fails explicitly.
 - Restricted automatic BF16 to native Ampere-or-newer support, making Tesla T4 resolve to FP16.
 - Raised the classifier batch to 16 and added 10% warmup.
 - Added staged tuning: train the classification head alone for two epochs, then unfreeze the final four encoder blocks using separate head and encoder learning rates of `1e-3` and `1e-5`.

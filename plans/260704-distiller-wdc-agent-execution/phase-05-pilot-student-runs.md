@@ -124,7 +124,8 @@ student + direct LLM metrics
 
 ## Fixed Colab Runtime Defaults
 
-- `MAX_INPUT_LENGTH=512`; do not shorten it for this pilot.
+- `MAX_INPUT_LENGTH=2400` for ModernBERT classifiers and 512 for seq2seq; the
+  classifier value preserves the measured 2,334-token fixed-input maximum.
 - `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8` apply to seq2seq students only.
 - Sequence classifiers map logits to literal `match` / `non-match` prediction
   text and record both probabilities; they do not generate tokens.
@@ -135,7 +136,7 @@ student + direct LLM metrics
 - `VALIDATION_BATCH_SIZE=auto`: 32 with BF16 CUDA, 16 with other CUDA, and the
   training batch size on CPU.
 - Training, validation, and final-prediction inputs are tokenized once per
-  process; fixed 512-token padding remains in force.
+  process; classifier truncation is disabled and seq2seq keeps 512-token padding.
 - Validation loss is weighted by non-padding label-token count so early
   stopping and checkpoint selection are invariant to validation batch grouping.
 

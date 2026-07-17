@@ -85,9 +85,10 @@ Execution defaults are architecture- and hardware-aware:
   the tie-breaker. The macro-F1-selected validation threshold is stored in
   `decision_threshold.json` and automatically reused by evaluation.
 - Training, validation, and final prediction inputs are tokenized once per
-  process. Classifiers tokenize Record A and Record B as a pair and use
-  `longest_first` within the combined 512-token limit, so both records retain
-  representation even when one description is oversized.
+  process. Classifiers tokenize Record A and Record B as a complete pair with
+  `MAX_INPUT_LENGTH=2400`; the fixed targets and validation set peak at 2,334
+  ModernBERT tokens. Truncation is disabled, so any future overflow fails
+  instead of silently dropping record content. Seq2seq remains at 512 tokens.
 
 Rerunning `all` skips a variant only when its completion artifacts and atomic
 stage contract both exist and match the current run. Training contracts record

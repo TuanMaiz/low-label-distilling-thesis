@@ -252,8 +252,9 @@ run collapsed toward single-class predictions:
 - Preserve the first ModernBERT archive as negative diagnostic evidence.
 - Keep teacher labels, selection manifests, budget, validation rows, model, and
   seed unchanged; do not evaluate test.
-- Tokenize serialized records as a pair with `longest_first` truncation inside
-  the same combined 512-token budget so neither record is wholly removed.
+- Tokenize serialized records as complete pairs with truncation disabled. Use
+  a 2,400-token classifier limit, which exceeds the measured 2,334-token maximum
+  across every fixed train and validation row; future overflow must fail.
 - Resolve T4 to FP16; use BF16 only on hardware with native BF16 capability.
 - Use classifier batch 16, two head-only epochs, then unfreeze the final four
   encoder blocks with head LR `1e-3`, encoder LR `1e-5`, and 10% warmup.

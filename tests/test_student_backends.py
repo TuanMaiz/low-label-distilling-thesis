@@ -36,6 +36,7 @@ class _CountingTokenizer:
         del padding, return_tensors
         self.calls += 1
         self.last_truncation = truncation
+        self.last_max_length = max_length
         if isinstance(texts, str):
             texts = [texts]
         if text_pairs is not None:
@@ -119,6 +120,19 @@ class StudentConfigTest(unittest.TestCase):
 
 
 class ClassificationStudentTest(unittest.TestCase):
+    def test_classifier_default_uses_full_fixed_pair_limit(self):
+        tokenizer = _CountingTokenizer()
+
+        dataset = ERClassificationDataset(
+            rows=[{"input_text": "alpha\n\nRecord B:\none", "target_text": "match"}],
+            tokenizer=tokenizer,
+            label_to_id={"non-match": 0, "match": 1},
+        )
+
+        self.assertEqual(tokenizer.last_max_length, 2400)
+        self.assertFalse(tokenizer.last_truncation)
+        self.assertEqual(dataset.input_ids.shape, (1, 2400))
+
     def test_staged_finetuning_freezes_encoder_then_unfreezes_final_layers(self):
         class _Base(torch.nn.Module):
             def __init__(self):
@@ -168,7 +182,7 @@ class ClassificationStudentTest(unittest.TestCase):
         )
 
         self.assertEqual(tokenizer.calls, 1)
-        self.assertEqual(tokenizer.last_truncation, "longest_first")
+        self.assertFalse(tokenizer.last_truncation)
         self.assertEqual(dataset.labels.dtype, torch.long)
         self.assertEqual(dataset.labels.tolist(), [0, 1])
         dataset[0]

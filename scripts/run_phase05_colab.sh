@@ -42,7 +42,7 @@ Environment overrides:
   CLASSIFIER_HEAD_LEARNING_RATE=1e-3
   CLASSIFIER_ENCODER_LEARNING_RATE=1e-5
   CLASSIFIER_UNFREEZE_LAST_N_LAYERS=4
-  MAX_INPUT_LENGTH=512
+  MAX_INPUT_LENGTH=auto       # classifier: 2400 full-pair cap; seq2seq: 512
   MAX_TARGET_LENGTH=8
   MAX_NEW_TOKENS=8
   EARLY_STOPPING_PATIENCE=3
@@ -78,7 +78,7 @@ CLASSIFIER_HEAD_EPOCHS="${CLASSIFIER_HEAD_EPOCHS:-2}"
 CLASSIFIER_HEAD_LEARNING_RATE="${CLASSIFIER_HEAD_LEARNING_RATE:-1e-3}"
 CLASSIFIER_ENCODER_LEARNING_RATE="${CLASSIFIER_ENCODER_LEARNING_RATE:-1e-5}"
 CLASSIFIER_UNFREEZE_LAST_N_LAYERS="${CLASSIFIER_UNFREEZE_LAST_N_LAYERS:-4}"
-MAX_INPUT_LENGTH="${MAX_INPUT_LENGTH:-512}"
+MAX_INPUT_LENGTH="${MAX_INPUT_LENGTH:-auto}"
 MAX_TARGET_LENGTH="${MAX_TARGET_LENGTH:-8}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-8}"
 EARLY_STOPPING_PATIENCE="${EARLY_STOPPING_PATIENCE:-3}"
@@ -110,6 +110,12 @@ if [[ "${WARMUP_RATIO}" == "auto" ]]; then
   WARMUP_RATIO=0
   if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
     WARMUP_RATIO=0.10
+  fi
+fi
+if [[ "${MAX_INPUT_LENGTH}" == "auto" ]]; then
+  MAX_INPUT_LENGTH=512
+  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+    MAX_INPUT_LENGTH=2400
   fi
 fi
 if [[ -n "${LEGACY_MODEL_NAME_OVERRIDE}" && "${LEGACY_MODEL_NAME_OVERRIDE}" != "${MODEL_NAME}" ]]; then
@@ -300,7 +306,8 @@ build_training_contract_args() {
     )
   else
     CONTRACT_ARGS+=(
-      --field "pair_truncation=longest_first"
+      --field "pair_truncation=disabled"
+      --field "full_pair_required=true"
       --field "checkpoint_metric=validation_macro_f1"
       --field "decision_threshold_selection=validation_macro_f1"
       --field "classifier_head_epochs=${CLASSIFIER_HEAD_EPOCHS}"

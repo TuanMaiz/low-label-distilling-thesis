@@ -16,7 +16,7 @@ def split_serialized_pair(input_text: str) -> tuple[str, str]:
 
 
 def tokenize_classification_rows(rows: list[dict], tokenizer, max_input_length: int):
-    """Tokenize ER records as a pair with a shared, longest-first token budget."""
+    """Tokenize complete ER record pairs; over-limit rows fail instead of truncating."""
     record_pairs = [split_serialized_pair(str(row["input_text"])) for row in rows]
     record_a = [pair[0] for pair in record_pairs]
     record_b = [pair[1] for pair in record_pairs]
@@ -25,7 +25,7 @@ def tokenize_classification_rows(rows: list[dict], tokenizer, max_input_length: 
         record_b,
         max_length=max_input_length,
         padding="max_length",
-        truncation="longest_first",
+        truncation=False,
         return_tensors="pt",
     )
 
@@ -58,7 +58,7 @@ class ERClassificationDataset:
         rows: list[dict],
         tokenizer,
         label_to_id: dict[str, int],
-        max_input_length: int = 512,
+        max_input_length: int = 2400,
     ) -> None:
         import torch
 
@@ -85,7 +85,7 @@ class ERClassificationDataset:
 class ERClassificationPredictionDataset:
     """Pre-tokenized classifier inputs using the same pair contract as training."""
 
-    def __init__(self, rows: list[dict], tokenizer, max_input_length: int = 512) -> None:
+    def __init__(self, rows: list[dict], tokenizer, max_input_length: int = 2400) -> None:
         self.rows = rows
         encoded = tokenize_classification_rows(rows, tokenizer, max_input_length)
         self.input_ids = encoded["input_ids"]

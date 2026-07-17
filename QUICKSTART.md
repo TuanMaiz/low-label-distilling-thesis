@@ -26,8 +26,9 @@ The FLAN-T5-base validation pilot and first ModernBERT-base diagnostic are
 complete with **REVISE** decisions. The first ModernBERT run collapsed toward a
 single class under the 128-row budget; its returned archive is preserved as
 negative diagnostic evidence. A repair run keeps every target and validation
-row fixed while changing only the classifier training mechanics: pair-aware
-longest-first truncation, native-BF16 detection, staged encoder unfreezing,
+row fixed while changing only the classifier training mechanics: complete
+record-pair inputs under a 2,400-token cap with truncation disabled,
+native-BF16 detection, staged encoder unfreezing,
 batch 16, macro-F1 checkpoint selection, and a persisted validation threshold.
 The test split remains untouched.
 

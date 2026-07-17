@@ -70,8 +70,10 @@ to `${STUDENT_OUTPUT_ROOT}/{student_id}/train_{budget}/`; the fixed direct LLM
 baseline remains under `outputs/distiller_wdc/direct_llm/`.
 
 The Colab defaults are optimized for binary answer-only training without
-changing the fixed experiment inputs: inputs remain capped and padded at 512
-tokens; classifier records use paired `longest_first` truncation; and automatic
+changing the fixed experiment inputs: ModernBERT classifier pairs are kept in
+full under a 2,400-token default (the fixed inputs peak at 2,334 tokens), while
+seq2seq remains capped at 512; classifier truncation is disabled so an
+over-limit future row fails instead of being silently cut; and automatic
 runtime selection uses BF16 only on native-BF16 CUDA hardware, FP16 on T4/older
 CUDA, and FP32 on CPU. Classifiers default to batch 16, two head-only epochs,
 then the final four encoder blocks, separate `1e-3`/`1e-5` head/encoder rates,

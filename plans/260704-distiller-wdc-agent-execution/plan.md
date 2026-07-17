@@ -233,9 +233,10 @@ aggregates the pilot table; and packages a compact results archive. It does not
 call the teacher LLM or read the test target.
 
 The Colab wrapper fixes `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8`, keeps
-`MAX_INPUT_LENGTH=512`, tokenizes each dataset once, and computes validation
-loss over non-padding label tokens. Sequence classifiers default to batch 16,
-pair-aware longest-first truncation, two head-only epochs followed by the final
+seq2seq `MAX_INPUT_LENGTH=512`, tokenizes each dataset once, and computes
+validation loss over non-padding label tokens. Sequence classifiers default to
+`MAX_INPUT_LENGTH=2400`, which preserves every fixed pair in full (measured max
+2,334), with truncation disabled; batch 16, two head-only epochs followed by the final
 four encoder blocks, macro-F1 checkpointing, and threshold persistence; seq2seq
 training remains batch 4 with loss checkpointing. With `PRECISION`
 and `VALIDATION_BATCH_SIZE` left on `auto`, it uses BF16 and validation batch 32
