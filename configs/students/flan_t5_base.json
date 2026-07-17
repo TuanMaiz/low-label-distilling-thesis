@@ -1,0 +1,11 @@
+{
+  "student_id": "flan-t5-base",
+  "model_name": "google/flan-t5-base",
+  "architecture": "seq2seq",
+  "tokenizer_use_fast": false,
+  "num_labels": null,
+  "label_to_id": {
+    "non-match": 0,
+    "match": 1
+  }
+}

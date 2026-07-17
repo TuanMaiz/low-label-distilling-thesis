@@ -9,7 +9,9 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from models.classification_student import ensure_padding_token
 from models.seq2seq_student import iter_jsonl
+from models.student_config import StudentConfig, load_student_config
 from utils.metrics import compute_metrics
 
 
@@ -183,6 +185,102 @@ def generate_predictions(
     return metrics
 
 
+def classify_predictions(
+    config: StudentConfig,
+    checkpoint: Path,
+    input_path: Path,
+    output_path: Path,
+    batch_size: int = 8,
+    max_input_length: int = 512,
+    device: str | None = None,
+    precision: str = "auto",
+) -> dict:
+    """Evaluate a sequence-classification checkpoint with textual label serialization."""
+    import torch
+    from torch.utils.data import DataLoader
+    from tqdm import tqdm
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+    from utils.torch_runtime import autocast_context, resolve_precision
+
+    rows = list(iter_jsonl(input_path))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    evaluation_started = time.perf_counter()
+    tokenizer = AutoTokenizer.from_pretrained(
+        checkpoint,
+        use_fast=config.tokenizer_use_fast,
+    )
+    ensure_padding_token(tokenizer)
+    model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
+    ensure_padding_token(tokenizer, model)
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    resolved_precision = resolve_precision(device, precision)
+    model.to(device)
+    model.eval()
+    dataset = PredictionDataset(rows, tokenizer, max_input_length=max_input_length)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    predictions: list[dict] = []
+    cursor = 0
+    device_object = torch.device(device)
+    if device_object.type == "cuda":
+        torch.cuda.synchronize(device_object)
+    inference_started = time.perf_counter()
+    with torch.inference_mode(), autocast_context(device, resolved_precision):
+        for batch in tqdm(loader, desc="Classifying"):
+            batch = {key: value.to(device) for key, value in batch.items()}
+            probabilities = torch.softmax(model(**batch).logits.float(), dim=-1)
+            predicted_ids = probabilities.argmax(dim=-1)
+            for row_index in range(predicted_ids.shape[0]):
+                row = rows[cursor]
+                prediction_id = int(predicted_ids[row_index].item())
+                prediction_text = config.id_to_label[prediction_id]
+                predictions.append(
+                    {
+                        "pair_id": row["pair_id"],
+                        "label": row["label"],
+                        "prediction_text": prediction_text,
+                        "prediction": int(prediction_text == "match"),
+                        "is_valid": True,
+                        "non_match_probability": float(
+                            probabilities[row_index, config.label_to_id["non-match"]].item()
+                        ),
+                        "match_probability": float(
+                            probabilities[row_index, config.label_to_id["match"]].item()
+                        ),
+                    }
+                )
+                cursor += 1
+    if device_object.type == "cuda":
+        torch.cuda.synchronize(device_object)
+    inference_seconds = time.perf_counter() - inference_started
+
+    temporary_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    with temporary_output_path.open("w", encoding="utf-8") as handle:
+        for row in predictions:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    temporary_output_path.replace(output_path)
+
+    metrics = evaluate_prediction_rows(predictions)
+    metrics["predictions"] = str(output_path)
+    metrics["precision"] = resolved_precision
+    metrics.update(inference_timing_metrics(inference_seconds, len(rows)))
+    metrics.update(
+        {
+            "evaluation_wall_seconds": time.perf_counter() - evaluation_started,
+            "inference_device": str(device_object),
+            "inference_device_name": (
+                torch.cuda.get_device_name(device_object)
+                if device_object.type == "cuda"
+                else "cpu"
+            ),
+            "inference_batch_size": batch_size,
+            "inference_max_input_length": max_input_length,
+            "inference_max_new_tokens": None,
+        }
+    )
+    return metrics
+
+
 def evaluate_prediction_rows(rows: list[dict]) -> dict:
     labels = [_label_from_row(row) for row in rows]
     parsed = [None if row.get("prediction") is None else bool(row["prediction"]) for row in rows]
@@ -233,7 +331,8 @@ def append_summary_csv(path: Path, row: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate an mT5 ER student checkpoint")
+    parser = argparse.ArgumentParser(description="Evaluate a compact ER student checkpoint")
+    parser.add_argument("--student-config", type=Path)
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--input", type=Path, required=True, help="Serialized validation/test JSONL")
     parser.add_argument("--predictions", type=Path, required=True)
@@ -249,17 +348,39 @@ def main() -> None:
     parser.add_argument("--precision", choices=("auto", "fp32", "fp16", "bf16"), default="auto")
     args = parser.parse_args()
 
-    metrics = generate_predictions(
-        checkpoint=args.checkpoint,
-        input_path=args.input,
-        output_path=args.predictions,
-        batch_size=args.batch_size,
-        max_input_length=args.max_input_length,
-        max_new_tokens=args.max_new_tokens,
-        device=args.device,
-        precision=args.precision,
+    config = load_student_config(args.student_config) if args.student_config else None
+    if config is not None and config.architecture == "sequence_classification":
+        metrics = classify_predictions(
+            config=config,
+            checkpoint=args.checkpoint,
+            input_path=args.input,
+            output_path=args.predictions,
+            batch_size=args.batch_size,
+            max_input_length=args.max_input_length,
+            device=args.device,
+            precision=args.precision,
+        )
+    else:
+        metrics = generate_predictions(
+            checkpoint=args.checkpoint,
+            input_path=args.input,
+            output_path=args.predictions,
+            batch_size=args.batch_size,
+            max_input_length=args.max_input_length,
+            max_new_tokens=args.max_new_tokens,
+            device=args.device,
+            precision=args.precision,
+        )
+    metrics.update(
+        {
+            "variant": args.variant,
+            "budget": args.budget,
+            "split": args.split,
+            "student_id": config.student_id if config else "flan-t5-base",
+            "model_name": config.model_name if config else "google/flan-t5-base",
+            "architecture": config.architecture if config else "seq2seq",
+        }
     )
-    metrics.update({"variant": args.variant, "budget": args.budget, "split": args.split})
     write_metrics(args.metrics, metrics)
     if args.summary_csv:
         append_summary_csv(args.summary_csv, metrics)

@@ -67,10 +67,10 @@ class ERSeq2SeqDataset:
         }
 
 
-def load_seq2seq(model_name: str = DEFAULT_SEQ2SEQ_MODEL):
+def load_seq2seq(model_name: str = DEFAULT_SEQ2SEQ_MODEL, use_fast: bool = False):
     """Load a T5-compatible tokenizer and seq2seq model."""
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=use_fast)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     return tokenizer, model

@@ -3,20 +3,20 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Run the fixed Phase 5 FLAN-T5-base pilot on a Google Colab GPU.
+Run a config-selected Phase 5 compact-student pilot on a Google Colab GPU.
 
 Usage:
-  scripts/run_phase05_colab.sh setup
-  scripts/run_phase05_colab.sh preflight
-  scripts/run_phase05_colab.sh run [all|gold_random|llm_random|llm_active_bucketed_v1]
-  scripts/run_phase05_colab.sh aggregate [--allow-partial]
-  scripts/run_phase05_colab.sh package-results
-  scripts/run_phase05_colab.sh package-checkpoints
-  scripts/run_phase05_colab.sh all
+  bash scripts/run_phase05_colab.sh setup
+  bash scripts/run_phase05_colab.sh preflight
+  bash scripts/run_phase05_colab.sh run [all|gold_random|llm_random|llm_active_bucketed_v1]
+  bash scripts/run_phase05_colab.sh aggregate [--allow-partial]
+  bash scripts/run_phase05_colab.sh package-results
+  bash scripts/run_phase05_colab.sh package-checkpoints
+  bash scripts/run_phase05_colab.sh all
 
 Recommended Colab flow after cloning the repository branch:
-  scripts/run_phase05_colab.sh setup
-  scripts/run_phase05_colab.sh all
+  bash scripts/run_phase05_colab.sh setup
+  STUDENT_CONFIG=configs/students/gemma_3_270m.json bash scripts/run_phase05_colab.sh all
 
 The all command resumes at completed stage boundaries. Completed
 training/evaluation artifacts are skipped unless FORCE=1 is set; interrupted
@@ -25,8 +25,8 @@ the test target.
 
 Environment overrides:
   PYTHON=python
-  OUTPUT_ROOT=outputs/distiller_wdc
-  MODEL_NAME=google/flan-t5-base
+  STUDENT_CONFIG=configs/students/flan_t5_base.json
+  STUDENT_OUTPUT_ROOT=outputs/students
   BUDGET=128
   BATCH_SIZE=4
   VALIDATION_BATCH_SIZE=auto  # A100/BF16: 32; other CUDA: 16
@@ -56,8 +56,8 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "${repo_root}"
 
 PYTHON="${PYTHON:-python}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/distiller_wdc}"
-MODEL_NAME="${MODEL_NAME:-google/flan-t5-base}"
+STUDENT_CONFIG="${STUDENT_CONFIG:-configs/students/flan_t5_base.json}"
+STUDENT_OUTPUT_ROOT="${STUDENT_OUTPUT_ROOT:-${OUTPUT_ROOT:-outputs/students}}"
 BUDGET="${BUDGET:-128}"
 BATCH_SIZE="${BATCH_SIZE:-4}"
 VALIDATION_BATCH_SIZE="${VALIDATION_BATCH_SIZE:-auto}"
@@ -80,14 +80,29 @@ EXPECTED_BRANCH="${EXPECTED_BRANCH:-codex/distiller-wdc-implementation}"
 ALLOW_BRANCH_MISMATCH="${ALLOW_BRANCH_MISMATCH:-0}"
 ALLOW_CPU="${ALLOW_CPU:-0}"
 
+read_student_config_field() {
+  "${PYTHON}" -m models.student_config --config "${STUDENT_CONFIG}" --field "$1"
+}
+
+STUDENT_ID="$(read_student_config_field student_id)"
+LEGACY_MODEL_NAME_OVERRIDE="${MODEL_NAME:-}"
+MODEL_NAME="$(read_student_config_field model_name)"
+STUDENT_ARCHITECTURE="$(read_student_config_field architecture)"
+if [[ -n "${LEGACY_MODEL_NAME_OVERRIDE}" && "${LEGACY_MODEL_NAME_OVERRIDE}" != "${MODEL_NAME}" ]]; then
+  echo "MODEL_NAME no longer selects a student independently." >&2
+  echo "Create or choose a STUDENT_CONFIG with its own model_name and student_id." >&2
+  exit 2
+fi
+
 TARGETS_ROOT="data/cache/wdc_products/targets"
 VALIDATION_TARGETS="${TARGETS_ROOT}/validation.label_only.targets.jsonl"
 DIRECT_COST="outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.cost.json"
 DIRECT_PREDICTIONS="outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.predictions.jsonl"
-RUN_ROOT="${OUTPUT_ROOT}/flan-t5-base/train_${BUDGET}"
+RUN_ROOT="${STUDENT_OUTPUT_ROOT}/${STUDENT_ID}/train_${BUDGET}"
 RUNTIME_CONTRACT="${RUN_ROOT}/runtime_contract.json"
-SUMMARY_ROOT="${OUTPUT_ROOT}/summary"
-ARTIFACT_ROOT="${OUTPUT_ROOT}/artifacts"
+SNAPSHOT_CONFIG="${RUN_ROOT}/student_config.json"
+SUMMARY_ROOT="${STUDENT_OUTPUT_ROOT}/${STUDENT_ID}/summary"
+ARTIFACT_ROOT="${STUDENT_OUTPUT_ROOT}/${STUDENT_ID}/artifacts"
 
 variants=(gold_random llm_random llm_active_bucketed_v1)
 
@@ -105,6 +120,23 @@ archive_if_exists() {
     mv "${path}" "${archived}"
     echo "archived stale artifact: ${archived}"
   fi
+}
+
+ensure_student_config_snapshot() {
+  mkdir -p "${RUN_ROOT}"
+  if [[ -f "${SNAPSHOT_CONFIG}" ]]; then
+    if cmp -s "${STUDENT_CONFIG}" "${SNAPSHOT_CONFIG}"; then
+      return
+    fi
+    if [[ "${FORCE}" != "1" ]]; then
+      echo "Existing run uses a different student configuration: ${SNAPSHOT_CONFIG}" >&2
+      echo "Use a new student_id/config, or set FORCE=1 to replace the run intentionally." >&2
+      exit 1
+    fi
+    archive_if_exists "${SNAPSHOT_CONFIG}"
+  fi
+  cp "${STUDENT_CONFIG}" "${SNAPSHOT_CONFIG}.tmp"
+  mv "${SNAPSHOT_CONFIG}.tmp" "${SNAPSHOT_CONFIG}"
 }
 
 CONTRACT_ARGS=()
@@ -158,6 +190,9 @@ build_runtime_contract_args() {
   initialize_runtime_identity
   CONTRACT_ARGS=(
     --field "stage=runtime"
+    --field "student_id=${STUDENT_ID}"
+    --field "model_name=${MODEL_NAME}"
+    --field "student_architecture=${STUDENT_ARCHITECTURE}"
     --field "device=${DEVICE}"
     --field "precision=${PRECISION}"
     --field "resolved_precision=${RESOLVED_PRECISION}"
@@ -165,6 +200,8 @@ build_runtime_contract_args() {
     --field "resolved_validation_batch_size=${RESOLVED_VALIDATION_BATCH_SIZE}"
     --field "runtime_device_name=${RUNTIME_DEVICE_NAME}"
     --file "runner=scripts/run_phase05_colab.sh"
+    --file "student_config=${SNAPSHOT_CONFIG}"
+    --file "student_config_schema=models/student_config.py"
     --file "runtime=utils/torch_runtime.py"
   )
 }
@@ -177,7 +214,7 @@ ensure_run_runtime_contract() {
     fi
     if [[ "${FORCE}" != "1" ]]; then
       echo "Refusing to mix Phase 5 runtime identities in one output root." >&2
-      echo "Use a new OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
+      echo "Use a new STUDENT_OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
       exit 1
     fi
     archive_if_exists "${RUNTIME_CONTRACT}"
@@ -189,7 +226,7 @@ ensure_run_runtime_contract() {
       \( -name training_summary.json -o -name validation.metrics.json \) \
       -print -quit | grep -q . && [[ "${FORCE}" != "1" ]]; then
     echo "Existing Phase 5 artifacts have no run-level runtime contract." >&2
-    echo "Use a new OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
+    echo "Use a new STUDENT_OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
     exit 1
   fi
   write_current_contract "${RUNTIME_CONTRACT}"
@@ -204,7 +241,9 @@ build_training_contract_args() {
     --field "stage=training"
     --field "git_commit=$(git rev-parse HEAD)"
     --field "variant=${variant}"
+    --field "student_id=${STUDENT_ID}"
     --field "model_name=${MODEL_NAME}"
+    --field "student_architecture=${STUDENT_ARCHITECTURE}"
     --field "budget=${BUDGET}"
     --field "batch_size=${BATCH_SIZE}"
     --field "validation_batch_size=${VALIDATION_BATCH_SIZE}"
@@ -213,7 +252,6 @@ build_training_contract_args() {
     --field "weight_decay=${WEIGHT_DECAY}"
     --field "warmup_steps=${WARMUP_STEPS}"
     --field "max_input_length=${MAX_INPUT_LENGTH}"
-    --field "max_target_length=${MAX_TARGET_LENGTH}"
     --field "early_stopping_patience=${EARLY_STOPPING_PATIENCE}"
     --field "seed=${SEED}"
     --field "device=${DEVICE}"
@@ -224,11 +262,20 @@ build_training_contract_args() {
     --file "train_targets=${train_targets}"
     --file "validation_targets=${VALIDATION_TARGETS}"
     --file "runner=scripts/run_phase05_colab.sh"
-    --file "train_entrypoint=experiments/train_mt5.py"
+    --file "student_config=${SNAPSHOT_CONFIG}"
+    --file "student_config_schema=models/student_config.py"
+    --file "train_entrypoint=experiments/train_student.py"
     --file "trainer=experiments/trainer.py"
-    --file "student_model=models/seq2seq_student.py"
     --file "runtime=utils/torch_runtime.py"
   )
+  if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" ]]; then
+    CONTRACT_ARGS+=(
+      --field "max_target_length=${MAX_TARGET_LENGTH}"
+      --file "student_backend=models/seq2seq_student.py"
+    )
+  else
+    CONTRACT_ARGS+=(--file "student_backend=models/classification_student.py")
+  fi
 }
 
 build_evaluation_contract_args() {
@@ -239,10 +286,12 @@ build_evaluation_contract_args() {
     --field "stage=evaluation"
     --field "git_commit=$(git rev-parse HEAD)"
     --field "variant=${variant}"
+    --field "student_id=${STUDENT_ID}"
+    --field "model_name=${MODEL_NAME}"
+    --field "student_architecture=${STUDENT_ARCHITECTURE}"
     --field "budget=${BUDGET}"
     --field "eval_batch_size=${EVAL_BATCH_SIZE}"
     --field "max_input_length=${MAX_INPUT_LENGTH}"
-    --field "max_new_tokens=${MAX_NEW_TOKENS}"
     --field "device=${DEVICE}"
     --field "precision=${PRECISION}"
     --field "resolved_precision=${RESOLVED_PRECISION}"
@@ -250,10 +299,14 @@ build_evaluation_contract_args() {
     --file "training_contract=${training_contract}"
     --file "validation_targets=${VALIDATION_TARGETS}"
     --file "runner=scripts/run_phase05_colab.sh"
+    --file "student_config=${SNAPSHOT_CONFIG}"
     --file "evaluation_entrypoint=experiments/evaluate_student.py"
     --file "metrics=utils/metrics.py"
     --file "runtime=utils/torch_runtime.py"
   )
+  if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" ]]; then
+    CONTRACT_ARGS+=(--field "max_new_tokens=${MAX_NEW_TOKENS}")
+  fi
 }
 
 require_matching_contract() {
@@ -261,7 +314,7 @@ require_matching_contract() {
   local stage="$2"
   if ! "${PYTHON}" -m utils.artifact_contract check --path "${path}" "${CONTRACT_ARGS[@]}"; then
     echo "Refusing to reuse ${stage} artifacts with a missing or mismatched contract." >&2
-    echo "Use a different OUTPUT_ROOT, or set FORCE=1 to replace this stage intentionally." >&2
+    echo "Use a different STUDENT_OUTPUT_ROOT, or set FORCE=1 to replace this stage intentionally." >&2
     exit 1
   fi
 }
@@ -331,6 +384,7 @@ preflight() {
   fi
 
   local variant target
+  require_file "${STUDENT_CONFIG}"
   for variant in "${variants[@]}"; do
     target="$(target_for_variant "${variant}")"
     require_file "${target}"
@@ -347,9 +401,10 @@ preflight() {
     echo "Set ALLOW_CPU=1 only for an intentional non-Colab smoke check." >&2
     exit 1
   fi
+  ensure_student_config_snapshot
   initialize_runtime_identity
 
-  echo "Phase 5 preflight passed: branch=${branch} budget=${BUDGET} device=${RUNTIME_DEVICE_NAME} precision=${RESOLVED_PRECISION}"
+  echo "Phase 5 preflight passed: student=${STUDENT_ID} architecture=${STUDENT_ARCHITECTURE} branch=${branch} budget=${BUDGET} device=${RUNTIME_DEVICE_NAME} precision=${RESOLVED_PRECISION}"
 }
 
 train_variant() {
@@ -381,11 +436,11 @@ train_variant() {
   archive_if_exists "${metrics}"
 
   args=(
-    "${PYTHON}" -m experiments.train_mt5
+    "${PYTHON}" -m experiments.train_student
+    --student-config "${SNAPSHOT_CONFIG}"
     --train-targets "${train_targets}"
     --validation-targets "${VALIDATION_TARGETS}"
     --output-dir "${output_dir}"
-    --model-name "${MODEL_NAME}"
     --batch-size "${BATCH_SIZE}"
     --num-epochs "${NUM_EPOCHS}"
     --learning-rate "${LEARNING_RATE}"
@@ -440,6 +495,7 @@ evaluate_variant() {
 
   args=(
     "${PYTHON}" -m experiments.evaluate_student
+    --student-config "${SNAPSHOT_CONFIG}"
     --checkpoint "${checkpoint}"
     --input "${VALIDATION_TARGETS}"
     --predictions "${predictions}"
@@ -483,11 +539,15 @@ run_selected() {
 
 aggregate() {
   run_cmd "${PYTHON}" -m experiments.aggregate_phase05_results \
-    --output-root "${OUTPUT_ROOT}" \
+    --output-root "${STUDENT_OUTPUT_ROOT}" \
+    --student-run-root "${RUN_ROOT}" \
     --targets-root "${TARGETS_ROOT}" \
     --direct-cost "${DIRECT_COST}" \
     --cost-assumptions "${COST_ASSUMPTIONS}" \
     --budget "${BUDGET}" \
+    --json "${SUMMARY_ROOT}/phase05_train_${BUDGET}.pilot.json" \
+    --csv "${SUMMARY_ROOT}/phase05_train_${BUDGET}.pilot.csv" \
+    --cost-csv "${SUMMARY_ROOT}/phase05_train_${BUDGET}.cost_scenarios.csv" \
     "$@"
 }
 
@@ -498,7 +558,10 @@ write_manifest() {
     printf 'created_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf 'git_commit=%s\n' "$(git rev-parse HEAD)"
     printf 'git_branch=%s\n' "$(git branch --show-current)"
+    printf 'student_id=%s\n' "${STUDENT_ID}"
     printf 'model_name=%s\n' "${MODEL_NAME}"
+    printf 'student_architecture=%s\n' "${STUDENT_ARCHITECTURE}"
+    printf 'student_config=%s\n' "${STUDENT_CONFIG}"
     printf 'budget=%s\n' "${BUDGET}"
     printf 'seed=%s\n' "${SEED}"
     printf 'batch_size=%s\n' "${BATCH_SIZE}"
@@ -513,8 +576,10 @@ write_manifest() {
     printf 'resolved_precision=%s\n' "${RESOLVED_PRECISION}"
     printf 'resolved_validation_batch_size=%s\n' "${RESOLVED_VALIDATION_BATCH_SIZE}"
     printf 'runtime_device_name=%s\n' "${RUNTIME_DEVICE_NAME}"
-    printf 'max_target_length=%s\n' "${MAX_TARGET_LENGTH}"
-    printf 'max_new_tokens=%s\n' "${MAX_NEW_TOKENS}"
+    if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" ]]; then
+      printf 'max_target_length=%s\n' "${MAX_TARGET_LENGTH}"
+      printf 'max_new_tokens=%s\n' "${MAX_NEW_TOKENS}"
+    fi
     printf 'cost_assumptions=%s\n' "${COST_ASSUMPTIONS}"
   } > "${path}"
 }
@@ -555,7 +620,7 @@ package_results() {
   local stage archive variant variant_dir
   stage="$(mktemp -d)"
   trap 'rm -rf "${stage}"' EXIT
-  archive="${ARTIFACT_ROOT}/phase05_train_${BUDGET}_results.tar.gz"
+  archive="${ARTIFACT_ROOT}/phase05_${STUDENT_ID}_train_${BUDGET}_results.tar.gz"
   mkdir -p "${stage}/phase05_results/students" "${stage}/phase05_results/direct_llm" \
     "${stage}/phase05_results/summary" "${stage}/phase05_results/targets"
 
@@ -585,6 +650,7 @@ package_results() {
   cp "${COST_ASSUMPTIONS}" "${stage}/phase05_results/summary/"
   cp "${DIRECT_COST}" "${DIRECT_PREDICTIONS}" "${stage}/phase05_results/direct_llm/"
   cp "${VALIDATION_TARGETS}" "${stage}/phase05_results/targets/"
+  cp "${SNAPSHOT_CONFIG}" "${stage}/phase05_results/student_config.json"
   cp "${RUNTIME_CONTRACT}" "${stage}/phase05_results/"
   write_manifest "${stage}/phase05_results/run_manifest.txt"
   tar -czf "${archive}" -C "${stage}" phase05_results
@@ -600,10 +666,11 @@ package_checkpoints() {
   for variant in "${variants[@]}"; do
     checkpoint="${RUN_ROOT}/${variant}/best_model"
     require_file "${checkpoint}/config.json"
-    archive="${ARTIFACT_ROOT}/phase05_train_${BUDGET}_${variant}_checkpoint.tar.gz"
+    archive="${ARTIFACT_ROOT}/phase05_${STUDENT_ID}_train_${BUDGET}_${variant}_checkpoint.tar.gz"
     tar -czf "${archive}" -C "${RUN_ROOT}" \
       "${variant}/best_model" \
       "${variant}/training_contract.json" \
+      student_config.json \
       runtime_contract.json
     echo "Checkpoint archive ready: ${archive}"
   done

@@ -1,4 +1,4 @@
-"""Training loop with optional W&B logging for seq2seq ER students."""
+"""Training loop with optional W&B logging for Hugging Face ER students."""
 
 import math
 from typing import Optional, Dict, List
@@ -20,7 +20,7 @@ except ImportError:
 
 class Trainer:
     """
-    Trainer for seq2seq models with W&B logging.
+    Trainer for Hugging Face models that return a scalar supervised loss.
     """
 
     def __init__(
@@ -41,7 +41,7 @@ class Trainer:
         Initialize the trainer.
 
         Args:
-            model: The seq2seq model (HuggingFace)
+            model: A Hugging Face model accepting input IDs, masks, and labels
             tokenizer: The tokenizer
             device: Device to use
             learning_rate: Learning rate

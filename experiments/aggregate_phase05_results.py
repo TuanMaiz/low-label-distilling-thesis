@@ -19,6 +19,9 @@ from utils.cost_accounting import (
 
 PILOT_FIELDS = [
     "variant",
+    "student_id",
+    "student_model_name",
+    "student_architecture",
     "train_label_source",
     "budget",
     "selection_strategy",
@@ -168,6 +171,23 @@ def _student_row(
 
     metrics = _read_json(metrics_path)
     training_summary = _read_json(training_summary_path)
+    student_identity = {
+        "student_id": training_summary.get("student_id", "flan-t5-base"),
+        "model_name": training_summary.get("model_name", "google/flan-t5-base"),
+        "architecture": training_summary.get("architecture", "seq2seq"),
+    }
+    config_driven_run = (
+        "student_id" in training_summary or "architecture" in training_summary
+    )
+    for field, expected in student_identity.items():
+        observed = metrics.get(field)
+        if config_driven_run and observed is None:
+            raise ValueError(f"Validation metrics have no {field}: {metrics_path}")
+        if observed is not None and observed != expected:
+            raise ValueError(
+                f"Student identity mismatch for {field}: training summary has "
+                f"{expected!r}, validation metrics have {observed!r}"
+            )
     training_wall_seconds = training_summary.get("training_wall_seconds")
     if training_wall_seconds is None:
         raise ValueError(
@@ -192,6 +212,9 @@ def _student_row(
         )
     row = {
         "variant": f"{variant.name}_student",
+        "student_id": student_identity["student_id"],
+        "student_model_name": student_identity["model_name"],
+        "student_architecture": student_identity["architecture"],
         "train_label_source": label_source,
         "budget": budget,
         "selection_strategy": selection_strategy,
@@ -257,10 +280,11 @@ def aggregate_results(
     budget: int = 128,
     allow_partial: bool = False,
     cost_assumptions_path: Path | None = None,
+    student_run_root: Path | None = None,
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     missing: list[str] = []
-    run_root = output_root / "flan-t5-base" / f"train_{budget}"
+    run_root = student_run_root or output_root / "flan-t5-base" / f"train_{budget}"
 
     for variant in STUDENT_VARIANTS:
         targets_path = targets_root / variant.target_filename_template.format(budget=budget)
@@ -283,6 +307,18 @@ def aggregate_results(
                 budget,
             )
         )
+
+    student_metadata = {
+        (
+            row.get("student_id"),
+            row.get("student_model_name"),
+            row.get("student_architecture"),
+        )
+        for row in rows
+    }
+    if len(student_metadata) > 1:
+        raise ValueError(f"Student artifacts contain mixed model identities: {student_metadata}")
+    student_identity = next(iter(student_metadata), (None, None, None))
 
     direct_cost: dict[str, Any] | None = None
     if direct_cost_path.is_file():
@@ -316,6 +352,9 @@ def aggregate_results(
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "budget": budget,
+        "student_id": student_identity[0],
+        "student_model_name": student_identity[1],
+        "student_architecture": student_identity[2],
         "complete": not missing,
         "missing_artifacts": missing,
         "rows": rows,
@@ -364,6 +403,11 @@ def main() -> None:
         ),
     )
     parser.add_argument("--budget", type=int, default=128)
+    parser.add_argument(
+        "--student-run-root",
+        type=Path,
+        help="Explicit student run directory; defaults to the legacy FLAN-T5 path",
+    )
     parser.add_argument("--json", type=Path)
     parser.add_argument("--csv", type=Path)
     parser.add_argument(
@@ -389,6 +433,7 @@ def main() -> None:
         budget=args.budget,
         allow_partial=args.allow_partial,
         cost_assumptions_path=args.cost_assumptions,
+        student_run_root=args.student_run_root,
     )
     write_outputs(payload, json_path, csv_path, cost_csv_path)
     print(
