@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Pilot Student Runs And Direct LLM Baseline"
-status: pending
+status: in_progress
 priority: P1
 effort: "1-2 weeks"
 dependencies: [4]
@@ -15,15 +15,23 @@ Run the smallest experiment that can decide whether the thesis direction has
 signal: gold-label compact student, direct LLM matcher, random LLM-label
 distilled student, and one actively selected LLM-label distilled student.
 
-Execution readiness on 2026-07-13: the fresh-clone inputs, Colab dependency
-file, resumable runner, aggregator, and runbook are prepared. The runtime now
+The FLAN-T5-base validation pilot returned on 2026-07-15 and produced a revise
+decision: the active student improved macro F1 and accuracy over random LLM
+labels but did not improve the primary match F1. A second student architecture
+is therefore predeclared as a diagnostic before touching test: Gemma 3 270M
+with a binary sequence-classification head, using the same fixed targets,
+validation split, variants, and cost method.
+
+Execution tooling initially prepared on 2026-07-13 includes the Colab dependency
+file, resumable runner, aggregator, and runbook. The runtime now
 uses 8-token binary targets and generations, hardware-aware mixed precision and
 validation batches, one-time tokenization, token-weighted validation loss, and
 stage-boundary recovery with stale-artifact archiving, atomic completion
 markers, and commit/configuration/target-hash contracts. Evaluation captures
 structured local student timing and throughput, and aggregation computes signed
-deltas versus both random controls. Phase status and all success criteria remain
-pending until GPU validation artifacts return.
+deltas versus both random controls. The FLAN evidence and revise decision are
+complete; Phase 5 remains in progress until the predeclared Gemma diagnostic
+returns and is reviewed.
 
 ## Requirements
 
@@ -74,13 +82,16 @@ student + direct LLM metrics
 
 ## Related Code Files
 
-- Reuse: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/train_mt5.py`
+- Configs: `/mnt/d/Study/Cao-hoc/luan-van/code/configs/students/`
+- Generic training: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/train_student.py`
+- Legacy FLAN training: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/train_mt5.py`
 - Reuse: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/evaluate_student.py`
 - Colab runner: `/mnt/d/Study/Cao-hoc/luan-van/code/scripts/run_phase05_colab.sh`
 - Aggregator: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/aggregate_phase05_results.py`
 - Colab requirements: `/mnt/d/Study/Cao-hoc/luan-van/code/requirements-colab.txt`
 - Runbook: `/mnt/d/Study/Cao-hoc/luan-van/code/plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md`
-- Outputs: `/mnt/d/Study/Cao-hoc/luan-van/code/outputs/distiller_wdc/`
+- Student outputs: `/mnt/d/Study/Cao-hoc/luan-van/code/outputs/students/<student_id>/`
+- Direct baseline: `/mnt/d/Study/Cao-hoc/luan-van/code/outputs/distiller_wdc/direct_llm/`
 
 ## Implementation Steps
 
@@ -104,15 +115,17 @@ student + direct LLM metrics
    - estimated student inference cost.
    - signed match F1, macro F1, and accuracy deltas versus `llm_random` and
      `gold_random`.
-10. Package the compact Colab handoff as
-    `phase05_train_128_results.tar.gz`, excluding large checkpoint weights.
+10. Package the compact Colab handoff with the student ID in its filename,
+    excluding large checkpoint weights.
 11. Write a pilot decision note only after the returned validation artifacts
     have been reviewed.
 
 ## Fixed Colab Runtime Defaults
 
 - `MAX_INPUT_LENGTH=512`; do not shorten it for this pilot.
-- `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8` for the fixed binary outputs.
+- `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8` apply to seq2seq students only.
+- Sequence classifiers map logits to literal `match` / `non-match` prediction
+  text and record both probabilities; they do not generate tokens.
 - Training batch size remains 4 so runtime optimization does not alter update
   behavior.
 - `PRECISION=auto`: BF16 on supporting CUDA GPUs, FP16 with gradient scaling on
@@ -148,7 +161,7 @@ student + direct LLM metrics
 
 ## Student Inference Evidence
 
-- Validation measures FLAN-T5 generation locally on the selected Colab device
+- Validation measures student inference locally on the selected Colab device
   and records synchronized generation seconds, total evaluation wall time,
   rows per second, seconds per pair, device name, precision, batch size, and
   sequence limits in `validation.metrics.json`.
@@ -171,13 +184,16 @@ student + direct LLM metrics
 
 ## Success Criteria
 
-- [ ] Pilot metrics table exists.
-- [ ] Predictions are saved for each run.
-- [ ] Direct LLM baseline quality and cost are included.
-- [ ] The `llm_random` and `llm_active_bucketed_v1` gaps from `gold_random` are quantified.
-- [ ] The active-vs-random gain or loss at the same budget is quantified.
-- [ ] Cost gap between direct LLM matching and distilled student inference is quantified.
-- [ ] Continue/revise/stop decision is written.
+- [x] FLAN-T5 pilot metrics table exists.
+- [x] FLAN-T5 predictions are saved for each run.
+- [x] Direct LLM baseline quality and cost are included.
+- [x] The `llm_random` and `llm_active_bucketed_v1` gaps from `gold_random` are quantified.
+- [x] The active-vs-random gain or loss at the same budget is quantified.
+- [x] Cost gap between direct LLM matching and distilled student inference is quantified.
+- [x] FLAN-T5 continue/revise/stop decision is `REVISE`.
+- [x] Config-driven Gemma 3 270M validation tooling is implemented and verified.
+- [ ] Gemma 3 270M validation archive is returned from Colab.
+- [ ] Second-student comparison and next continue/revise/stop decision are written.
 
 ## Risk Assessment
 

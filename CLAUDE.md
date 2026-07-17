@@ -57,23 +57,26 @@ failure-slice study: which pairs are worth spending LLM teacher calls on, where
 selection fails, how much it costs, and whether patterns replicate on one
 optional later dataset.
 
-As of 2026-07-13, Phase 3 answer-only LLM pipeline code, fixed `train_128`
-selection manifests, live OpenRouter `openai/gpt-5.4-mini` teacher-label
-caches, the full validation direct-LLM baseline, and Phase 4 128-budget student
-target files exist. The Phase 5 change set prepares the fresh-clone inputs,
-Colab dependency file, resumable runner, result aggregator, and runbook needed
-to execute the fixed pilot on a GPU after it is committed and pushed. Phase 5
-itself remains pending until the Colab validation artifacts are returned and
-reviewed.
+Phase 5 FLAN-T5-base validation is complete and the decision is **REVISE**. At
+budget 128, `llm_active_bucketed_v1` improved macro F1 and accuracy over
+`llm_random`, but did not improve the primary match F1 reliably. The fixed test
+split remains untouched. Gemma 3 270M, used as a binary sequence classifier,
+is the predeclared second-student diagnostic: it tests whether the result is
+specific to the generative FLAN-T5 student without changing targets, teacher
+labels, selection manifests, or validation data.
 
-The Phase 5 Colab defaults are optimized for binary answer-only training
-without changing the fixed experiment inputs: target and generation limits are
-8 tokens; inputs remain capped and padded at 512 tokens; train, validation, and
-prediction rows are tokenized once per process; validation loss is weighted by
-non-padding label tokens; and automatic runtime selection uses BF16 plus a
-validation batch of 32 on BF16-capable CUDA hardware, FP16 plus 16 on other
-CUDA hardware, and FP32 plus the training batch size for CPU smoke checks.
-Training batch size remains 4.
+Student definitions now live in `configs/students/`. Future config-driven runs
+write to `outputs/students/{student_id}/train_{budget}/`; the fixed direct LLM
+baseline remains under `outputs/distiller_wdc/direct_llm/`.
+
+The Colab defaults are optimized for binary answer-only training without
+changing the fixed experiment inputs: inputs remain capped and padded at 512
+tokens; train, validation, and prediction rows are tokenized once per process;
+seq2seq validation loss is weighted by non-padding label tokens; and automatic
+runtime selection uses BF16 plus a validation batch of 32 on BF16-capable CUDA
+hardware, FP16 plus 16 on other CUDA hardware, and FP32 plus the training batch
+size for CPU smoke checks. FLAN-T5 target/generation limits remain 8 tokens;
+they do not apply to classification students. Training batch size remains 4.
 
 Phase 5 cost reporting preserves synchronized training and inference seconds as
 the provider-independent primary evidence. Aggregation applies every
@@ -96,12 +99,18 @@ source .venv/bin/activate
 .venv/bin/python -m unittest discover -s tests
 ```
 
-Phase 5 is intended to run on a Colab GPU from a fresh clone of this branch:
+Config-selected student runs are intended for a Colab GPU from a fresh clone:
 
 ```bash
-scripts/run_phase05_colab.sh setup
-scripts/run_phase05_colab.sh all
+bash scripts/run_phase05_colab.sh setup
+STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh all
 ```
+
+The Colab environment requires Transformers 4.57 or newer. Gemma 3 is
+supported by Transformers, but its Hugging Face weights are gated: accept the
+Gemma license and authenticate with `HF_TOKEN` before the run. FLAN-T5 weights
+are public and do not require Hugging Face login.
 
 See
 `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md`
@@ -116,13 +125,14 @@ upstream contract files. A run-level contract also fixes the actual GPU name,
 resolved precision, and resolved validation batch across all variants. A rerun
 skips only when the completion markers and current contracts match. A missing
 or mismatched contract blocks reuse and
-requires a new `OUTPUT_ROOT` or explicit `FORCE=1`; forced reruns archive stale
+requires a new `STUDENT_OUTPUT_ROOT` or explicit `FORCE=1`; forced reruns archive stale
 contracts and downstream artifacts. Interrupted variants restart from the
 beginning rather than resuming mid-epoch. Compact result packages include the
 contracts so returned results retain their provenance.
 
-Student validation records local FLAN-T5 generation time, wall time, throughput,
-seconds per pair, device name, precision, batch size, and generation limits.
+Student validation records local inference time, wall time, throughput,
+seconds per pair, device name, precision, and batch size, plus generation
+limits for seq2seq students.
 These measurements—not an unrelated small OpenRouter model—provide the student
 inference evidence; provider pricing may later be applied to the measured GPU
 time under a declared pricing assumption. The aggregator reports signed match
@@ -158,13 +168,12 @@ calling the teacher.
 
 Follow the active plan phases:
 
-1. Commit and push the Phase 5 Colab change set, then run
-   `scripts/run_phase05_colab.sh all` from a fresh Colab clone of this branch.
-2. Return `phase05_train_128_results.tar.gz`; only then compare the three
-   students with the fixed direct LLM baseline and write the Phase 5
-   continue/revise/stop decision.
-3. Keep the test split untouched until the validation decision, then proceed to
-   Phase 7 failure and cost analysis after student outputs exist.
+1. Commit and push the config-driven student change set.
+2. Run the predeclared Gemma diagnostic on the unchanged validation inputs with
+   `STUDENT_CONFIG=configs/students/gemma_3_270m.json bash scripts/run_phase05_colab.sh all`.
+3. Return the Gemma compact archive and compare all three Gemma arms with the
+   completed FLAN-T5 pilot and fixed direct LLM baseline.
+4. Keep the test split untouched until the revised validation decision is made.
 
 The anti-cherry-pick rule is important: fixed evaluation split/sample, prompt
 version, model slug, budgets, and cost fields must be declared before results
@@ -184,7 +193,8 @@ strategy `llm_active_bucketed_v1` with default 25 percent quotas for
 - ML: PyTorch, HuggingFace Transformers
 - Data: pandas, datasets
 - Validation: Pydantic v2
-- First student: `google/flan-t5-base`
+- First student: `google/flan-t5-base` (completed Phase 5 pilot)
+- Second-student diagnostic: `google/gemma-3-270m` sequence classifier
 - Teacher/direct matcher: OpenRouter-backed LLM calls, answer-only labels first
 - Metrics: match precision, match recall, match F1, macro F1, accuracy,
   invalid-output rate, confusion matrix counts, token/cost fields
@@ -196,15 +206,17 @@ Keep and adapt carefully:
 - `data/schema.py`, `data/er_dataset_loader.py`, `data/low_label_sampler.py`,
   and `data/serialize_pairs.py`: WDC pair loading, random budgets, active
   selection manifests, and serialization.
-- `experiments/train_mt5.py` and `experiments/evaluate_student.py`: reusable
-  compact seq2seq student training/evaluation entry points.
+- `configs/students/`, `models/student_config.py`,
+  `experiments/train_student.py`, and `experiments/evaluate_student.py`:
+  config-driven seq2seq/classification student training and evaluation.
 - `supervision/build_targets.py`: active gold-label target builder; extend here
   for `llm_random`, `llm_active_*`, and `mixed_gold_llm_active`.
 - `supervision/generate_teacher_labels.py`,
   `supervision/direct_llm_matcher.py`, and
   `supervision/validate_teacher_labels.py`: Phase 3 answer-only LLM cache
   generation, direct-baseline prediction, validation, and cost reporting.
-- `models/seq2seq_student.py`: reusable compact seq2seq dataset/model helpers.
+- `models/seq2seq_student.py` and `models/classification_student.py`:
+  architecture-specific dataset/model helpers.
 - `utils/metrics.py`: binary Entity Matching metrics.
 
 ## Removed Historical Code

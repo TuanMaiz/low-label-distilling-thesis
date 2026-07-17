@@ -22,6 +22,12 @@ journals and plans. Its code/artifacts have been removed from the active tree.
 The plain random LLM-label distillation plan remains the control, but the main
 extension is active selection under the same low-label budgets.
 
+The FLAN-T5-base validation pilot is complete with a **REVISE** decision:
+active selection improved macro F1 and accuracy over random LLM labels, but not
+the primary match F1 reliably. Gemma 3 270M is now predeclared as a binary
+classifier diagnostic using the same fixed 128-row targets and validation set.
+The test split remains untouched.
+
 ## Environment
 
 ```bash
@@ -41,18 +47,37 @@ Run local checks:
 .venv/bin/python -m unittest discover -s tests
 ```
 
+Student configurations live in `configs/students/`. Future runs write their
+artifacts to `outputs/students/{student_id}/train_{budget}/`; the fixed direct
+LLM baseline stays under `outputs/distiller_wdc/direct_llm/`.
+
+For the Gemma Colab diagnostic:
+
+```bash
+bash scripts/run_phase05_colab.sh setup
+STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh all
+```
+
+The Colab runtime needs Transformers 4.57 or newer. Before running Gemma,
+accept its Hugging Face license and authenticate with `HF_TOKEN`; Gemma is
+supported by Transformers but its weights are gated. FLAN-T5 is public and
+does not require Hugging Face login.
+
 ## Current Work Order
 
 1. Phase 1: completed research contract for cost-aware active LLM labeling.
 2. Phase 2: update guidance so old rationale work is clearly historical.
 3. Phase 3: implement direct LLM matching, answer-only teacher labeling, and
    fixed selection manifests.
-4. Phase 4: build `gold_random`, `llm_random`, `llm_active_hybrid`, and optional
-   `mixed_gold_llm_active` targets for compact student training.
-5. Phase 5: run the 128-budget pilot and compare active selection against
-   random LLM labels and direct LLM cost.
+4. Phase 4: build `gold_random`, `llm_random`,
+   `llm_active_bucketed_v1`, and optional `mixed_gold_llm_active` targets for
+   compact student training.
+5. Phase 5: completed FLAN-T5 128-budget validation pilot; decision **REVISE**.
+6. Revision diagnostic: run the predeclared Gemma 3 270M classifier across the
+   same `gold_random`, `llm_random`, and `llm_active_bucketed_v1` arms.
 
-## First Decision Gate
+## Revised Validation Gate
 
 The first new pilot should produce this table shape:
 
@@ -61,12 +86,14 @@ The first new pilot should produce this table shape:
 | A | train 128, validation | `gold_random` | | | | |
 | B | fixed validation eval | `direct_llm_matcher` | | | | |
 | C | train 128, validation | `llm_random` | | | | |
-| D | train 128, validation | `llm_active_hybrid` | | | | |
+| D | train 128, validation | `llm_active_bucketed_v1` | | | | |
 | D optional | train 128, validation | `mixed_gold_llm_active` | | | | |
 
-Continue only if the active LLM-label student beats or usefully diagnoses the
-random LLM-label student at the same budget, while preserving a quality/cost
-story against repeated direct LLM inference.
+The FLAN-T5 gate produced a **REVISE** decision. Apply the same table to the
+Gemma classifier diagnostic, then decide whether active selection beats or
+usefully diagnoses random LLM labeling at the same budget while preserving a
+quality/cost story against repeated direct LLM inference. Do not evaluate test
+data during this diagnostic.
 
 ## Historical Rationale Result
 

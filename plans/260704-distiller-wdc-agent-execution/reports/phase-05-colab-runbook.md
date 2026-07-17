@@ -1,7 +1,9 @@
 # Phase 5 Colab Runbook
 
-This runbook trains and validates the fixed 128-budget FLAN-T5-base pilot on a
-Google Colab GPU. A fresh clone of the committed branch contains the three
+This runbook trains and validates a config-selected 128-budget compact student
+on a Google Colab GPU. The completed FLAN-T5-base pilot remains historical
+evidence; the next predeclared diagnostic uses the Gemma 3 270M sequence
+classifier. A fresh clone of the committed branch contains the three
 training targets, gold validation target, and fixed GPT-5.4-mini direct
 validation artifacts required by preflight. The workflow does not call the
 teacher LLM and does not read or evaluate the test split.
@@ -18,8 +20,8 @@ In Colab, select **Runtime > Change runtime type > GPU**.
 
 ```bash
 !git clone --branch codex/distiller-wdc-implementation --single-branch \
-  https://github.com/TuanMaiz/multilingual-autoregressive-entity-linking.git
-%cd multilingual-autoregressive-entity-linking
+  https://github.com/TuanMaiz/low-label-distilling-thesis.git
+%cd low-label-distilling-thesis
 ```
 
 For a private repository, use the HTTPS/authentication method already used for
@@ -29,16 +31,33 @@ that will be shared.
 ## 3. Install the Phase 5 runtime dependencies
 
 ```bash
-!scripts/run_phase05_colab.sh setup
+!bash scripts/run_phase05_colab.sh setup
 ```
 
 `setup` keeps Colab's CUDA-compatible PyTorch installation and installs only
-the additional pinned runtime dependencies.
+the additional pinned runtime dependencies, including Transformers 4.57 or
+newer (and below 5.0).
+
+For Gemma, accept the license on the
+[`google/gemma-3-270m`](https://huggingface.co/google/gemma-3-270m) model page
+once, add `HF_TOKEN` to Colab Secrets, and authenticate without printing the
+token:
+
+```python
+from google.colab import userdata
+from huggingface_hub import login
+login(token=userdata.get("HF_TOKEN"))
+```
+
+Gemma is supported by Transformers; authentication is needed because its
+Hugging Face weights are gated by the Gemma license. FLAN-T5 weights are
+publicly downloadable and do not require this step.
 
 ## 4. Run the resumable pilot
 
 ```bash
-!scripts/run_phase05_colab.sh all
+!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh all
 ```
 
 The wrapper trains and validates these variants in order:
@@ -47,13 +66,22 @@ The wrapper trains and validates these variants in order:
 2. `llm_random`
 3. `llm_active_bucketed_v1`
 
-The Colab wrapper defaults `MAX_TARGET_LENGTH=8`, which is sufficient for the
-binary `match` / `non-match` targets and avoids the legacy 192-token rationale
-allocation.
+The selected config is snapshotted once at the run root:
+`outputs/students/{student_id}/train_{budget}/student_config.json`, alongside
+`runtime_contract.json` and the three variant directories. The fixed direct
+baseline remains under `outputs/distiller_wdc/direct_llm/` and is only copied
+into the compact handoff for comparison.
+
+The classifier maps its two logits to literal `match` / `non-match` prediction
+text and also records both class probabilities. It cannot produce malformed
+text, so its invalid-output rate is zero. FLAN-T5 still uses
+`MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8`; these seq2seq-only controls do not
+govern the Gemma classifier.
 
 Execution defaults are hardware-aware without changing the training batch:
 
-- `MAX_NEW_TOKENS=8` for binary validation predictions.
+- `MAX_NEW_TOKENS=8` for seq2seq binary validation predictions; ignored by
+  sequence classifiers.
 - `VALIDATION_BATCH_SIZE=auto`: 32 on BF16-capable CUDA GPUs such as A100,
   otherwise 16 on CUDA; CPU smoke checks retain the training batch size.
 - `PRECISION=auto`: BF16 when CUDA reports support, FP16 on other CUDA GPUs,
@@ -68,7 +96,7 @@ training and validation targets. Evaluation contracts record the evaluation
 configuration and hashes of the training contract and validation target.
 
 A missing or mismatched contract blocks reuse instead of silently mixing an old
-Drive result with a new checkout. Use a different `OUTPUT_ROOT`, or use
+Drive result with a new checkout. Use a different `STUDENT_OUTPUT_ROOT`, or use
 `FORCE=1` only when intentionally replacing that stage. Forced retraining or
 reevaluation archives the old contract and affected artifacts with a
 `.stale.<timestamp>` suffix. Recovery remains stage-boundary based: an
@@ -78,9 +106,9 @@ mid-epoch.
 A run-level `runtime_contract.json` fixes the actual GPU name, resolved
 precision, and resolved validation batch across all three variants. If Colab
 reconnects with a different GPU class, the runner stops before mixing runtimes;
-use a new `OUTPUT_ROOT`, or use `FORCE=1` and rerun every affected variant.
+use a new `STUDENT_OUTPUT_ROOT`, or use `FORCE=1` and rerun every affected variant.
 
-Validation metrics include synchronized local FLAN-T5 generation time,
+Validation metrics include synchronized local student inference time,
 evaluation wall time, throughput, seconds per pair, device name, precision,
 batch size, and sequence limits. These measurements are the student inference
 evidence. Do not substitute a small OpenRouter model as a price proxy: it is a
@@ -127,8 +155,9 @@ drive.mount("/content/drive")
 ```
 
 ```bash
-%env OUTPUT_ROOT=/content/drive/MyDrive/distiller_wdc_phase05
-!scripts/run_phase05_colab.sh all
+%env STUDENT_OUTPUT_ROOT=/content/drive/MyDrive/low_label_distilling/students
+!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh all
 ```
 
 ## 5. Download the compact handoff
@@ -136,10 +165,10 @@ drive.mount("/content/drive")
 After all three validation runs finish, the `all` command creates:
 
 ```text
-outputs/distiller_wdc/artifacts/phase05_train_128_results.tar.gz
+outputs/students/gemma-3-270m/artifacts/phase05_gemma-3-270m_train_128_results.tar.gz
 ```
 
-When `OUTPUT_ROOT` points to Drive, the archive is created under that root
+When `STUDENT_OUTPUT_ROOT` points to Drive, the archive is created under that root
 instead. This compact archive contains training summaries and logs, validation
 predictions and metrics, the pilot CSV/JSON, fixed targets, direct-LLM artifacts,
 the cost-scenario CSV and assumptions, and provenance, including each variant's
@@ -154,7 +183,8 @@ archive for Phase 5 analysis.
 Checkpoint archives are optional and can be created separately:
 
 ```bash
-!scripts/run_phase05_colab.sh package-checkpoints
+!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh package-checkpoints
 ```
 
 This produces one large archive per student variant under the same `artifacts/`
@@ -168,17 +198,20 @@ the current code, configuration, and target hashes.
 Run or resume one variant:
 
 ```bash
-!scripts/run_phase05_colab.sh run llm_random
+!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh run llm_random
 ```
 
 Regenerate the pilot table after copying outputs back into place:
 
 ```bash
-!scripts/run_phase05_colab.sh aggregate
+!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh aggregate
 ```
 
 Package the compact results again:
 
 ```bash
-!scripts/run_phase05_colab.sh package-results
+!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+  bash scripts/run_phase05_colab.sh package-results
 ```

@@ -230,6 +230,19 @@ Optional second student after pilot:
 
 Do not add a second student before the `128` pilot answers whether LLM labels have signal.
 
+Post-pilot revision declared on 2026-07-16, before any test evaluation:
+
+- Preserve the completed FLAN-T5-base results as the first-student evidence.
+- Add `google/gemma-3-270m` with a binary sequence-classification head as the
+  second-student architecture diagnostic.
+- Reuse the fixed budget-128 `gold_random`, `llm_random`, and
+  `llm_active_bucketed_v1` targets and the unchanged gold validation split.
+- Keep GPT-5.4-mini teacher/direct artifacts fixed and make no new teacher calls.
+- Use match-class F1 as primary; macro F1, accuracy, precision, recall, timing,
+  and cost remain required. Classifier logits are serialized as literal
+  `match` / `non-match` predictions with both probabilities.
+- Keep test untouched until the Gemma validation comparison is reviewed.
+
 ## Pilot Matrix
 
 Minimum pilot:

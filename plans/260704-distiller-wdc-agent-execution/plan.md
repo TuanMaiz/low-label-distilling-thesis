@@ -148,15 +148,16 @@ Teacher LLM calls are used only to prepare training labels. Final inference must
 | Random LLM-label targets | `data/cache/wdc_products/targets/*.llm_random.*.targets.jsonl` |
 | Active-label targets | `data/cache/wdc_products/targets/*.llm_active_*.*.targets.jsonl` |
 | Mixed targets | `data/cache/wdc_products/targets/*.mixed_gold_llm_active.targets.jsonl` |
-| Student outputs | `outputs/distiller_wdc/...` |
-| Aggregated metrics | `outputs/distiller_wdc/summary/*.csv` |
+| Student configurations | `configs/students/*.json` |
+| Student outputs | `outputs/students/<student_id>/train_<budget>/` |
+| Aggregated metrics | `outputs/students/<student_id>/summary/*.csv` |
 | Failure analysis | `outputs/distiller_wdc/analysis/*.csv` |
 | Thesis figures | `outputs/distiller_wdc/figures/*.png` |
 | Phase 5 Colab runner | `scripts/run_phase05_colab.sh` |
 | Phase 5 aggregator | `experiments/aggregate_phase05_results.py` |
 | Phase 5 cost assumptions | `configs/phase05_cost_assumptions.json` |
 | Phase 5 Colab runbook | `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md` |
-| Phase 5 compact handoff | `outputs/distiller_wdc/artifacts/phase05_train_128_results.tar.gz` |
+| Gemma compact handoff | `outputs/students/gemma-3-270m/artifacts/phase05_gemma-3-270m_train_128_results.tar.gz` |
 
 Optional external-validity artifacts for later datasets should live under the
 same `outputs/distiller_wdc/` summary conventions only after the WDC pilot has a
@@ -164,18 +165,15 @@ clear signal. They are not required for the WDC thesis-core claim.
 
 ## Phases
 
-Execution status on 2026-07-13: the fixed Phase 5 128-budget inputs, direct-LLM
-validation artifacts, Colab runtime dependencies, resumable runner, aggregator,
-and handoff runbook are prepared in this branch for a fresh clone. The runner
-also has binary-output length limits, hardware-aware mixed precision and
-validation batching, one-time tokenization, token-weighted validation loss, and
-stage-boundary recovery with stale-artifact archiving and atomic completion
-markers. Training and inference seconds remain the primary cost evidence; the
-aggregator applies all versioned low/base/high analytical GPU-hour sensitivity
-rates and reports training cost, per-pair inference cost, fixed-scale savings,
-and break-even queries. Phase 5 stays pending until the three GPU student runs return
-validation predictions and metrics; no Phase 5 success criterion is satisfied
-by execution tooling alone.
+Execution status on 2026-07-16: the FLAN-T5-base budget-128 pilot returned and
+produced a `REVISE` decision. Active selection improved macro F1 and accuracy
+over random LLM labels but not the primary match F1. Before touching test, the
+same fixed targets and validation split will be rerun with the predeclared
+Gemma 3 270M binary classifier. Student architecture is selected by a validated
+config; new runs, contracts, summaries, and archives live under
+`outputs/students/<student_id>/`. Training and inference seconds remain the
+primary cost evidence. Phase 5 remains in progress until Gemma validation
+artifacts return and the second-student comparison is reviewed.
 
 | Phase | Name | Status | Priority | Effort | Dependencies |
 |-------|------|--------|----------|--------|--------------|
@@ -183,7 +181,7 @@ by execution tooling alone.
 | 2 | [Pivot Cleanup](./phase-02-pivot-cleanup.md) | Completed | P1 | 0.5-1 day | Phase 1 |
 | 3 | [Teacher Labeling, Active Selection, And Direct LLM Baseline](./phase-03-teacher-labeling-pipeline.md) | Completed | P1 | 3-5 days | Phase 1 |
 | 4 | [Training Target Builder](./phase-04-training-target-builder.md) | Completed | P1 | 2-3 days | Phase 3 |
-| 5 | [Pilot Student Runs And Direct LLM Baseline](./phase-05-pilot-student-runs.md) | Pending | P1 | 1-2 weeks | Phase 4 |
+| 5 | [Pilot Student Runs And Direct LLM Baseline](./phase-05-pilot-student-runs.md) | In Progress | P1 | 1-2 weeks | Phase 4 |
 | 6 | [Full Budget Study](./phase-06-full-budget-study.md) | Pending | P1 | 2-3 weeks | Phase 5 |
 | 7 | [Failure And Cost Analysis](./phase-07-failure-and-cost-analysis.md) | Pending | P1 | 1 week | Phase 5, 6 |
 | 8 | [Thesis Artifact Handoff](./phase-08-thesis-artifact-handoff.md) | Pending | P1 | 2-3 days | Phase 7 |
@@ -215,11 +213,11 @@ Representative training and evaluation commands should keep the existing pattern
   --model-name google/flan-t5-base
 ```
 
-The fixed Phase 5 pilot should be executed on a Colab GPU from this branch:
+The Gemma Phase 5 diagnostic should be executed on a Colab GPU from this branch:
 
 ```bash
-scripts/run_phase05_colab.sh setup
-scripts/run_phase05_colab.sh all
+bash scripts/run_phase05_colab.sh setup
+STUDENT_CONFIG=configs/students/gemma_3_270m.json bash scripts/run_phase05_colab.sh all
 ```
 
 The wrapper preflights the branch, CUDA availability, fixed row counts, and
@@ -245,7 +243,7 @@ archived before retraining.
 | Direct LLM baseline is expensive | Medium | Use a fixed validation set or predeclared sample and project cost transparently |
 | LLM labels are too noisy | High | Add validation, mixed labels, and failure analysis |
 | WDC is too hard or too imbalanced | Medium | Report precision/recall separately; use validation thresholding if classifier added |
-| FLAN-T5 is not the best ER student | Medium | Add MiniLM/RoBERTa only after pilot |
+| Student architecture bottlenecks the selector comparison | Medium | Run the predeclared Gemma 3 270M classifier on the identical validation contract |
 | Compute budget grows | Medium | Pilot with 128 and 256 before full budgets |
 | Active strategies become too complex | Medium | Start with random and one equal-ratio bucketed selector; avoid iterative retraining until needed |
 | Extra datasets distract from thesis core | Medium | Treat non-WDC datasets as optional external-validity checks after WDC signal |
