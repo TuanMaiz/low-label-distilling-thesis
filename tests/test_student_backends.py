@@ -55,8 +55,8 @@ class _FakeClassifier:
 
 def _write_config(path: Path, **overrides) -> None:
     payload = {
-        "student_id": "gemma-3-270m",
-        "model_name": "google/gemma-3-270m",
+        "student_id": "modernbert-base",
+        "model_name": "answerdotai/ModernBERT-base",
         "architecture": "sequence_classification",
         "tokenizer_use_fast": True,
         "num_labels": 2,
@@ -67,14 +67,21 @@ def _write_config(path: Path, **overrides) -> None:
 
 
 class StudentConfigTest(unittest.TestCase):
-    def test_loads_gemma_classifier_config_and_inverts_label_mapping(self):
+    def test_committed_modernbert_config_is_loadable(self):
+        config = load_student_config(Path("configs/students/modernbert_base.json"))
+
+        self.assertEqual(config.student_id, "modernbert-base")
+        self.assertEqual(config.model_name, "answerdotai/ModernBERT-base")
+        self.assertEqual(config.architecture, "sequence_classification")
+
+    def test_loads_modernbert_classifier_config_and_inverts_label_mapping(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "student.json"
             _write_config(path)
 
             config = load_student_config(path)
 
-            self.assertEqual(config.student_id, "gemma-3-270m")
+            self.assertEqual(config.student_id, "modernbert-base")
             self.assertEqual(config.architecture, "sequence_classification")
             self.assertEqual(config.id_to_label, {0: "non-match", 1: "match"})
 
@@ -127,8 +134,8 @@ class ClassificationStudentTest(unittest.TestCase):
 
     def test_classifier_evaluation_serializes_text_probabilities_and_no_invalids(self):
         config = StudentConfig(
-            student_id="gemma-3-270m",
-            model_name="google/gemma-3-270m",
+            student_id="modernbert-base",
+            model_name="answerdotai/ModernBERT-base",
             architecture="sequence_classification",
             tokenizer_use_fast=True,
             num_labels=2,

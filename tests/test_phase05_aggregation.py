@@ -199,12 +199,12 @@ class Phase05AggregationTest(unittest.TestCase):
             root = Path(tmp)
             output_root, targets_root, direct_cost, cost_assumptions = self._fixture(root)
             legacy_run = output_root / "flan-t5-base" / "train_128"
-            student_run = root / "outputs" / "students" / "gemma-3-270m" / "train_128"
+            student_run = root / "outputs" / "students" / "modernbert-base" / "train_128"
             shutil.copytree(legacy_run, student_run)
             for variant in ("gold_random", "llm_random", "llm_active_bucketed_v1"):
                 identity = {
-                    "student_id": "gemma-3-270m",
-                    "model_name": "google/gemma-3-270m",
+                    "student_id": "modernbert-base",
+                    "model_name": "answerdotai/ModernBERT-base",
                     "architecture": "sequence_classification",
                 }
                 summary_path = student_run / variant / "training_summary.json"
@@ -227,10 +227,10 @@ class Phase05AggregationTest(unittest.TestCase):
             student_rows = [
                 row for row in payload["rows"] if row["variant"].endswith("_student")
             ]
-            self.assertEqual({row["student_id"] for row in student_rows}, {"gemma-3-270m"})
+            self.assertEqual({row["student_id"] for row in student_rows}, {"modernbert-base"})
             self.assertEqual(
                 {row["student_model_name"] for row in student_rows},
-                {"google/gemma-3-270m"},
+                {"answerdotai/ModernBERT-base"},
             )
             self.assertEqual(
                 {row["student_architecture"] for row in student_rows},
@@ -247,8 +247,8 @@ class Phase05AggregationTest(unittest.TestCase):
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             summary.update(
                 {
-                    "student_id": "gemma-3-270m",
-                    "model_name": "google/gemma-3-270m",
+                    "student_id": "modernbert-base",
+                    "model_name": "answerdotai/ModernBERT-base",
                     "architecture": "sequence_classification",
                 }
             )
@@ -257,8 +257,8 @@ class Phase05AggregationTest(unittest.TestCase):
             metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
             metrics.update(
                 {
-                    "student_id": "gemma-3-270m",
-                    "model_name": "google/gemma-3-270m",
+                    "student_id": "modernbert-base",
+                    "model_name": "answerdotai/ModernBERT-base",
                     "architecture": "seq2seq",
                 }
             )
