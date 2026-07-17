@@ -1,9 +1,10 @@
 # Phase 5 Colab Runbook
 
 This runbook trains and validates a config-selected 128-budget compact student
-on a Google Colab GPU. The completed FLAN-T5-base pilot remains historical
-evidence; the next predeclared diagnostic uses the ModernBERT-base sequence
-classifier. A fresh clone of the committed branch contains the three
+on a Google Colab GPU. The completed FLAN-T5-base pilot and collapsed first
+ModernBERT run remain historical evidence; the next run repairs the
+ModernBERT-base low-data training mechanics without changing any experiment
+inputs. A fresh clone of the committed branch contains the three
 training targets, gold validation target, and fixed GPT-5.4-mini direct
 validation artifacts required by preflight. The workflow does not call the
 teacher LLM and does not read or evaluate the test split.
@@ -46,6 +47,7 @@ model-access approval is required.
 
 ```bash
 !STUDENT_CONFIG=configs/students/modernbert_base.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
   bash scripts/run_phase05_colab.sh all
 ```
 
@@ -56,7 +58,7 @@ The wrapper trains and validates these variants in order:
 3. `llm_active_bucketed_v1`
 
 The selected config is snapshotted once at the run root:
-`outputs/students/{student_id}/train_{budget}/student_config.json`, alongside
+`${STUDENT_OUTPUT_ROOT}/{student_id}/train_{budget}/student_config.json`, alongside
 `runtime_contract.json` and the three variant directories. The fixed direct
 baseline remains under `outputs/distiller_wdc/direct_llm/` and is only copied
 into the compact handoff for comparison.
@@ -67,16 +69,25 @@ text, so its invalid-output rate is zero. FLAN-T5 still uses
 `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8`; these seq2seq-only controls do not
 govern the ModernBERT classifier.
 
-Execution defaults are hardware-aware without changing the training batch:
+Execution defaults are architecture- and hardware-aware:
 
 - `MAX_NEW_TOKENS=8` for seq2seq binary validation predictions; ignored by
   sequence classifiers.
 - `VALIDATION_BATCH_SIZE=auto`: 32 on BF16-capable CUDA GPUs such as A100,
   otherwise 16 on CUDA; CPU smoke checks retain the training batch size.
-- `PRECISION=auto`: BF16 when CUDA reports support, FP16 on other CUDA GPUs,
-  and FP32 on CPU.
+- `PRECISION=auto`: BF16 only on native Ampere-or-newer BF16 hardware, FP16 on
+  T4 and other older CUDA GPUs, and FP32 on CPU.
+- `BATCH_SIZE=auto`: 16 for sequence classifiers and 4 for seq2seq students.
+- ModernBERT trains its randomly initialized classification head alone for two
+  epochs, then unfreezes the final four encoder blocks. Head and encoder
+  learning rates are `1e-3` and `1e-5`, with 10 percent linear warmup.
+- Classifier checkpoints are selected by validation macro F1 with match F1 as
+  the tie-breaker. The macro-F1-selected validation threshold is stored in
+  `decision_threshold.json` and automatically reused by evaluation.
 - Training, validation, and final prediction inputs are tokenized once per
-  process. The 512-token truncation limit and fixed padding remain unchanged.
+  process. Classifiers tokenize Record A and Record B as a pair and use
+  `longest_first` within the combined 512-token limit, so both records retain
+  representation even when one description is oversized.
 
 Rerunning `all` skips a variant only when its completion artifacts and atomic
 stage contract both exist and match the current run. Training contracts record
@@ -144,7 +155,7 @@ drive.mount("/content/drive")
 ```
 
 ```bash
-%env STUDENT_OUTPUT_ROOT=/content/drive/MyDrive/low_label_distilling/students
+%env STUDENT_OUTPUT_ROOT=/content/drive/MyDrive/low_label_distilling/students-modernbert-repair
 !STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh all
 ```
@@ -154,12 +165,12 @@ drive.mount("/content/drive")
 After all three validation runs finish, the `all` command creates:
 
 ```text
-outputs/students/modernbert-base/artifacts/phase05_modernbert-base_train_128_results.tar.gz
+outputs/students-modernbert-repair/modernbert-base/artifacts/phase05_modernbert-base_train_128_results.tar.gz
 ```
 
 When `STUDENT_OUTPUT_ROOT` points to Drive, the archive is created under that root
 instead. This compact archive contains training summaries and logs, validation
-predictions and metrics, the pilot CSV/JSON, fixed targets, direct-LLM artifacts,
+predictions, metrics, and classifier thresholds; the pilot CSV/JSON, fixed targets, direct-LLM artifacts,
 the cost-scenario CSV and assumptions, and provenance, including each variant's
 training and evaluation contracts. It
 also includes signed match F1, macro F1, and accuracy deltas for each student
@@ -173,6 +184,7 @@ Checkpoint archives are optional and can be created separately:
 
 ```bash
 !STUDENT_CONFIG=configs/students/modernbert_base.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
   bash scripts/run_phase05_colab.sh package-checkpoints
 ```
 
@@ -188,6 +200,7 @@ Run or resume one variant:
 
 ```bash
 !STUDENT_CONFIG=configs/students/modernbert_base.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
   bash scripts/run_phase05_colab.sh run llm_random
 ```
 
@@ -195,6 +208,7 @@ Regenerate the pilot table after copying outputs back into place:
 
 ```bash
 !STUDENT_CONFIG=configs/students/modernbert_base.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
   bash scripts/run_phase05_colab.sh aggregate
 ```
 
@@ -202,5 +216,6 @@ Package the compact results again:
 
 ```bash
 !STUDENT_CONFIG=configs/students/modernbert_base.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
   bash scripts/run_phase05_colab.sh package-results
 ```

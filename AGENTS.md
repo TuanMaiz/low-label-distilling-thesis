@@ -57,27 +57,26 @@ failure-slice study: which pairs are worth spending LLM teacher calls on, where
 selection fails, how much it costs, and whether patterns replicate on one
 optional later dataset.
 
-Phase 5 FLAN-T5-base validation is complete and the decision is **REVISE**. At
-budget 128, `llm_active_bucketed_v1` improved macro F1 and accuracy over
-`llm_random`, but did not improve the primary match F1 reliably. The fixed test
-split remains untouched. ModernBERT-base, used as a binary sequence classifier,
-is the predeclared second-student diagnostic: it tests whether the result is
-specific to the generative FLAN-T5 student without changing targets, teacher
-labels, selection manifests, or validation data. It replaces the unrun Gemma 3
-270M diagnostic because ModernBERT is public and ungated.
+Phase 5 FLAN-T5-base validation and the first ModernBERT-base diagnostic are
+complete with **REVISE** decisions. ModernBERT collapsed toward single-class
+predictions under the 128-row budget. Preserve that archive as negative
+diagnostic evidence. The repair run keeps all fixed experiment inputs and adds
+pair-aware truncation, native-BF16 detection, staged encoder unfreezing,
+classifier batch 16, macro-F1 checkpoint selection, and a persisted validation
+threshold. The fixed test split remains untouched.
 
-Student definitions now live in `configs/students/`. Future config-driven runs
-write to `outputs/students/{student_id}/train_{budget}/`; the fixed direct LLM
+Student definitions now live in `configs/students/`. Config-driven runs write
+to `${STUDENT_OUTPUT_ROOT}/{student_id}/train_{budget}/`; the fixed direct LLM
 baseline remains under `outputs/distiller_wdc/direct_llm/`.
 
 The Colab defaults are optimized for binary answer-only training without
 changing the fixed experiment inputs: inputs remain capped and padded at 512
-tokens; train, validation, and prediction rows are tokenized once per process;
-seq2seq validation loss is weighted by non-padding label tokens; and automatic
-runtime selection uses BF16 plus a validation batch of 32 on BF16-capable CUDA
-hardware, FP16 plus 16 on other CUDA hardware, and FP32 plus the training batch
-size for CPU smoke checks. FLAN-T5 target/generation limits remain 8 tokens;
-they do not apply to classification students. Training batch size remains 4.
+tokens; classifier records use paired `longest_first` truncation; and automatic
+runtime selection uses BF16 only on native-BF16 CUDA hardware, FP16 on T4/older
+CUDA, and FP32 on CPU. Classifiers default to batch 16, two head-only epochs,
+then the final four encoder blocks, separate `1e-3`/`1e-5` head/encoder rates,
+10% warmup, macro-F1 checkpointing, and threshold persistence. Seq2seq remains
+batch 4 with loss checkpointing. FLAN-T5 target/generation limits remain 8.
 
 Phase 5 cost reporting preserves synchronized training and inference seconds as
 the provider-independent primary evidence. Aggregation applies every
@@ -105,6 +104,7 @@ Config-selected student runs are intended for a Colab GPU from a fresh clone:
 ```bash
 bash scripts/run_phase05_colab.sh setup
 STUDENT_CONFIG=configs/students/modernbert_base.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
   bash scripts/run_phase05_colab.sh all
 ```
 
@@ -168,11 +168,10 @@ calling the teacher.
 
 Follow the active plan phases:
 
-1. Commit and push the config-driven student change set.
-2. Run the predeclared ModernBERT diagnostic on the unchanged validation inputs with
-   `STUDENT_CONFIG=configs/students/modernbert_base.json bash scripts/run_phase05_colab.sh all`.
-3. Return the ModernBERT compact archive and compare all three ModernBERT arms with the
-   completed FLAN-T5 pilot and fixed direct LLM baseline.
+1. Commit and push the repaired ModernBERT training change set.
+2. Run it on unchanged validation inputs under a new `STUDENT_OUTPUT_ROOT`.
+3. Return the compact archive and compare all three repaired ModernBERT arms
+   with the failed first run, FLAN-T5 pilot, and fixed direct LLM baseline.
 4. Keep the test split untouched until the revised validation decision is made.
 
 The anti-cherry-pick rule is important: fixed evaluation split/sample, prompt

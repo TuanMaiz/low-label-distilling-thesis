@@ -157,7 +157,7 @@ Teacher LLM calls are used only to prepare training labels. Final inference must
 | Phase 5 aggregator | `experiments/aggregate_phase05_results.py` |
 | Phase 5 cost assumptions | `configs/phase05_cost_assumptions.json` |
 | Phase 5 Colab runbook | `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md` |
-| ModernBERT compact handoff | `outputs/students/modernbert-base/artifacts/phase05_modernbert-base_train_128_results.tar.gz` |
+| ModernBERT repair handoff | `outputs/students-modernbert-repair/modernbert-base/artifacts/phase05_modernbert-base_train_128_results.tar.gz` |
 
 Optional external-validity artifacts for later datasets should live under the
 same `outputs/distiller_wdc/` summary conventions only after the WDC pilot has a
@@ -165,17 +165,20 @@ clear signal. They are not required for the WDC thesis-core claim.
 
 ## Phases
 
-Execution status on 2026-07-17: the FLAN-T5-base budget-128 pilot returned and
-produced a `REVISE` decision. Active selection improved macro F1 and accuracy
-over random LLM labels but not the primary match F1. Before touching test, the
-same fixed targets and validation split will be rerun with the predeclared
-ModernBERT-base binary classifier. This public, ungated model replaces the
-unrun Gemma 3 270M choice before any second-student or test result was inspected.
+Execution status on 2026-07-17: the FLAN-T5-base budget-128 pilot and first
+ModernBERT-base run both returned `REVISE` decisions. ModernBERT collapsed
+toward single-class predictions, revealing tail truncation, T4 BF16 selection,
+full-encoder low-data optimization, loss-only checkpoint selection, and a fixed
+0.5 decision threshold as confounded training mechanics. The repair keeps the
+fixed targets and validation split unchanged and predeclares pair-aware
+truncation, FP16 on T4, staged final-layer unfreezing, batch 16, macro-F1
+checkpoint selection, and validation-only threshold persistence. Test remains
+untouched.
 Student architecture is selected by a validated
 config; new runs, contracts, summaries, and archives live under
 `outputs/students/<student_id>/`. Training and inference seconds remain the
-primary cost evidence. Phase 5 remains in progress until ModernBERT validation
-artifacts return and the second-student comparison is reviewed.
+primary cost evidence. Phase 5 remains in progress until the repaired
+ModernBERT validation artifacts return and the comparison is reviewed.
 
 | Phase | Name | Status | Priority | Effort | Dependencies |
 |-------|------|--------|----------|--------|--------------|
@@ -219,7 +222,9 @@ The ModernBERT Phase 5 diagnostic should be executed on a Colab GPU from this br
 
 ```bash
 bash scripts/run_phase05_colab.sh setup
-STUDENT_CONFIG=configs/students/modernbert_base.json bash scripts/run_phase05_colab.sh all
+STUDENT_CONFIG=configs/students/modernbert_base.json \
+STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
+bash scripts/run_phase05_colab.sh all
 ```
 
 The wrapper preflights the branch, CUDA availability, fixed row counts, and
@@ -228,10 +233,13 @@ aggregates the pilot table; and packages a compact results archive. It does not
 call the teacher LLM or read the test target.
 
 The Colab wrapper fixes `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8`, keeps
-`MAX_INPUT_LENGTH=512` and training batch size 4, tokenizes each dataset once,
-and computes validation loss over non-padding label tokens. With `PRECISION`
+`MAX_INPUT_LENGTH=512`, tokenizes each dataset once, and computes validation
+loss over non-padding label tokens. Sequence classifiers default to batch 16,
+pair-aware longest-first truncation, two head-only epochs followed by the final
+four encoder blocks, macro-F1 checkpointing, and threshold persistence; seq2seq
+training remains batch 4 with loss checkpointing. With `PRECISION`
 and `VALIDATION_BATCH_SIZE` left on `auto`, it uses BF16 and validation batch 32
-on BF16-capable CUDA hardware, FP16 and validation batch 16 on other CUDA
+on native-BF16 CUDA hardware, FP16 and validation batch 16 on T4/other CUDA
 hardware, and FP32 with the training batch size on CPU smoke checks. Completed
 training and evaluation stages are recognized only from their checkpoint and
 atomic summary/prediction/metric markers; stale downstream artifacts are

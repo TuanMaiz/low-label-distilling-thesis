@@ -246,6 +246,21 @@ the second-student run or any test evaluation:
   `match` / `non-match` predictions with both probabilities.
 - Keep test untouched until the ModernBERT validation comparison is reviewed.
 
+Post-result ModernBERT repair declared on 2026-07-17 after the first validation
+run collapsed toward single-class predictions:
+
+- Preserve the first ModernBERT archive as negative diagnostic evidence.
+- Keep teacher labels, selection manifests, budget, validation rows, model, and
+  seed unchanged; do not evaluate test.
+- Tokenize serialized records as a pair with `longest_first` truncation inside
+  the same combined 512-token budget so neither record is wholly removed.
+- Resolve T4 to FP16; use BF16 only on hardware with native BF16 capability.
+- Use classifier batch 16, two head-only epochs, then unfreeze the final four
+  encoder blocks with head LR `1e-3`, encoder LR `1e-5`, and 10% warmup.
+- Select checkpoints by validation macro F1, tie-break on match F1, and persist
+  the validation-selected decision threshold for automatic evaluation reuse.
+- Do not add a multiple-seed study in this repair run.
+
 ## Pilot Matrix
 
 Minimum pilot:

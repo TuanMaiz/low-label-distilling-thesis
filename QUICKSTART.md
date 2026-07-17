@@ -22,12 +22,14 @@ journals and plans. Its code/artifacts have been removed from the active tree.
 The plain random LLM-label distillation plan remains the control, but the main
 extension is active selection under the same low-label budgets.
 
-The FLAN-T5-base validation pilot is complete with a **REVISE** decision:
-active selection improved macro F1 and accuracy over random LLM labels, but not
-the primary match F1 reliably. ModernBERT-base is now predeclared as a binary
-classifier diagnostic using the same fixed 128-row targets and validation set.
-It replaces the unrun gated Gemma choice before any second-student result was
-inspected. The test split remains untouched.
+The FLAN-T5-base validation pilot and first ModernBERT-base diagnostic are
+complete with **REVISE** decisions. The first ModernBERT run collapsed toward a
+single class under the 128-row budget; its returned archive is preserved as
+negative diagnostic evidence. A repair run keeps every target and validation
+row fixed while changing only the classifier training mechanics: pair-aware
+longest-first truncation, native-BF16 detection, staged encoder unfreezing,
+batch 16, macro-F1 checkpoint selection, and a persisted validation threshold.
+The test split remains untouched.
 
 ## Environment
 
@@ -57,6 +59,7 @@ For the ModernBERT Colab diagnostic:
 ```bash
 bash scripts/run_phase05_colab.sh setup
 STUDENT_CONFIG=configs/students/modernbert_base.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
   bash scripts/run_phase05_colab.sh all
 ```
 
@@ -73,8 +76,8 @@ are public and ungated, so neither Hugging Face login nor `HF_TOKEN` is needed.
    `llm_active_bucketed_v1`, and optional `mixed_gold_llm_active` targets for
    compact student training.
 5. Phase 5: completed FLAN-T5 128-budget validation pilot; decision **REVISE**.
-6. Revision diagnostic: run the predeclared ModernBERT-base classifier across the
-   same `gold_random`, `llm_random`, and `llm_active_bucketed_v1` arms.
+6. Revision diagnostic: rerun ModernBERT-base with the repaired low-data
+   classifier training contract across the same three arms.
 
 ## Revised Validation Gate
 
