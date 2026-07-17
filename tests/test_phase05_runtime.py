@@ -53,6 +53,17 @@ class _NonFiniteLossModel:
         return types.SimpleNamespace(loss=torch.tensor(float("nan")))
 
 
+class _InvertedLabelClassifier:
+    def eval(self):
+        return self
+
+    def __call__(self, input_ids, attention_mask, labels):
+        del attention_mask
+        match_logit = input_ids[:, 0].float()
+        logits = torch.stack((match_logit, -match_logit), dim=-1)
+        return types.SimpleNamespace(loss=torch.tensor(0.5), logits=logits)
+
+
 def _batch(markers: list[int], valid_token_counts: list[int]) -> dict:
     labels = torch.full((len(markers), 4), -100, dtype=torch.long)
     for idx, count in enumerate(valid_token_counts):
@@ -115,15 +126,34 @@ class Phase05RuntimeTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "PRECISION=fp32"):
             trainer.evaluate([_batch([2], [1])])
 
+    def test_classifier_metrics_use_configured_match_label_id(self):
+        trainer = Trainer.__new__(Trainer)
+        trainer.model = _InvertedLabelClassifier()
+        trainer.device = "cpu"
+        trainer.precision = "fp32"
+        trainer.use_wandb = False
+        trainer.positive_label_id = 0
+        batch = {
+            "input_ids": torch.tensor([[3], [-3]], dtype=torch.long),
+            "attention_mask": torch.ones((2, 1), dtype=torch.long),
+            "labels": torch.tensor([0, 1], dtype=torch.long),
+        }
+
+        result = trainer.evaluate([batch], collect_classification_metrics=True)
+
+        self.assertEqual(result["validation_metrics"]["macro_f1"], 1.0)
+
     def test_auto_precision_uses_fp32_on_cpu(self):
         self.assertEqual(resolve_precision("cpu", "auto"), "fp32")
 
+    @patch("utils.torch_runtime.torch.cuda.get_device_capability", return_value=(8, 0))
     @patch("utils.torch_runtime.torch.cuda.is_bf16_supported", return_value=True)
-    def test_auto_precision_uses_bf16_when_supported(self, _mocked):
+    def test_auto_precision_uses_bf16_when_supported(self, _supported, _capability):
         self.assertEqual(resolve_precision("cuda", "auto"), "bf16")
 
-    @patch("utils.torch_runtime.torch.cuda.is_bf16_supported", return_value=False)
-    def test_auto_precision_uses_fp16_on_other_cuda(self, _mocked):
+    @patch("utils.torch_runtime.torch.cuda.get_device_capability", return_value=(7, 5))
+    @patch("utils.torch_runtime.torch.cuda.is_bf16_supported", return_value=True)
+    def test_auto_precision_uses_fp16_on_t4(self, _supported, _capability):
         self.assertEqual(resolve_precision("cuda", "auto"), "fp16")
 
     @patch("utils.torch_runtime.resolve_precision", return_value="bf16")

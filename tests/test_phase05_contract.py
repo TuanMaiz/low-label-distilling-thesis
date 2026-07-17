@@ -71,6 +71,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             "learning_rate=5e-5",
             "weight_decay=0.01",
             "warmup_steps=0",
+            "warmup_ratio=0",
             "max_input_length=512",
             "max_target_length=8",
             "early_stopping_patience=3",

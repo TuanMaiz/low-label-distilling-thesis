@@ -9,7 +9,12 @@ from unittest.mock import patch
 import torch
 
 from experiments.evaluate_student import classify_predictions
-from models.classification_student import ERClassificationDataset, target_label
+from models.classification_student import (
+    ERClassificationDataset,
+    prepare_staged_finetuning,
+    target_label,
+    unfreeze_last_encoder_layers,
+)
 from models.student_config import StudentConfig, load_student_config
 
 
@@ -19,11 +24,22 @@ class _CountingTokenizer:
     def __init__(self) -> None:
         self.calls = 0
 
-    def __call__(self, texts, max_length, padding, truncation, return_tensors):
-        del padding, truncation, return_tensors
+    def __call__(
+        self,
+        texts,
+        text_pairs=None,
+        max_length=512,
+        padding=None,
+        truncation=None,
+        return_tensors=None,
+    ):
+        del padding, return_tensors
         self.calls += 1
+        self.last_truncation = truncation
         if isinstance(texts, str):
             texts = [texts]
+        if text_pairs is not None:
+            texts = [left + right for left, right in zip(texts, text_pairs)]
         rows = []
         for text in texts:
             ids = [ord(char) for char in text[:max_length]]
@@ -103,6 +119,32 @@ class StudentConfigTest(unittest.TestCase):
 
 
 class ClassificationStudentTest(unittest.TestCase):
+    def test_staged_finetuning_freezes_encoder_then_unfreezes_final_layers(self):
+        class _Base(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.layers = torch.nn.ModuleList(
+                    [torch.nn.Linear(2, 2) for _ in range(5)]
+                )
+
+        class _Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.base_model = _Base()
+                self.classifier = torch.nn.Linear(2, 2)
+
+        model = _Model()
+        groups = prepare_staged_finetuning(model, 1e-5, 1e-3)
+
+        self.assertEqual([group["lr"] for group in groups], [1e-5, 1e-3])
+        self.assertFalse(any(parameter.requires_grad for parameter in model.base_model.parameters()))
+        self.assertTrue(all(parameter.requires_grad for parameter in model.classifier.parameters()))
+
+        self.assertEqual(unfreeze_last_encoder_layers(model, 2), 2)
+        self.assertFalse(any(parameter.requires_grad for parameter in model.base_model.layers[2].parameters()))
+        self.assertTrue(all(parameter.requires_grad for parameter in model.base_model.layers[3].parameters()))
+        self.assertTrue(all(parameter.requires_grad for parameter in model.base_model.layers[4].parameters()))
+
     def test_target_label_normalizes_text_and_numeric_labels(self):
         mapping = {"non-match": 0, "match": 1}
 
@@ -117,8 +159,8 @@ class ClassificationStudentTest(unittest.TestCase):
         tokenizer = _CountingTokenizer()
         dataset = ERClassificationDataset(
             rows=[
-                {"input_text": "alpha", "target_text": "non-match"},
-                {"input_text": "zulu", "target_text": "match"},
+                {"input_text": "alpha\n\nRecord B:\none", "target_text": "non-match"},
+                {"input_text": "zulu\n\nRecord B:\ntwo", "target_text": "match"},
             ],
             tokenizer=tokenizer,
             label_to_id={"non-match": 0, "match": 1},
@@ -126,6 +168,7 @@ class ClassificationStudentTest(unittest.TestCase):
         )
 
         self.assertEqual(tokenizer.calls, 1)
+        self.assertEqual(tokenizer.last_truncation, "longest_first")
         self.assertEqual(dataset.labels.dtype, torch.long)
         self.assertEqual(dataset.labels.tolist(), [0, 1])
         dataset[0]
@@ -167,8 +210,8 @@ class ClassificationStudentTest(unittest.TestCase):
             inputs.write_text(
                 "\n".join(
                     [
-                        json.dumps({"pair_id": "a", "input_text": "alpha", "label": 0}),
-                        json.dumps({"pair_id": "z", "input_text": "zulu", "label": 1}),
+                        json.dumps({"pair_id": "a", "input_text": "alpha\n\nRecord B:\none", "label": 0}),
+                        json.dumps({"pair_id": "z", "input_text": "zulu\n\nRecord B:\ntwo", "label": 1}),
                     ]
                 )
                 + "\n",
