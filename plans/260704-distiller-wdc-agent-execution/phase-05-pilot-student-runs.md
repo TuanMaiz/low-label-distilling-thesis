@@ -18,9 +18,11 @@ distilled student, and one actively selected LLM-label distilled student.
 The FLAN-T5-base validation pilot returned on 2026-07-15 and produced a revise
 decision: the active student improved macro F1 and accuracy over random LLM
 labels but did not improve the primary match F1. A second student architecture
-is therefore predeclared as a diagnostic before touching test: Gemma 3 270M
+is therefore predeclared as a diagnostic before touching test: ModernBERT-base
 with a binary sequence-classification head, using the same fixed targets,
-validation split, variants, and cost method.
+validation split, variants, and cost method. On 2026-07-17, before the
+second-student run, public ungated ModernBERT replaced the unrun gated Gemma 3
+270M choice so Colab execution needs no model-access approval or token.
 
 Execution tooling initially prepared on 2026-07-13 includes the Colab dependency
 file, resumable runner, aggregator, and runbook. The runtime now
@@ -30,7 +32,7 @@ stage-boundary recovery with stale-artifact archiving, atomic completion
 markers, and commit/configuration/target-hash contracts. Evaluation captures
 structured local student timing and throughput, and aggregation computes signed
 deltas versus both random controls. The FLAN evidence and revise decision are
-complete; Phase 5 remains in progress until the predeclared Gemma diagnostic
+complete; Phase 5 remains in progress until the predeclared ModernBERT diagnostic
 returns and is reviewed.
 
 ## Requirements
@@ -191,8 +193,8 @@ student + direct LLM metrics
 - [x] The active-vs-random gain or loss at the same budget is quantified.
 - [x] Cost gap between direct LLM matching and distilled student inference is quantified.
 - [x] FLAN-T5 continue/revise/stop decision is `REVISE`.
-- [x] Config-driven Gemma 3 270M validation tooling is implemented and verified.
-- [ ] Gemma 3 270M validation archive is returned from Colab.
+- [x] Config-driven ModernBERT-base validation tooling is implemented and verified.
+- [ ] ModernBERT-base validation archive is returned from Colab.
 - [ ] Second-student comparison and next continue/revise/stop decision are written.
 
 ## Risk Assessment

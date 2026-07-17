@@ -157,7 +157,7 @@ Teacher LLM calls are used only to prepare training labels. Final inference must
 | Phase 5 aggregator | `experiments/aggregate_phase05_results.py` |
 | Phase 5 cost assumptions | `configs/phase05_cost_assumptions.json` |
 | Phase 5 Colab runbook | `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md` |
-| Gemma compact handoff | `outputs/students/gemma-3-270m/artifacts/phase05_gemma-3-270m_train_128_results.tar.gz` |
+| ModernBERT compact handoff | `outputs/students/modernbert-base/artifacts/phase05_modernbert-base_train_128_results.tar.gz` |
 
 Optional external-validity artifacts for later datasets should live under the
 same `outputs/distiller_wdc/` summary conventions only after the WDC pilot has a
@@ -165,14 +165,16 @@ clear signal. They are not required for the WDC thesis-core claim.
 
 ## Phases
 
-Execution status on 2026-07-16: the FLAN-T5-base budget-128 pilot returned and
+Execution status on 2026-07-17: the FLAN-T5-base budget-128 pilot returned and
 produced a `REVISE` decision. Active selection improved macro F1 and accuracy
 over random LLM labels but not the primary match F1. Before touching test, the
 same fixed targets and validation split will be rerun with the predeclared
-Gemma 3 270M binary classifier. Student architecture is selected by a validated
+ModernBERT-base binary classifier. This public, ungated model replaces the
+unrun Gemma 3 270M choice before any second-student or test result was inspected.
+Student architecture is selected by a validated
 config; new runs, contracts, summaries, and archives live under
 `outputs/students/<student_id>/`. Training and inference seconds remain the
-primary cost evidence. Phase 5 remains in progress until Gemma validation
+primary cost evidence. Phase 5 remains in progress until ModernBERT validation
 artifacts return and the second-student comparison is reviewed.
 
 | Phase | Name | Status | Priority | Effort | Dependencies |
@@ -213,11 +215,11 @@ Representative training and evaluation commands should keep the existing pattern
   --model-name google/flan-t5-base
 ```
 
-The Gemma Phase 5 diagnostic should be executed on a Colab GPU from this branch:
+The ModernBERT Phase 5 diagnostic should be executed on a Colab GPU from this branch:
 
 ```bash
 bash scripts/run_phase05_colab.sh setup
-STUDENT_CONFIG=configs/students/gemma_3_270m.json bash scripts/run_phase05_colab.sh all
+STUDENT_CONFIG=configs/students/modernbert_base.json bash scripts/run_phase05_colab.sh all
 ```
 
 The wrapper preflights the branch, CUDA availability, fixed row counts, and
@@ -243,7 +245,7 @@ archived before retraining.
 | Direct LLM baseline is expensive | Medium | Use a fixed validation set or predeclared sample and project cost transparently |
 | LLM labels are too noisy | High | Add validation, mixed labels, and failure analysis |
 | WDC is too hard or too imbalanced | Medium | Report precision/recall separately; use validation thresholding if classifier added |
-| Student architecture bottlenecks the selector comparison | Medium | Run the predeclared Gemma 3 270M classifier on the identical validation contract |
+| Student architecture bottlenecks the selector comparison | Medium | Run the predeclared ModernBERT-base classifier on the identical validation contract |
 | Compute budget grows | Medium | Pilot with 128 and 256 before full budgets |
 | Active strategies become too complex | Medium | Start with random and one equal-ratio bucketed selector; avoid iterative retraining until needed |
 | Extra datasets distract from thesis core | Medium | Treat non-WDC datasets as optional external-validity checks after WDC signal |

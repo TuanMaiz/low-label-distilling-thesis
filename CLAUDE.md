@@ -60,10 +60,11 @@ optional later dataset.
 Phase 5 FLAN-T5-base validation is complete and the decision is **REVISE**. At
 budget 128, `llm_active_bucketed_v1` improved macro F1 and accuracy over
 `llm_random`, but did not improve the primary match F1 reliably. The fixed test
-split remains untouched. Gemma 3 270M, used as a binary sequence classifier,
+split remains untouched. ModernBERT-base, used as a binary sequence classifier,
 is the predeclared second-student diagnostic: it tests whether the result is
 specific to the generative FLAN-T5 student without changing targets, teacher
-labels, selection manifests, or validation data.
+labels, selection manifests, or validation data. It replaces the unrun Gemma 3
+270M diagnostic because ModernBERT is public and ungated.
 
 Student definitions now live in `configs/students/`. Future config-driven runs
 write to `outputs/students/{student_id}/train_{budget}/`; the fixed direct LLM
@@ -103,14 +104,13 @@ Config-selected student runs are intended for a Colab GPU from a fresh clone:
 
 ```bash
 bash scripts/run_phase05_colab.sh setup
-STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh all
 ```
 
-The Colab environment requires Transformers 4.57 or newer. Gemma 3 is
-supported by Transformers, but its Hugging Face weights are gated: accept the
-Gemma license and authenticate with `HF_TOKEN` before the run. FLAN-T5 weights
-are public and do not require Hugging Face login.
+The Colab environment requires Transformers 4.57 or newer. ModernBERT-base and
+FLAN-T5 weights are public and ungated, so this workflow does not require a
+Hugging Face token or model-access approval.
 
 See
 `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md`
@@ -169,9 +169,9 @@ calling the teacher.
 Follow the active plan phases:
 
 1. Commit and push the config-driven student change set.
-2. Run the predeclared Gemma diagnostic on the unchanged validation inputs with
-   `STUDENT_CONFIG=configs/students/gemma_3_270m.json bash scripts/run_phase05_colab.sh all`.
-3. Return the Gemma compact archive and compare all three Gemma arms with the
+2. Run the predeclared ModernBERT diagnostic on the unchanged validation inputs with
+   `STUDENT_CONFIG=configs/students/modernbert_base.json bash scripts/run_phase05_colab.sh all`.
+3. Return the ModernBERT compact archive and compare all three ModernBERT arms with the
    completed FLAN-T5 pilot and fixed direct LLM baseline.
 4. Keep the test split untouched until the revised validation decision is made.
 
@@ -194,7 +194,7 @@ strategy `llm_active_bucketed_v1` with default 25 percent quotas for
 - Data: pandas, datasets
 - Validation: Pydantic v2
 - First student: `google/flan-t5-base` (completed Phase 5 pilot)
-- Second-student diagnostic: `google/gemma-3-270m` sequence classifier
+- Second-student diagnostic: `answerdotai/ModernBERT-base` sequence classifier
 - Teacher/direct matcher: OpenRouter-backed LLM calls, answer-only labels first
 - Metrics: match precision, match recall, match F1, macro F1, accuracy,
   invalid-output rate, confusion matrix counts, token/cost fields

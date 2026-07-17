@@ -2,7 +2,7 @@
 
 This runbook trains and validates a config-selected 128-budget compact student
 on a Google Colab GPU. The completed FLAN-T5-base pilot remains historical
-evidence; the next predeclared diagnostic uses the Gemma 3 270M sequence
+evidence; the next predeclared diagnostic uses the ModernBERT-base sequence
 classifier. A fresh clone of the committed branch contains the three
 training targets, gold validation target, and fixed GPT-5.4-mini direct
 validation artifacts required by preflight. The workflow does not call the
@@ -38,25 +38,14 @@ that will be shared.
 the additional pinned runtime dependencies, including Transformers 4.57 or
 newer (and below 5.0).
 
-For Gemma, accept the license on the
-[`google/gemma-3-270m`](https://huggingface.co/google/gemma-3-270m) model page
-once, add `HF_TOKEN` to Colab Secrets, and authenticate without printing the
-token:
-
-```python
-from google.colab import userdata
-from huggingface_hub import login
-login(token=userdata.get("HF_TOKEN"))
-```
-
-Gemma is supported by Transformers; authentication is needed because its
-Hugging Face weights are gated by the Gemma license. FLAN-T5 weights are
-publicly downloadable and do not require this step.
+The selected [`answerdotai/ModernBERT-base`](https://huggingface.co/answerdotai/ModernBERT-base)
+weights are public and ungated. No `HF_TOKEN`, Hugging Face login, or
+model-access approval is required.
 
 ## 4. Run the resumable pilot
 
 ```bash
-!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+!STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh all
 ```
 
@@ -76,7 +65,7 @@ The classifier maps its two logits to literal `match` / `non-match` prediction
 text and also records both class probabilities. It cannot produce malformed
 text, so its invalid-output rate is zero. FLAN-T5 still uses
 `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8`; these seq2seq-only controls do not
-govern the Gemma classifier.
+govern the ModernBERT classifier.
 
 Execution defaults are hardware-aware without changing the training batch:
 
@@ -156,7 +145,7 @@ drive.mount("/content/drive")
 
 ```bash
 %env STUDENT_OUTPUT_ROOT=/content/drive/MyDrive/low_label_distilling/students
-!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+!STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh all
 ```
 
@@ -165,7 +154,7 @@ drive.mount("/content/drive")
 After all three validation runs finish, the `all` command creates:
 
 ```text
-outputs/students/gemma-3-270m/artifacts/phase05_gemma-3-270m_train_128_results.tar.gz
+outputs/students/modernbert-base/artifacts/phase05_modernbert-base_train_128_results.tar.gz
 ```
 
 When `STUDENT_OUTPUT_ROOT` points to Drive, the archive is created under that root
@@ -183,7 +172,7 @@ archive for Phase 5 analysis.
 Checkpoint archives are optional and can be created separately:
 
 ```bash
-!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+!STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh package-checkpoints
 ```
 
@@ -198,20 +187,20 @@ the current code, configuration, and target hashes.
 Run or resume one variant:
 
 ```bash
-!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+!STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh run llm_random
 ```
 
 Regenerate the pilot table after copying outputs back into place:
 
 ```bash
-!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+!STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh aggregate
 ```
 
 Package the compact results again:
 
 ```bash
-!STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+!STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh package-results
 ```

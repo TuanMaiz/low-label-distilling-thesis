@@ -24,9 +24,10 @@ extension is active selection under the same low-label budgets.
 
 The FLAN-T5-base validation pilot is complete with a **REVISE** decision:
 active selection improved macro F1 and accuracy over random LLM labels, but not
-the primary match F1 reliably. Gemma 3 270M is now predeclared as a binary
+the primary match F1 reliably. ModernBERT-base is now predeclared as a binary
 classifier diagnostic using the same fixed 128-row targets and validation set.
-The test split remains untouched.
+It replaces the unrun gated Gemma choice before any second-student result was
+inspected. The test split remains untouched.
 
 ## Environment
 
@@ -51,18 +52,16 @@ Student configurations live in `configs/students/`. Future runs write their
 artifacts to `outputs/students/{student_id}/train_{budget}/`; the fixed direct
 LLM baseline stays under `outputs/distiller_wdc/direct_llm/`.
 
-For the Gemma Colab diagnostic:
+For the ModernBERT Colab diagnostic:
 
 ```bash
 bash scripts/run_phase05_colab.sh setup
-STUDENT_CONFIG=configs/students/gemma_3_270m.json \
+STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh all
 ```
 
-The Colab runtime needs Transformers 4.57 or newer. Before running Gemma,
-accept its Hugging Face license and authenticate with `HF_TOKEN`; Gemma is
-supported by Transformers but its weights are gated. FLAN-T5 is public and
-does not require Hugging Face login.
+The Colab runtime needs Transformers 4.57 or newer. ModernBERT-base and FLAN-T5
+are public and ungated, so neither Hugging Face login nor `HF_TOKEN` is needed.
 
 ## Current Work Order
 
@@ -74,7 +73,7 @@ does not require Hugging Face login.
    `llm_active_bucketed_v1`, and optional `mixed_gold_llm_active` targets for
    compact student training.
 5. Phase 5: completed FLAN-T5 128-budget validation pilot; decision **REVISE**.
-6. Revision diagnostic: run the predeclared Gemma 3 270M classifier across the
+6. Revision diagnostic: run the predeclared ModernBERT-base classifier across the
    same `gold_random`, `llm_random`, and `llm_active_bucketed_v1` arms.
 
 ## Revised Validation Gate
@@ -90,7 +89,7 @@ The first new pilot should produce this table shape:
 | D optional | train 128, validation | `mixed_gold_llm_active` | | | | |
 
 The FLAN-T5 gate produced a **REVISE** decision. Apply the same table to the
-Gemma classifier diagnostic, then decide whether active selection beats or
+ModernBERT classifier diagnostic, then decide whether active selection beats or
 usefully diagnoses random LLM labeling at the same budget while preserving a
 quality/cost story against repeated direct LLM inference. Do not evaluate test
 data during this diagnostic.
