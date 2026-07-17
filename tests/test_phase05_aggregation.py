@@ -1,4 +1,5 @@
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -192,6 +193,88 @@ class Phase05AggregationTest(unittest.TestCase):
                     "same_f1_delta_vs_llm_random"
                 ]
             )
+
+    def test_explicit_student_run_root_preserves_configured_model_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output_root, targets_root, direct_cost, cost_assumptions = self._fixture(root)
+            legacy_run = output_root / "flan-t5-base" / "train_128"
+            student_run = root / "outputs" / "students" / "gemma-3-270m" / "train_128"
+            shutil.copytree(legacy_run, student_run)
+            for variant in ("gold_random", "llm_random", "llm_active_bucketed_v1"):
+                identity = {
+                    "student_id": "gemma-3-270m",
+                    "model_name": "google/gemma-3-270m",
+                    "architecture": "sequence_classification",
+                }
+                summary_path = student_run / variant / "training_summary.json"
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                summary.update(identity)
+                _write_json(summary_path, summary)
+                metrics_path = student_run / variant / "validation.metrics.json"
+                metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+                metrics.update(identity)
+                _write_json(metrics_path, metrics)
+
+            payload = aggregate_results(
+                output_root,
+                targets_root,
+                direct_cost,
+                cost_assumptions_path=cost_assumptions,
+                student_run_root=student_run,
+            )
+
+            student_rows = [
+                row for row in payload["rows"] if row["variant"].endswith("_student")
+            ]
+            self.assertEqual({row["student_id"] for row in student_rows}, {"gemma-3-270m"})
+            self.assertEqual(
+                {row["student_model_name"] for row in student_rows},
+                {"google/gemma-3-270m"},
+            )
+            self.assertEqual(
+                {row["student_architecture"] for row in student_rows},
+                {"sequence_classification"},
+            )
+
+    def test_rejects_training_and_evaluation_student_identity_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output_root, targets_root, direct_cost, cost_assumptions = self._fixture(root)
+            student_run = output_root / "flan-t5-base" / "train_128"
+            variant_dir = student_run / "gold_random"
+            summary_path = variant_dir / "training_summary.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary.update(
+                {
+                    "student_id": "gemma-3-270m",
+                    "model_name": "google/gemma-3-270m",
+                    "architecture": "sequence_classification",
+                }
+            )
+            _write_json(summary_path, summary)
+            metrics_path = variant_dir / "validation.metrics.json"
+            metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+            metrics.update(
+                {
+                    "student_id": "gemma-3-270m",
+                    "model_name": "google/gemma-3-270m",
+                    "architecture": "seq2seq",
+                }
+            )
+            _write_json(metrics_path, metrics)
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Student identity mismatch for architecture",
+            ):
+                aggregate_results(
+                    output_root,
+                    targets_root,
+                    direct_cost,
+                    cost_assumptions_path=cost_assumptions,
+                    student_run_root=student_run,
+                )
 
     def test_rejects_boolean_direct_cost_before_numeric_coercion(self):
         with tempfile.TemporaryDirectory() as tmp:

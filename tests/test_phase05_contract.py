@@ -17,9 +17,12 @@ class Phase05ArtifactContractTest(unittest.TestCase):
     def _runner_fixture(self, root: Path) -> tuple[Path, Path]:
         repo_root = Path(__file__).resolve().parents[1]
         output_root = root / "outputs"
-        variant_dir = output_root / "flan-t5-base" / "train_128" / "gold_random"
+        run_root = output_root / "flan-t5-base" / "train_128"
+        variant_dir = run_root / "gold_random"
         checkpoint = variant_dir / "best_model"
         checkpoint.mkdir(parents=True)
+        student_config = repo_root / "configs" / "students" / "flan_t5_base.json"
+        (run_root / "student_config.json").write_bytes(student_config.read_bytes())
         (checkpoint / "config.json").write_text("{}", encoding="utf-8")
         (variant_dir / "training_summary.json").write_text(
             json.dumps(
@@ -58,7 +61,9 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             "stage=training",
             f"git_commit={git_commit}",
             "variant=gold_random",
+            "student_id=flan-t5-base",
             "model_name=google/flan-t5-base",
+            "student_architecture=seq2seq",
             "budget=128",
             "batch_size=4",
             "validation_batch_size=auto",
@@ -84,9 +89,11 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                     f"train_targets={train_target}",
                     f"validation_targets={validation_target}",
                     "runner=scripts/run_phase05_colab.sh",
-                    "train_entrypoint=experiments/train_mt5.py",
+                    f"student_config={run_root / 'student_config.json'}",
+                    "student_config_schema=models/student_config.py",
+                    "train_entrypoint=experiments/train_student.py",
                     "trainer=experiments/trainer.py",
-                    "student_model=models/seq2seq_student.py",
+                    "student_backend=models/seq2seq_student.py",
                     "runtime=utils/torch_runtime.py",
                 ],
             ),
@@ -98,6 +105,9 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                     "stage=evaluation",
                     f"git_commit={git_commit}",
                     "variant=gold_random",
+                    "student_id=flan-t5-base",
+                    "model_name=google/flan-t5-base",
+                    "student_architecture=seq2seq",
                     "budget=128",
                     "eval_batch_size=8",
                     "max_input_length=512",
@@ -111,6 +121,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                     f"training_contract={training_contract_path}",
                     f"validation_targets={validation_target}",
                     "runner=scripts/run_phase05_colab.sh",
+                    f"student_config={run_root / 'student_config.json'}",
                     "evaluation_entrypoint=experiments/evaluate_student.py",
                     "metrics=utils/metrics.py",
                     "runtime=utils/torch_runtime.py",
@@ -118,13 +129,13 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             ),
         )
         write_contract(
-            output_root
-            / "flan-t5-base"
-            / "train_128"
-            / "runtime_contract.json",
+            run_root / "runtime_contract.json",
             build_contract(
                 [
                     "stage=runtime",
+                    "student_id=flan-t5-base",
+                    "model_name=google/flan-t5-base",
+                    "student_architecture=seq2seq",
                     "device=cpu",
                     "precision=auto",
                     "resolved_precision=fp32",
@@ -134,6 +145,8 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                 ],
                 [
                     "runner=scripts/run_phase05_colab.sh",
+                    f"student_config={run_root / 'student_config.json'}",
+                    "student_config_schema=models/student_config.py",
                     "runtime=utils/torch_runtime.py",
                 ],
             ),
@@ -145,7 +158,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             repo_root, output_root = self._runner_fixture(Path(tmp))
             environment = {
                 **os.environ,
-                "OUTPUT_ROOT": str(output_root),
+                "STUDENT_OUTPUT_ROOT": str(output_root),
                 "PYTHON": ".venv/bin/python",
                 "DEVICE": "cpu",
                 "ALLOW_CPU": "1",
@@ -161,6 +174,19 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             self.assertEqual(matching.returncode, 0, matching.stderr)
             self.assertIn("skip completed training", matching.stdout)
             self.assertIn("skip completed evaluation", matching.stdout)
+            run_root = output_root / "flan-t5-base" / "train_128"
+            self.assertEqual(
+                (run_root / "student_config.json").read_bytes(),
+                (repo_root / "configs" / "students" / "flan_t5_base.json").read_bytes(),
+            )
+            runtime_fields = read_contract_fields(
+                run_root / "runtime_contract.json",
+                ["student_id", "model_name", "student_architecture"],
+            )
+            self.assertEqual(
+                runtime_fields,
+                ["flan-t5-base", "google/flan-t5-base", "seq2seq"],
+            )
 
             mismatched = subprocess.run(
                 ["scripts/run_phase05_colab.sh", "run", "gold_random"],
