@@ -65,6 +65,20 @@ pair-aware truncation, native-BF16 detection, staged encoder unfreezing,
 classifier batch 16, macro-F1 checkpoint selection, and a persisted validation
 threshold. The fixed test split remains untouched.
 
+A separate `flan-t5-base-full-input` diagnostic is predeclared for model
+screening. It reuses the fixed budget-128 inputs but raises FLAN-T5 input length
+to 2,700 tokens, above the measured 2,649-token maximum, with truncation
+disabled. Use A100 when possible and a fresh output root. A possible later FLAN
+calibration job would threshold the validation likelihood ratio of `match`
+versus `non-match`; it is only a note, not part of this rerun.
+
+A `qwen3-reranker-0-6b` LoRA diagnostic is also predeclared for student
+screening. It preserves Qwen's causal-LM reranking interface, maps final
+`no`/`yes` logits to non-match/match probabilities, and reuses the unchanged
+budget-128 targets and validation set. Preflight audits the exact complete
+prompt under a 4,096-token no-truncation contract. Prefer A100 and a fresh
+output root; no teacher or test data is used.
+
 Student definitions now live in `configs/students/`. Config-driven runs write
 to `${STUDENT_OUTPUT_ROOT}/{student_id}/train_{budget}/`; the fixed direct LLM
 baseline remains under `outputs/distiller_wdc/direct_llm/`.
@@ -79,6 +93,10 @@ CUDA, and FP32 on CPU. Classifiers default to batch 16, two head-only epochs,
 then the final four encoder blocks, separate `1e-3`/`1e-5` head/encoder rates,
 10% warmup, macro-F1 checkpointing, and threshold persistence. Seq2seq remains
 batch 4 with loss checkpointing. FLAN-T5 target/generation limits remain 8.
+The Qwen reranker defaults to microbatch 1, 16-step gradient accumulation,
+validation/evaluation batch 1, `2e-4` LoRA learning rate, 10 epochs maximum,
+rank 8, and gradient checkpointing. Its selected adapter is preserved and
+merged into the standalone checkpoint used for evaluation.
 
 Phase 5 cost reporting preserves synchronized training and inference seconds as
 the provider-independent primary evidence. Aggregation applies every
@@ -110,16 +128,44 @@ STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh all
 ```
 
-The Colab environment requires Transformers 4.57 or newer. ModernBERT-base and
-FLAN-T5 weights are public and ungated, so this workflow does not require a
-Hugging Face token or model-access approval.
+For the full-input FLAN-T5 diagnostic:
+
+```bash
+STUDENT_CONFIG=configs/students/flan_t5_base_full_input.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-flan-full-input \
+  bash scripts/run_phase05_colab.sh all
+```
+
+For the Qwen reranker LoRA diagnostic:
+
+```bash
+STUDENT_CONFIG=configs/students/qwen3_reranker_0_6b.json \
+  STUDENT_OUTPUT_ROOT=outputs/students \
+  bash scripts/run_phase05_colab.sh all
+```
+
+The Colab environment requires Transformers 4.57 or newer. ModernBERT-base,
+FLAN-T5, and Qwen3-Reranker-0.6B weights are public and ungated, so this workflow
+does not require a Hugging Face token or model-access approval.
 
 See
 `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md`
 for cloning, Google Drive persistence, recovery, and result handoff. The runner
 must not evaluate the test target or call the teacher LLM.
 
-Recovery is stage-boundary based. Atomic `training_summary.json`, validation
+Recovery is stage-boundary based. The first preflight resolves the configured
+Hugging Face model repository to an immutable commit stored as
+`model_revision` in the run's `student_config.json`. It also writes
+`runtime_provenance.json` with the Python, Torch, Transformers, PEFT,
+Accelerate, and Hugging Face Hub versions. The run-level contract hashes both
+files, so reconnecting with changed dependencies cannot silently mix variants.
+Forcing a run-level identity replacement archives every active variant
+directory before retraining, preventing partial aggregation from mixing old and
+new environments.
+Automatic partial aggregation includes only variants whose current training and
+evaluation contracts match all shared overrides; stale variants are reported as
+missing rather than mixed.
+Atomic `training_summary.json`, validation
 prediction, and validation metric writes serve as completion markers alongside
 the best checkpoint. Each completed stage also has an atomic contract containing
 the Git commit, runtime configuration, and SHA-256 hashes of its target and
@@ -131,6 +177,11 @@ requires a new `STUDENT_OUTPUT_ROOT` or explicit `FORCE=1`; forced reruns archiv
 contracts and downstream artifacts. Interrupted variants restart from the
 beginning rather than resuming mid-epoch. Compact result packages include the
 contracts so returned results retain their provenance.
+Qwen preflight additionally persists `input_length_audit.json`; completed
+training requires the best adapter, merged model, threshold, and checkpoint
+manifest. The manifest contains the size and SHA-256 of every file under both
+checkpoint directories and is verified before reuse, evaluation, or packaging.
+Optional checkpoint archives contain both adapter and merged model.
 
 Student validation records local inference time, wall time, throughput,
 seconds per pair, device name, precision, and batch size, plus generation
@@ -170,11 +221,15 @@ calling the teacher.
 
 Follow the active plan phases:
 
-1. Commit and push the repaired ModernBERT training change set.
-2. Run it on unchanged validation inputs under a new `STUDENT_OUTPUT_ROOT`.
-3. Return the compact archive and compare all three repaired ModernBERT arms
-   with the failed first run, FLAN-T5 pilot, and fixed direct LLM baseline.
-4. Keep the test split untouched until the revised validation decision is made.
+1. Commit and push the repaired ModernBERT, full-input FLAN-T5, and Qwen
+   reranker screening change set.
+2. Run each diagnostic on the unchanged budget-128 targets and validation rows
+   under its predeclared `STUDENT_OUTPUT_ROOT`.
+3. Return the compact archives and compare all three arms for each diagnostic
+   with the failed first ModernBERT run, 512-token FLAN-T5 pilot, and fixed
+   direct LLM baseline.
+4. Keep the teacher artifacts fixed and the test split untouched until the
+   revised validation decision is made.
 
 The anti-cherry-pick rule is important: fixed evaluation split/sample, prompt
 version, model slug, budgets, and cost fields must be declared before results
@@ -196,6 +251,7 @@ strategy `llm_active_bucketed_v1` with default 25 percent quotas for
 - Validation: Pydantic v2
 - First student: `google/flan-t5-base` (completed Phase 5 pilot)
 - Second-student diagnostic: `answerdotai/ModernBERT-base` sequence classifier
+- Reranker diagnostic: `Qwen/Qwen3-Reranker-0.6B` with LoRA
 - Teacher/direct matcher: OpenRouter-backed LLM calls, answer-only labels first
 - Metrics: match precision, match recall, match F1, macro F1, accuracy,
   invalid-output rate, confusion matrix counts, token/cost fields
@@ -216,8 +272,9 @@ Keep and adapt carefully:
   `supervision/direct_llm_matcher.py`, and
   `supervision/validate_teacher_labels.py`: Phase 3 answer-only LLM cache
   generation, direct-baseline prediction, validation, and cost reporting.
-- `models/seq2seq_student.py` and `models/classification_student.py`:
-  architecture-specific dataset/model helpers.
+- `models/seq2seq_student.py`, `models/classification_student.py`, and
+  `models/generative_reranker_student.py`: architecture-specific dataset/model
+  helpers.
 - `utils/metrics.py`: binary Entity Matching metrics.
 
 ## Removed Historical Code

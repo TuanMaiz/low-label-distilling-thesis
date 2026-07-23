@@ -64,8 +64,38 @@ STUDENT_CONFIG=configs/students/modernbert_base.json \
   bash scripts/run_phase05_colab.sh all
 ```
 
-The Colab runtime needs Transformers 4.57 or newer. ModernBERT-base and FLAN-T5
-are public and ungated, so neither Hugging Face login nor `HF_TOKEN` is needed.
+For the separate full-input FLAN-T5 diagnostic (A100 recommended):
+
+```bash
+STUDENT_CONFIG=configs/students/flan_t5_base_full_input.json \
+  STUDENT_OUTPUT_ROOT=outputs/students-flan-full-input \
+  bash scripts/run_phase05_colab.sh all
+```
+
+This configuration preserves all fixed FLAN inputs under a 2,700-token limit
+with truncation disabled. Probability/threshold calibration from the
+`match`/`non-match` sequence-likelihood ratio is reserved as a later optional
+diagnostic and is not performed by this run.
+
+For the Qwen3-Reranker-0.6B LoRA diagnostic (A100 recommended):
+
+```bash
+STUDENT_CONFIG=configs/students/qwen3_reranker_0_6b.json \
+  STUDENT_OUTPUT_ROOT=outputs/students \
+  bash scripts/run_phase05_colab.sh all
+```
+
+This uses a 4,096-token, no-truncation reranker prompt; preflight audits every
+fixed training and validation row before training. Defaults are microbatch 1,
+16-step gradient accumulation, validation/evaluation batch 1, and BF16 on A100.
+Evaluation scores the final `no`/`yes` logits from the merged best LoRA model.
+The first preflight also freezes the Hugging Face model/tokenizer commit and
+records exact package versions in `runtime_provenance.json`. Qwen adapter and
+merged-model files are SHA-256 verified before reuse, evaluation, or packaging.
+
+The Colab runtime needs Transformers 4.57 or newer. ModernBERT-base, FLAN-T5,
+and Qwen3-Reranker-0.6B are public and ungated, so neither Hugging Face login
+nor `HF_TOKEN` is needed.
 
 ## Current Work Order
 
@@ -77,8 +107,11 @@ are public and ungated, so neither Hugging Face login nor `HF_TOKEN` is needed.
    `llm_active_bucketed_v1`, and optional `mixed_gold_llm_active` targets for
    compact student training.
 5. Phase 5: completed FLAN-T5 128-budget validation pilot; decision **REVISE**.
-6. Revision diagnostic: rerun ModernBERT-base with the repaired low-data
-   classifier training contract across the same three arms.
+6. Revision diagnostics: rerun ModernBERT-base with the repaired low-data
+   classifier contract and FLAN-T5-base with the separate 2,700-token
+   full-input contract, then screen Qwen3-Reranker-0.6B with LoRA across the
+   same three arms. Preserve completed first-run archives and use the
+   predeclared output root for each diagnostic.
 
 ## Revised Validation Gate
 
@@ -93,10 +126,11 @@ The first new pilot should produce this table shape:
 | D optional | train 128, validation | `mixed_gold_llm_active` | | | | |
 
 The FLAN-T5 gate produced a **REVISE** decision. Apply the same table to the
-ModernBERT classifier diagnostic, then decide whether active selection beats or
-usefully diagnoses random LLM labeling at the same budget while preserving a
-quality/cost story against repeated direct LLM inference. Do not evaluate test
-data during this diagnostic.
+repaired ModernBERT, full-input FLAN-T5, and Qwen reranker diagnostics, then
+decide whether active selection beats or usefully diagnoses random LLM
+labeling at the same budget while preserving a quality/cost story against
+repeated direct LLM inference. Do not call the teacher or evaluate test data
+during these diagnostics.
 
 ## Historical Rationale Result
 

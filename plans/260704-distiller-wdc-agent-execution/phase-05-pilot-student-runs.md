@@ -17,12 +17,10 @@ distilled student, and one actively selected LLM-label distilled student.
 
 The FLAN-T5-base validation pilot returned on 2026-07-15 and produced a revise
 decision: the active student improved macro F1 and accuracy over random LLM
-labels but did not improve the primary match F1. A second student architecture
-is therefore predeclared as a diagnostic before touching test: ModernBERT-base
-with a binary sequence-classification head, using the same fixed targets,
-validation split, variants, and cost method. On 2026-07-17, before the
-second-student run, public ungated ModernBERT replaced the unrun gated Gemma 3
-270M choice so Colab execution needs no model-access approval or token.
+labels but did not improve the primary match F1. The first ModernBERT-base
+binary-classifier diagnostic also returned and received `REVISE` after its
+three arms collapsed toward single-class predictions. Both result sets are
+preserved as validation-only evidence; neither justified touching test.
 
 Execution tooling initially prepared on 2026-07-13 includes the Colab dependency
 file, resumable runner, aggregator, and runbook. The runtime now
@@ -31,9 +29,14 @@ validation batches, one-time tokenization, token-weighted validation loss, and
 stage-boundary recovery with stale-artifact archiving, atomic completion
 markers, and commit/configuration/target-hash contracts. Evaluation captures
 structured local student timing and throughput, and aggregation computes signed
-deltas versus both random controls. The FLAN evidence and revise decision are
-complete; Phase 5 remains in progress until the predeclared ModernBERT diagnostic
-returns and is reviewed.
+deltas versus both random controls. A repaired ModernBERT job, a separate
+`flan-t5-base-full-input` job, and a `qwen3-reranker-0-6b` LoRA job are prepared
+for continued model screening on the same fixed inputs. Full-input FLAN raises
+its contract to 2,700 tokens; Qwen preserves its pretrained yes/no reranking
+interface under an audited 4,096-token complete-input contract. None of these
+screening jobs has returned experiment results. Phase 5 remains in progress
+until a compact student is strong enough for a meaningful active-versus-random
+study.
 
 ## Requirements
 
@@ -85,6 +88,7 @@ student + direct LLM metrics
 ## Related Code Files
 
 - Configs: `/mnt/d/Study/Cao-hoc/luan-van/code/configs/students/`
+- Reranker backend: `/mnt/d/Study/Cao-hoc/luan-van/code/models/generative_reranker_student.py`
 - Generic training: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/train_student.py`
 - Legacy FLAN training: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/train_mt5.py`
 - Reuse: `/mnt/d/Study/Cao-hoc/luan-van/code/experiments/evaluate_student.py`
@@ -124,21 +128,30 @@ student + direct LLM metrics
 
 ## Fixed Colab Runtime Defaults
 
-- `MAX_INPUT_LENGTH=2400` for ModernBERT classifiers and 512 for seq2seq; the
-  classifier value preserves the measured 2,334-token fixed-input maximum.
+- `MAX_INPUT_LENGTH=2400` for ModernBERT classifiers, 512 for the historical
+  FLAN configuration, 2,700 for `flan-t5-base-full-input`, and 4,096 for the
+  Qwen reranker. The full-input FLAN value preserves its measured 2,649-token
+  fixed-input maximum; Qwen preflight measures its exact formatted prompts
+  before training.
 - `MAX_TARGET_LENGTH=8` and `MAX_NEW_TOKENS=8` apply to seq2seq students only.
 - Sequence classifiers map logits to literal `match` / `non-match` prediction
   text and record both probabilities; they do not generate tokens.
-- Training batch size remains 4 so runtime optimization does not alter update
-  behavior.
+- Training batch defaults to 1 for the Qwen reranker, 16 for classifiers, and 4
+  for seq2seq students. Qwen accumulates 16 microbatches for an effective batch
+  of 16.
 - `PRECISION=auto`: BF16 on supporting CUDA GPUs, FP16 with gradient scaling on
   other CUDA GPUs, and FP32 on CPU smoke checks.
-- `VALIDATION_BATCH_SIZE=auto`: 32 with BF16 CUDA, 16 with other CUDA, and the
-  training batch size on CPU.
+- `VALIDATION_BATCH_SIZE=auto`: 4 for long-input seq2seq, otherwise 32 with
+  BF16 CUDA, 16 with other CUDA, and the training batch size on CPU.
 - Training, validation, and final-prediction inputs are tokenized once per
-  process; classifier truncation is disabled and seq2seq keeps 512-token padding.
+  process; truncation is disabled for classifiers and the full-input FLAN
+  diagnostic, while the historical seq2seq configuration keeps 512 tokens.
+  Qwen uses dynamic left padding, truncation disabled, and a persisted
+  `input_length_audit.json`.
 - Validation loss is weighted by non-padding label-token count so early
   stopping and checkpoint selection are invariant to validation batch grouping.
+- Threshold calibration for FLAN is a documented optional follow-up using
+  validation sequence-likelihood ratios; it is not part of the full-input run.
 
 ## Recovery Contract
 
@@ -149,8 +162,12 @@ student + direct LLM metrics
 - Training and evaluation each write an atomic contract containing the Git
   commit, relevant runtime configuration, and SHA-256 hashes of targets and
   upstream contract inputs.
-- A run-level contract fixes the actual device name, resolved precision, and
-  resolved validation batch across every variant in one `OUTPUT_ROOT`.
+- The first preflight resolves the Hugging Face model/tokenizer repository to
+  one immutable commit in the run's `student_config.json` and records exact
+  Python/package versions in `runtime_provenance.json`.
+- A run-level contract hashes that provenance and fixes the actual device name,
+  resolved precision, and resolved validation batch across every variant in one
+  `OUTPUT_ROOT`.
 - A stage is reusable only when both completion artifacts and its current
   contract match. A missing or mismatched contract blocks reuse; use a new
   `OUTPUT_ROOT` or explicit `FORCE=1` to replace it intentionally.
@@ -159,8 +176,16 @@ student + direct LLM metrics
 - Before forced retraining or reevaluation, prior contracts, summaries, and
   downstream validation artifacts are renamed with `.stale.<timestamp>`
   suffixes.
+- Replacing a run-level identity archives all active variant directories.
+  Partial aggregation independently includes only variants whose current
+  training and evaluation contracts match shared overrides.
 - Compact result packaging includes the run-level contract and both stage
   contracts for every variant.
+- Qwen completion additionally requires `best_adapter/`, the merged standalone
+  `best_model/`, the validation threshold, and `checkpoint_manifest.json`.
+  That manifest verifies the byte size and SHA-256 of every adapter and
+  merged-model file before reuse, evaluation, or packaging. Optional checkpoint
+  archives retain both the adapter and merged model.
 
 ## Student Inference Evidence
 
@@ -195,8 +220,14 @@ student + direct LLM metrics
 - [x] Cost gap between direct LLM matching and distilled student inference is quantified.
 - [x] FLAN-T5 continue/revise/stop decision is `REVISE`.
 - [x] Config-driven ModernBERT-base validation tooling is implemented and verified.
-- [ ] ModernBERT-base validation archive is returned from Colab.
-- [ ] Second-student comparison and next continue/revise/stop decision are written.
+- [x] First ModernBERT-base validation archive is returned from Colab.
+- [x] First ModernBERT comparison and `REVISE` decision are written.
+- [x] Repaired ModernBERT and full-input FLAN diagnostic tooling is implemented and verified.
+- [x] Qwen3-Reranker-0.6B LoRA diagnostic tooling is implemented and verified.
+- [ ] Repaired ModernBERT validation archive is returned and reviewed.
+- [ ] Full-input FLAN validation archive is returned and reviewed.
+- [ ] Qwen reranker validation archive is returned and reviewed.
+- [ ] A compact student is selected for the Phase 6 full-budget study.
 
 ## Risk Assessment
 

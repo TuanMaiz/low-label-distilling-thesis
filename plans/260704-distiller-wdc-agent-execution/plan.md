@@ -158,6 +158,8 @@ Teacher LLM calls are used only to prepare training labels. Final inference must
 | Phase 5 cost assumptions | `configs/phase05_cost_assumptions.json` |
 | Phase 5 Colab runbook | `plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md` |
 | ModernBERT repair handoff | `outputs/students-modernbert-repair/modernbert-base/artifacts/phase05_modernbert-base_train_128_results.tar.gz` |
+| Full-input FLAN handoff | `outputs/students-flan-full-input/flan-t5-base-full-input/artifacts/phase05_flan-t5-base-full-input_train_128_results.tar.gz` |
+| Qwen reranker handoff | `outputs/students/qwen3-reranker-0-6b/artifacts/phase05_qwen3-reranker-0-6b_train_128_results.tar.gz` |
 
 Optional external-validity artifacts for later datasets should live under the
 same `outputs/distiller_wdc/` summary conventions only after the WDC pilot has a
@@ -165,20 +167,26 @@ clear signal. They are not required for the WDC thesis-core claim.
 
 ## Phases
 
-Execution status on 2026-07-17: the FLAN-T5-base budget-128 pilot and first
+Execution status on 2026-07-23: the FLAN-T5-base budget-128 pilot and first
 ModernBERT-base run both returned `REVISE` decisions. ModernBERT collapsed
-toward single-class predictions, revealing tail truncation, T4 BF16 selection,
+toward single-class predictions, revealing incomplete pair preservation, T4 BF16 selection,
 full-encoder low-data optimization, loss-only checkpoint selection, and a fixed
-0.5 decision threshold as confounded training mechanics. The repair keeps the
-fixed targets and validation split unchanged and predeclares pair-aware
-truncation, FP16 on T4, staged final-layer unfreezing, batch 16, macro-F1
-checkpoint selection, and validation-only threshold persistence. Test remains
-untouched.
+0.5 decision threshold as confounded training mechanics. Three controlled
+screening jobs are now prepared but have no returned results: a ModernBERT
+repair with complete inputs, FP16 on T4, staged final-layer unfreezing, batch
+16, macro-F1 checkpoint selection, and validation-only threshold persistence;
+and a separate FLAN-T5 diagnostic with a 2,700-token complete-input contract
+and truncation disabled. The third uses the public
+Qwen3-Reranker-0.6B with its pretrained yes/no reranking interface and rank-8
+LoRA rather than adding a randomly initialized classifier head. All three
+retain the fixed budget-128 targets and validation split. The optional FLAN
+sequence-likelihood calibration remains a note only. Test remains untouched.
 Student architecture is selected by a validated
 config; new runs, contracts, summaries, and archives live under
 `outputs/students/<student_id>/`. Training and inference seconds remain the
-primary cost evidence. Phase 5 remains in progress until the repaired
-ModernBERT validation artifacts return and the comparison is reviewed.
+primary cost evidence. Phase 5 remains in progress while compact-student
+screening continues and until returned diagnostics justify a final student
+choice for the full budget study.
 
 | Phase | Name | Status | Priority | Effort | Dependencies |
 |-------|------|--------|----------|--------|--------------|
@@ -227,6 +235,33 @@ STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
 bash scripts/run_phase05_colab.sh all
 ```
 
+The separate full-input FLAN-T5 screening run uses:
+
+```bash
+STUDENT_CONFIG=configs/students/flan_t5_base_full_input.json \
+STUDENT_OUTPUT_ROOT=outputs/students-flan-full-input \
+bash scripts/run_phase05_colab.sh all
+```
+
+It keeps the completed 512-token FLAN pilot unchanged, uses a 2,700-token
+complete-input contract with truncation disabled, and does not implement the
+optional sequence-likelihood threshold-calibration note.
+
+The Qwen3-Reranker-0.6B LoRA screening run uses an A100 when available:
+
+```bash
+STUDENT_CONFIG=configs/students/qwen3_reranker_0_6b.json \
+STUDENT_OUTPUT_ROOT=outputs/students \
+bash scripts/run_phase05_colab.sh all
+```
+
+This run reuses the same three budget-128 targets and validation set. Preflight
+audits the complete frozen reranker prompt under a 4,096-token cap with
+truncation disabled. Training uses rank-8 LoRA, microbatch 1, 16-step gradient
+accumulation, gradient checkpointing, macro-F1 checkpoint selection, and a
+persisted validation threshold. Evaluation uses the merged standalone
+checkpoint and final `no`/`yes` token logits; it does not generate text.
+
 The wrapper preflights the branch, CUDA availability, fixed row counts, and
 direct-baseline artifacts; trains and validates the three 128-budget variants;
 aggregates the pilot table; and packages a compact results archive. It does not
@@ -238,11 +273,15 @@ validation loss over non-padding label tokens. Sequence classifiers default to
 `MAX_INPUT_LENGTH=2400`, which preserves every fixed pair in full (measured max
 2,334), with truncation disabled; batch 16, two head-only epochs followed by the final
 four encoder blocks, macro-F1 checkpointing, and threshold persistence; seq2seq
-training remains batch 4 with loss checkpointing. With `PRECISION`
+training remains batch 4 with loss checkpointing. The full-input FLAN diagnostic
+also fixes validation/evaluation batch 4. Qwen uses batch 1 for training,
+validation, and evaluation, with 16-step gradient accumulation and a `2e-4`
+LoRA learning rate. With `PRECISION`
 and `VALIDATION_BATCH_SIZE` left on `auto`, it uses BF16 and validation batch 32
 on native-BF16 CUDA hardware, FP16 and validation batch 16 on T4/other CUDA
-hardware, and FP32 with the training batch size on CPU smoke checks. Completed
-training and evaluation stages are recognized only from their checkpoint and
+hardware, and FP32 with the training batch size on CPU smoke checks; the Qwen
+configuration pins validation batch 1 regardless of that general default.
+Completed training and evaluation stages are recognized only from their checkpoint and
 atomic summary/prediction/metric markers; stale downstream artifacts are
 archived before retraining.
 
@@ -254,7 +293,7 @@ archived before retraining.
 | Direct LLM baseline is expensive | Medium | Use a fixed validation set or predeclared sample and project cost transparently |
 | LLM labels are too noisy | High | Add validation, mixed labels, and failure analysis |
 | WDC is too hard or too imbalanced | Medium | Report precision/recall separately; use validation thresholding if classifier added |
-| Student architecture bottlenecks the selector comparison | Medium | Run the predeclared ModernBERT-base classifier on the identical validation contract |
+| Student architecture bottlenecks the selector comparison | Medium | Screen ModernBERT, full-input FLAN-T5, and the pretrained Qwen reranker on the identical validation contract |
 | Compute budget grows | Medium | Pilot with 128 and 256 before full budgets |
 | Active strategies become too complex | Medium | Start with random and one equal-ratio bucketed selector; avoid iterative retraining until needed |
 | Extra datasets distract from thesis core | Medium | Treat non-WDC datasets as optional external-validity checks after WDC signal |

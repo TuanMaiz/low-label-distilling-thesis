@@ -262,6 +262,55 @@ run collapsed toward single-class predictions:
   the validation-selected decision threshold for automatic evaluation reuse.
 - Do not add a multiple-seed study in this repair run.
 
+Full-input FLAN-T5 screening diagnostic declared on 2026-07-20:
+
+- Preserve the completed 512-token FLAN-T5 pilot as historical evidence.
+- Add `flan-t5-base-full-input` using the same model weights, seed, budget-128
+  targets, teacher labels, selection manifests, and validation set.
+- Use a 2,700-token input limit, above the measured 2,649-token maximum under
+  the FLAN tokenizer, and disable input truncation so future overflow fails.
+- Keep target/generation limits at 8 tokens and checkpoint selection by
+  validation loss for this controlled input-length diagnostic.
+- Prefer A100; use training batch 4 and long-input validation/evaluation batch
+  4 unless an explicit resource override is recorded in the contracts.
+- Do not call the teacher or evaluate test.
+- If generation remains biased, consider a separate calibration job using the
+  validation log-likelihood ratio of the exact `match` and `non-match` targets.
+  That calibration is not implemented or included in this diagnostic.
+
+Qwen reranker screening diagnostic declared on 2026-07-23:
+
+- Preserve every completed FLAN-T5 and ModernBERT result as historical
+  screening evidence; this is an additional student diagnostic, not a change
+  to the thesis question.
+- Use public, ungated `Qwen/Qwen3-Reranker-0.6B` through a
+  `generative_reranker` backend that retains the model's pretrained reranking
+  interface. Map WDC `non-match`/`match` labels to the final `no`/`yes` token
+  logits and normalize only those two logits. Do not generate free-form text.
+- Reuse the fixed seed, budget-128 `gold_random`, `llm_random`, and
+  `llm_active_bucketed_v1` targets, teacher labels, selection manifests, and
+  gold validation rows. Make no teacher calls and do not read or evaluate test.
+- Fine-tune with LoRA rather than all model parameters: rank 8, alpha 16,
+  dropout 0.05, and attention projection targets `q_proj`, `k_proj`, `v_proj`,
+  and `o_proj`. Enable gradient checkpointing.
+- Use a configurable 4,096-token cap, dynamic left padding, and truncation
+  disabled. Colab preflight must tokenize the exact frozen instruction/query/
+  document prompt across all three training targets and validation rows,
+  persist `input_length_audit.json`, and fail before training if any prompt
+  exceeds the cap.
+- Prefer A100 with native BF16. Use training microbatch 1, gradient accumulation
+  16 (effective batch 16), validation/evaluation batch 1, learning rate
+  `2e-4`, 10 percent warmup, at most 10 epochs, and early-stopping patience 3.
+- Select the LoRA checkpoint by validation macro F1 with match F1 as the
+  tie-breaker. Persist and reuse the validation-selected probability threshold.
+- Preserve the selected adapter as `best_adapter/`, merge that exact adapter
+  into a standalone `best_model/` for evaluation, and persist a checkpoint
+  manifest. Returned compact results exclude weights; optional checkpoint
+  packages include both the adapter and merged model.
+- Do not add ER blocking, a DistillER reproduction, bidirectional scoring, new
+  sampling, a larger Qwen fallback, or multiple seeds to this first screening
+  run.
+
 ## Pilot Matrix
 
 Minimum pilot:
