@@ -281,12 +281,16 @@ def aggregate_results(
     allow_partial: bool = False,
     cost_assumptions_path: Path | None = None,
     student_run_root: Path | None = None,
+    included_variants: set[str] | None = None,
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     missing: list[str] = []
     run_root = student_run_root or output_root / "flan-t5-base" / f"train_{budget}"
 
     for variant in STUDENT_VARIANTS:
+        if included_variants is not None and variant.name not in included_variants:
+            missing.append(f"current_contract:{variant.name}")
+            continue
         targets_path = targets_root / variant.target_filename_template.format(budget=budget)
         metrics_path = run_root / variant.name / "validation.metrics.json"
         training_summary_path = run_root / variant.name / "training_summary.json"
@@ -417,6 +421,17 @@ def main() -> None:
     )
     parser.add_argument("--cost-csv", type=Path)
     parser.add_argument("--allow-partial", action="store_true")
+    parser.add_argument(
+        "--restrict-student-variants",
+        action="store_true",
+        help="Include only variants named by --include-variant",
+    )
+    parser.add_argument(
+        "--include-variant",
+        action="append",
+        choices=tuple(variant.name for variant in STUDENT_VARIANTS),
+        default=[],
+    )
     args = parser.parse_args()
 
     summary_root = args.output_root / "summary"
@@ -434,6 +449,11 @@ def main() -> None:
         allow_partial=args.allow_partial,
         cost_assumptions_path=args.cost_assumptions,
         student_run_root=args.student_run_root,
+        included_variants=(
+            set(args.include_variant)
+            if args.restrict_student_variants
+            else None
+        ),
     )
     write_outputs(payload, json_path, csv_path, cost_csv_path)
     print(

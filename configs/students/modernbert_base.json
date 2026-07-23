@@ -3,6 +3,8 @@
   "model_name": "answerdotai/ModernBERT-base",
   "architecture": "sequence_classification",
   "tokenizer_use_fast": true,
+  "max_input_length": 2400,
+  "input_truncation": false,
   "num_labels": 2,
   "label_to_id": {
     "non-match": 0,

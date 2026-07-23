@@ -46,6 +46,8 @@ class Trainer:
         unfreeze_after_epoch: int | None = None,
         unfreeze_callback: Callable[[], int] | None = None,
         positive_label_id: int = 1,
+        gradient_accumulation_steps: int = 1,
+        best_checkpoint_name: str = "best_model",
     ):
         """
         Initialize the trainer.
@@ -78,6 +80,10 @@ class Trainer:
         self.unfreeze_callback = unfreeze_callback
         self.unfrozen_encoder_layers = 0
         self.positive_label_id = positive_label_id
+        if gradient_accumulation_steps <= 0:
+            raise ValueError("gradient_accumulation_steps must be positive")
+        self.gradient_accumulation_steps = gradient_accumulation_steps
+        self.best_checkpoint_name = best_checkpoint_name
 
         # Move model to device
         self.model.to(self.device)
@@ -138,6 +144,8 @@ class Trainer:
         num_batches = 0
 
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}")
+        self.optimizer.zero_grad(set_to_none=True)
+        total_microbatches = len(train_loader)
 
         for batch_idx, batch in enumerate(pbar):
             # Move batch to device
@@ -154,37 +162,56 @@ class Trainer:
             loss = outputs.loss
             total_loss += loss.item()
             num_batches += 1
+            accumulation_window_start = (
+                batch_idx // self.gradient_accumulation_steps
+            ) * self.gradient_accumulation_steps
+            accumulation_window_end = min(
+                accumulation_window_start + self.gradient_accumulation_steps,
+                total_microbatches,
+            )
+            accumulation_window_size = (
+                accumulation_window_end - accumulation_window_start
+            )
+            backward_loss = loss / accumulation_window_size
 
             # Backward pass
             if self.grad_scaler is not None:
-                self.grad_scaler.scale(loss).backward()
-                self.grad_scaler.unscale_(self.optimizer)
+                self.grad_scaler.scale(backward_loss).backward()
             else:
-                loss.backward()
+                backward_loss.backward()
 
-            # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+            should_step = batch_idx + 1 == accumulation_window_end
+            if should_step:
+                if self.grad_scaler is not None:
+                    self.grad_scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
-            # Optimizer step
-            optimizer_stepped = True
-            if self.grad_scaler is not None:
-                scale_before_step = self.grad_scaler.get_scale()
-                self.grad_scaler.step(self.optimizer)
-                self.grad_scaler.update()
-                optimizer_stepped = self.grad_scaler.get_scale() >= scale_before_step
-            else:
-                self.optimizer.step()
-            if self.scheduler is not None and optimizer_stepped:
-                self.scheduler.step()
-            self.optimizer.zero_grad(set_to_none=True)
-
-            self.global_step += 1
+                optimizer_stepped = True
+                if self.grad_scaler is not None:
+                    scale_before_step = self.grad_scaler.get_scale()
+                    self.grad_scaler.step(self.optimizer)
+                    self.grad_scaler.update()
+                    optimizer_stepped = (
+                        self.grad_scaler.get_scale() >= scale_before_step
+                    )
+                else:
+                    self.optimizer.step()
+                if self.scheduler is not None and optimizer_stepped:
+                    self.scheduler.step()
+                self.optimizer.zero_grad(set_to_none=True)
+                if optimizer_stepped:
+                    self.global_step += 1
 
             # Update progress bar
             pbar.set_postfix({"loss": loss.item()})
 
             # Log to W&B
-            if self.use_wandb and self.global_step % log_every == 0:
+            if (
+                self.use_wandb
+                and should_step
+                and self.global_step > 0
+                and self.global_step % log_every == 0
+            ):
                 wandb.log({
                     "train/loss": loss.item(),
                     "train/epoch": epoch,
@@ -379,7 +406,11 @@ class Trainer:
                     patience_counter = 0
 
                     # Save best model
-                    checkpoint_path = save_dir / "best_model"
+                    checkpoint_path = save_dir / getattr(
+                        self,
+                        "best_checkpoint_name",
+                        "best_model",
+                    )
                     self.model.save_pretrained(checkpoint_path)
                     self.tokenizer.save_pretrained(checkpoint_path)
                     if isinstance(evaluation, dict):

@@ -161,6 +161,7 @@ def load_sequence_classifier(config: StudentConfig):
     tokenizer = AutoTokenizer.from_pretrained(
         config.model_name,
         use_fast=config.tokenizer_use_fast,
+        revision=config.model_revision,
     )
     ensure_padding_token(tokenizer)
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -168,6 +169,7 @@ def load_sequence_classifier(config: StudentConfig):
         num_labels=config.num_labels,
         label2id=config.label_to_id,
         id2label=config.id_to_label,
+        revision=config.model_revision,
     )
     ensure_padding_token(tokenizer, model)
     return tokenizer, model

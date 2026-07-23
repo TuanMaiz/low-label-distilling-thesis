@@ -73,23 +73,97 @@ class _TinyTokenizer:
     pad_token_id = 0
 
     def __call__(self, text, max_length, padding, truncation, return_tensors):
-        del padding, truncation, return_tensors
         import torch
 
+        self.last_truncation = truncation
+        self.last_max_length = max_length
         texts = [text] if isinstance(text, str) else text
         rows = []
         for value in texts:
-            ids = [min(ord(char), 255) for char in value[:max_length]]
-            rows.append(ids + [self.pad_token_id] * (max_length - len(ids)))
-        return {
-            "input_ids": torch.tensor(rows),
-            "attention_mask": torch.tensor(
-                [[1 if item != self.pad_token_id else 0 for item in row] for row in rows]
-            ),
+            source = value[:max_length] if truncation else value
+            ids = [min(ord(char), 255) for char in source]
+            if padding == "max_length":
+                ids += [self.pad_token_id] * (max_length - len(ids))
+            rows.append(ids)
+        payload = {
+            "input_ids": rows,
+            "attention_mask": [
+                [1 if item != self.pad_token_id else 0 for item in row] for row in rows
+            ],
         }
+        if return_tensors == "pt":
+            return {key: torch.tensor(value) for key, value in payload.items()}
+        return payload
+
+    def pad(self, encoded, padding, max_length, return_tensors):
+        import torch
+
+        self.last_pad_max_length = max_length
+        self.last_pad_mode = padding
+        payload = {}
+        for key, rows in encoded.items():
+            pad_value = self.pad_token_id if key == "input_ids" else 0
+            payload[key] = [
+                row + [pad_value] * (max_length - len(row)) for row in rows
+            ]
+        if return_tensors == "pt":
+            return {key: torch.tensor(value) for key, value in payload.items()}
+        return payload
 
 
 class Seq2SeqStudentTest(unittest.TestCase):
+    def test_full_input_dataset_disables_truncation_at_2700_tokens(self):
+        tokenizer = _TinyTokenizer()
+
+        dataset = ERSeq2SeqDataset(
+            rows=[{"input_text": "abc", "target_text": "match"}],
+            tokenizer=tokenizer,
+            max_input_length=2700,
+            max_target_length=8,
+            truncate_inputs=False,
+        )
+
+        self.assertEqual(dataset.input_ids.shape, (1, 2700))
+        self.assertEqual(tokenizer.last_pad_max_length, 2700)
+
+    def test_seq2seq_input_truncation_flag_reaches_tokenizer(self):
+        class _RecordingTokenizer(_TinyTokenizer):
+            def __init__(self):
+                self.calls = []
+
+            def __call__(self, text, **kwargs):
+                self.calls.append(dict(kwargs))
+                return super().__call__(text, **kwargs)
+
+        tokenizer = _RecordingTokenizer()
+        ERSeq2SeqDataset(
+            rows=[{"input_text": "abc", "target_text": "match"}],
+            tokenizer=tokenizer,
+            max_input_length=2700,
+            max_target_length=8,
+            truncate_inputs=False,
+        )
+
+        self.assertEqual(tokenizer.calls[0]["max_length"], 2700)
+        self.assertFalse(tokenizer.calls[0]["truncation"])
+        self.assertTrue(tokenizer.calls[1]["truncation"])
+
+    def test_full_input_dataset_rejects_overflow_instead_of_truncating(self):
+        with self.assertRaisesRegex(ValueError, "exceed max_input_length=8"):
+            ERSeq2SeqDataset(
+                rows=[
+                    {
+                        "pair_id": "too-long",
+                        "input_text": "0123456789",
+                        "target_text": "match",
+                    }
+                ],
+                tokenizer=_TinyTokenizer(),
+                max_input_length=8,
+                max_target_length=8,
+                truncate_inputs=False,
+            )
+
     def test_gold_label_targets_use_dataset_labels(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -243,8 +317,8 @@ class Seq2SeqStudentTest(unittest.TestCase):
 
         class _AutoModelForSeq2SeqLM:
             @staticmethod
-            def from_pretrained(model_name):
-                calls["model"] = model_name
+            def from_pretrained(model_name, **kwargs):
+                calls["model"] = (model_name, kwargs)
                 return object()
 
         fake_transformers = types.SimpleNamespace(
@@ -257,7 +331,8 @@ class Seq2SeqStudentTest(unittest.TestCase):
 
         self.assertEqual(calls["tokenizer"][0], "google/mt5-small")
         self.assertFalse(calls["tokenizer"][1]["use_fast"])
-        self.assertEqual(calls["model"], "google/mt5-small")
+        self.assertEqual(calls["model"][0], "google/mt5-small")
+        self.assertIsNone(calls["model"][1]["revision"])
 
 
 if __name__ == "__main__":

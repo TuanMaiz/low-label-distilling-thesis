@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 import time
 from pathlib import Path
@@ -19,6 +20,12 @@ from models.classification_student import (
     load_sequence_classifier,
     prepare_staged_finetuning,
     unfreeze_last_encoder_layers,
+)
+from models.generative_reranker_student import (
+    ERGenerativeRerankerDataset,
+    RerankerDataCollator,
+    finalize_lora_checkpoint,
+    load_reranker_for_training,
 )
 from models.seq2seq_student import ERSeq2SeqDataset, load_seq2seq, load_target_rows
 from models.student_config import StudentConfig, load_student_config
@@ -47,20 +54,23 @@ def _load_model_and_datasets(
         tokenizer, model = load_seq2seq(
             config.model_name,
             use_fast=config.tokenizer_use_fast,
+            revision=config.model_revision,
         )
         train_dataset = ERSeq2SeqDataset(
             train_rows,
             tokenizer,
             max_input_length,
             max_target_length,
+            config.input_truncation,
         )
         validation_dataset = ERSeq2SeqDataset(
             validation_rows,
             tokenizer,
             max_input_length,
             max_target_length,
+            config.input_truncation,
         )
-        return tokenizer, model, train_dataset, validation_dataset
+        return tokenizer, model, train_dataset, validation_dataset, None
     if config.architecture == "sequence_classification":
         tokenizer, model = load_sequence_classifier(config)
         train_dataset = ERClassificationDataset(
@@ -75,7 +85,28 @@ def _load_model_and_datasets(
             config.label_to_id,
             max_input_length,
         )
-        return tokenizer, model, train_dataset, validation_dataset
+        return tokenizer, model, train_dataset, validation_dataset, None
+    if config.architecture == "generative_reranker":
+        tokenizer, model = load_reranker_for_training(config)
+        train_dataset = ERGenerativeRerankerDataset(
+            train_rows,
+            tokenizer,
+            config,
+            max_input_length,
+        )
+        validation_dataset = ERGenerativeRerankerDataset(
+            validation_rows,
+            tokenizer,
+            config,
+            max_input_length,
+        )
+        return (
+            tokenizer,
+            model,
+            train_dataset,
+            validation_dataset,
+            RerankerDataCollator(tokenizer),
+        )
     raise ValueError(f"Unsupported student architecture: {config.architecture}")
 
 
@@ -102,12 +133,11 @@ def train_configured_student(
     classifier_head_learning_rate: float = 1e-3,
     classifier_encoder_learning_rate: float = 1e-5,
     classifier_unfreeze_last_n_layers: int = 4,
+    gradient_accumulation_steps: int = 1,
 ) -> dict:
     config = load_student_config(student_config)
     if max_input_length is None:
-        max_input_length = (
-            2400 if config.architecture == "sequence_classification" else 512
-        )
+        max_input_length = config.max_input_length
     set_seed(seed)
     resolved_device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     resolved_validation_batch_size = resolve_runtime_validation_batch_size(
@@ -118,18 +148,26 @@ def train_configured_student(
     )
     train_rows = load_target_rows(train_targets)
     validation_rows = load_target_rows(validation_targets)
-    tokenizer, model, train_dataset, validation_dataset = _load_model_and_datasets(
-        config,
-        train_rows,
-        validation_rows,
-        max_input_length,
-        max_target_length,
+    tokenizer, model, train_dataset, validation_dataset, collate_fn = (
+        _load_model_and_datasets(
+            config,
+            train_rows,
+            validation_rows,
+            max_input_length,
+            max_target_length,
+        )
     )
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+    )
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=resolved_validation_batch_size,
         shuffle=False,
+        collate_fn=collate_fn,
     )
 
     optimizer_param_groups = None
@@ -150,8 +188,15 @@ def train_configured_student(
             model,
             classifier_unfreeze_last_n_layers,
         )
+    elif config.architecture == "generative_reranker":
+        checkpoint_metric = "macro_f1"
 
-    total_training_steps = max(1, len(train_loader) * num_epochs)
+    if gradient_accumulation_steps <= 0:
+        raise ValueError("gradient_accumulation_steps must be positive")
+    optimizer_steps_per_epoch = math.ceil(
+        len(train_loader) / gradient_accumulation_steps
+    )
+    total_training_steps = max(1, optimizer_steps_per_epoch * num_epochs)
     if not 0.0 <= warmup_ratio <= 1.0:
         raise ValueError("warmup_ratio must be between 0 and 1")
     resolved_warmup_steps = max(
@@ -173,6 +218,12 @@ def train_configured_student(
         unfreeze_after_epoch=unfreeze_after_epoch,
         unfreeze_callback=unfreeze_callback,
         positive_label_id=config.label_to_id.get("match", 1),
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        best_checkpoint_name=(
+            "best_adapter"
+            if config.architecture == "generative_reranker"
+            else "best_model"
+        ),
     )
     trainer.scheduler = get_scheduler(
         "linear",
@@ -194,10 +245,19 @@ def train_configured_student(
     if training_device.type == "cuda":
         torch.cuda.synchronize(training_device)
     training_wall_seconds = time.perf_counter() - training_started
+    checkpoint_manifest = None
+    if config.architecture == "generative_reranker":
+        checkpoint_manifest = finalize_lora_checkpoint(
+            config,
+            model,
+            tokenizer,
+            output_dir,
+        )
 
     summary = {
         "student_id": config.student_id,
         "model_name": config.model_name,
+        "model_revision": config.model_revision,
         "architecture": config.architecture,
         "student_config": str(student_config),
         "train_targets": str(train_targets),
@@ -206,6 +266,8 @@ def train_configured_student(
         "train_rows": len(train_rows),
         "validation_rows": len(validation_rows),
         "batch_size": batch_size,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "effective_batch_size": batch_size * gradient_accumulation_steps,
         "validation_batch_size": resolved_validation_batch_size,
         "num_epochs": num_epochs,
         "learning_rate": learning_rate,
@@ -214,16 +276,27 @@ def train_configured_student(
         "warmup_ratio": warmup_ratio,
         "warmup_steps": resolved_warmup_steps,
         "max_input_length": max_input_length,
+        "input_truncation": config.input_truncation,
         "max_target_length": max_target_length if config.architecture == "seq2seq" else None,
         "seed": seed,
         "early_stopping_patience": early_stopping_patience,
         "checkpoint_metric": checkpoint_metric,
         "best_validation_loss": trainer.best_val_loss,
         "best_validation_macro_f1": (
-            trainer.best_macro_f1 if config.architecture == "sequence_classification" else None
+            trainer.best_macro_f1
+            if config.architecture in {
+                "sequence_classification",
+                "generative_reranker",
+            }
+            else None
         ),
         "best_validation_match_f1": (
-            trainer.best_same_f1 if config.architecture == "sequence_classification" else None
+            trainer.best_same_f1
+            if config.architecture in {
+                "sequence_classification",
+                "generative_reranker",
+            }
+            else None
         ),
         "decision_threshold": trainer.best_decision_threshold,
         "classifier_head_epochs": (
@@ -252,6 +325,16 @@ def train_configured_student(
         "classification_pair_truncation": (
             "disabled" if config.architecture == "sequence_classification" else None
         ),
+        "reranker_instruction": config.reranker_instruction,
+        "reranker_positive_token": config.reranker_positive_token,
+        "reranker_negative_token": config.reranker_negative_token,
+        "fine_tuning_method": config.fine_tuning_method,
+        "lora_rank": config.lora_rank,
+        "lora_alpha": config.lora_alpha,
+        "lora_dropout": config.lora_dropout,
+        "lora_target_modules": config.lora_target_modules,
+        "gradient_checkpointing": config.gradient_checkpointing,
+        "checkpoint_manifest": checkpoint_manifest,
         "precision_requested": precision,
         "precision": trainer.precision,
         "torch_version": torch.__version__,
@@ -305,6 +388,7 @@ def main() -> None:
     parser.add_argument("--classifier-head-learning-rate", type=float, default=1e-3)
     parser.add_argument("--classifier-encoder-learning-rate", type=float, default=1e-5)
     parser.add_argument("--classifier-unfreeze-last-n-layers", type=int, default=4)
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     args = parser.parse_args()
     summary = train_configured_student(
         student_config=args.student_config,
@@ -329,6 +413,7 @@ def main() -> None:
         classifier_head_learning_rate=args.classifier_head_learning_rate,
         classifier_encoder_learning_rate=args.classifier_encoder_learning_rate,
         classifier_unfreeze_last_n_layers=args.classifier_unfreeze_last_n_layers,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 

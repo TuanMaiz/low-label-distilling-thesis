@@ -84,12 +84,40 @@ def _write_config(path: Path, **overrides) -> None:
 
 
 class StudentConfigTest(unittest.TestCase):
+    def test_committed_full_input_flan_config_is_loadable(self):
+        config = load_student_config(
+            Path("configs/students/flan_t5_base_full_input.json")
+        )
+
+        self.assertEqual(config.student_id, "flan-t5-base-full-input")
+        self.assertEqual(config.architecture, "seq2seq")
+        self.assertEqual(config.max_input_length, 2700)
+        self.assertFalse(config.input_truncation)
+
     def test_committed_modernbert_config_is_loadable(self):
         config = load_student_config(Path("configs/students/modernbert_base.json"))
 
         self.assertEqual(config.student_id, "modernbert-base")
         self.assertEqual(config.model_name, "answerdotai/ModernBERT-base")
         self.assertEqual(config.architecture, "sequence_classification")
+
+    def test_committed_qwen_reranker_config_is_loadable(self):
+        config = load_student_config(
+            Path("configs/students/qwen3_reranker_0_6b.json")
+        )
+
+        self.assertEqual(config.student_id, "qwen3-reranker-0-6b")
+        self.assertEqual(config.architecture, "generative_reranker")
+        self.assertEqual(config.max_input_length, 4096)
+        self.assertFalse(config.input_truncation)
+        self.assertEqual(config.fine_tuning_method, "lora")
+        self.assertEqual((config.lora_rank, config.lora_alpha), (8, 16))
+        self.assertEqual(config.lora_dropout, 0.05)
+        self.assertEqual(
+            config.lora_target_modules,
+            ("q_proj", "k_proj", "v_proj", "o_proj"),
+        )
+        self.assertTrue(config.gradient_checkpointing)
 
     def test_loads_modernbert_classifier_config_and_inverts_label_mapping(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -101,6 +129,7 @@ class StudentConfigTest(unittest.TestCase):
             self.assertEqual(config.student_id, "modernbert-base")
             self.assertEqual(config.architecture, "sequence_classification")
             self.assertEqual(config.id_to_label, {0: "non-match", 1: "match"})
+            self.assertEqual(config.max_input_length, 2400)
 
     def test_rejects_unknown_architecture(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -116,6 +145,35 @@ class StudentConfigTest(unittest.TestCase):
             _write_config(path, num_labels=3)
 
             with self.assertRaisesRegex(ValueError, "num_labels=2"):
+                load_student_config(path)
+
+    def test_rejects_incomplete_or_invalid_reranker_lora_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "student.json"
+            _write_config(
+                path,
+                architecture="generative_reranker",
+                input_truncation=False,
+            )
+            with self.assertRaisesRegex(ValueError, "missing fields"):
+                load_student_config(path)
+
+            payload = json.loads(
+                Path("configs/students/qwen3_reranker_0_6b.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            payload["lora_rank"] = 0
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "lora_rank"):
+                load_student_config(path)
+
+    def test_rejects_nonpositive_input_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "student.json"
+            _write_config(path, max_input_length=0, input_truncation=False)
+
+            with self.assertRaisesRegex(ValueError, "max_input_length must be positive"):
                 load_student_config(path)
 
 

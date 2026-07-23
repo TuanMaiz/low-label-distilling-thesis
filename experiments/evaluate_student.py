@@ -13,7 +13,12 @@ from models.classification_student import (
     ERClassificationPredictionDataset,
     ensure_padding_token,
 )
-from models.seq2seq_student import iter_jsonl
+from models.seq2seq_student import iter_jsonl, tokenize_seq2seq_inputs
+from models.generative_reranker_student import (
+    ERGenerativeRerankerDataset,
+    RerankerDataCollator,
+    load_merged_reranker,
+)
 from models.student_config import StudentConfig, load_student_config
 from utils.metrics import compute_metrics
 from utils.classification_threshold import load_decision_threshold
@@ -77,15 +82,20 @@ def inference_timing_metrics(inference_seconds: float, row_count: int) -> dict:
 
 
 class PredictionDataset:
-    def __init__(self, rows: list[dict], tokenizer, max_input_length: int) -> None:
+    def __init__(
+        self,
+        rows: list[dict],
+        tokenizer,
+        max_input_length: int,
+        truncate_inputs: bool = True,
+    ) -> None:
         self.rows = rows
         self.max_input_length = max_input_length
-        encoded = tokenizer(
-            [row["input_text"] for row in rows],
-            max_length=max_input_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt",
+        encoded = tokenize_seq2seq_inputs(
+            rows,
+            tokenizer,
+            max_input_length,
+            truncate_inputs,
         )
         self.input_ids = encoded["input_ids"]
         self.attention_mask = encoded["attention_mask"]
@@ -109,6 +119,7 @@ def generate_predictions(
     max_new_tokens: int = 64,
     device: str | None = None,
     precision: str = "auto",
+    truncate_inputs: bool = True,
 ) -> dict:
     import torch
     from torch.utils.data import DataLoader
@@ -127,7 +138,12 @@ def generate_predictions(
     model.to(device)
     model.eval()
 
-    dataset = PredictionDataset(rows, tokenizer, max_input_length=max_input_length)
+    dataset = PredictionDataset(
+        rows,
+        tokenizer,
+        max_input_length=max_input_length,
+        truncate_inputs=truncate_inputs,
+    )
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     predictions: list[dict] = []
@@ -184,6 +200,7 @@ def generate_predictions(
             "inference_batch_size": batch_size,
             "inference_max_input_length": max_input_length,
             "inference_max_new_tokens": max_new_tokens,
+            "input_truncation": truncate_inputs,
         }
     )
     return metrics
@@ -303,6 +320,124 @@ def classify_predictions(
     return metrics
 
 
+def rerank_predictions(
+    config: StudentConfig,
+    checkpoint: Path,
+    input_path: Path,
+    output_path: Path,
+    batch_size: int = 1,
+    max_input_length: int = 4096,
+    device: str | None = None,
+    precision: str = "auto",
+) -> dict:
+    """Evaluate a merged causal-LM reranker through final yes/no token logits."""
+    import torch
+    from torch.utils.data import DataLoader
+    from tqdm import tqdm
+    from utils.torch_runtime import autocast_context, resolve_precision
+
+    rows = list(iter_jsonl(input_path))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    evaluation_started = time.perf_counter()
+    tokenizer, model = load_merged_reranker(config, checkpoint)
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    resolved_precision = resolve_precision(device, precision)
+    model.to(device)
+    model.eval()
+    dataset = ERGenerativeRerankerDataset(
+        rows,
+        tokenizer,
+        config,
+        max_input_length,
+        include_labels=False,
+    )
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=RerankerDataCollator(tokenizer),
+    )
+    decision_threshold, threshold_source, threshold_payload = load_decision_threshold(
+        checkpoint
+    )
+
+    predictions: list[dict] = []
+    cursor = 0
+    device_object = torch.device(device)
+    if device_object.type == "cuda":
+        torch.cuda.synchronize(device_object)
+    inference_started = time.perf_counter()
+    with torch.inference_mode(), autocast_context(device, resolved_precision):
+        for batch in tqdm(loader, desc="Reranking"):
+            batch = {key: value.to(device) for key, value in batch.items()}
+            logits = model(**batch).logits.float()
+            probabilities = torch.softmax(logits, dim=-1)
+            match_probabilities = probabilities[:, config.label_to_id["match"]]
+            predicted_matches = match_probabilities >= decision_threshold
+            for row_index in range(probabilities.shape[0]):
+                row = rows[cursor]
+                is_match = bool(predicted_matches[row_index].item())
+                predictions.append(
+                    {
+                        "pair_id": row["pair_id"],
+                        "label": row["label"],
+                        "prediction_text": "match" if is_match else "non-match",
+                        "prediction": int(is_match),
+                        "is_valid": True,
+                        "non_match_probability": float(
+                            probabilities[
+                                row_index,
+                                config.label_to_id["non-match"],
+                            ].item()
+                        ),
+                        "match_probability": float(
+                            probabilities[
+                                row_index,
+                                config.label_to_id["match"],
+                            ].item()
+                        ),
+                    }
+                )
+                cursor += 1
+    if device_object.type == "cuda":
+        torch.cuda.synchronize(device_object)
+    inference_seconds = time.perf_counter() - inference_started
+
+    temporary_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    with temporary_output_path.open("w", encoding="utf-8") as handle:
+        for row in predictions:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    temporary_output_path.replace(output_path)
+
+    metrics = evaluate_prediction_rows(predictions)
+    metrics["predictions"] = str(output_path)
+    metrics["precision"] = resolved_precision
+    metrics.update(inference_timing_metrics(inference_seconds, len(rows)))
+    metrics.update(
+        {
+            "evaluation_wall_seconds": time.perf_counter() - evaluation_started,
+            "inference_device": str(device_object),
+            "inference_device_name": (
+                torch.cuda.get_device_name(device_object)
+                if device_object.type == "cuda"
+                else "cpu"
+            ),
+            "inference_batch_size": batch_size,
+            "inference_max_input_length": max_input_length,
+            "inference_max_new_tokens": None,
+            "input_truncation": False,
+            "decision_threshold": decision_threshold,
+            "decision_threshold_source": threshold_source,
+            "decision_threshold_selection_metric": (
+                threshold_payload.get("selection_metric")
+                if threshold_payload
+                else None
+            ),
+        }
+    )
+    return metrics
+
+
 def evaluate_prediction_rows(rows: list[dict]) -> dict:
     labels = [_label_from_row(row) for row in rows]
     parsed = [None if row.get("prediction") is None else bool(row["prediction"]) for row in rows]
@@ -373,13 +508,20 @@ def main() -> None:
     config = load_student_config(args.student_config) if args.student_config else None
     resolved_max_input_length = args.max_input_length
     if resolved_max_input_length is None:
-        resolved_max_input_length = (
-            2400
-            if config is not None and config.architecture == "sequence_classification"
-            else 512
-        )
+        resolved_max_input_length = config.max_input_length if config else 512
     if config is not None and config.architecture == "sequence_classification":
         metrics = classify_predictions(
+            config=config,
+            checkpoint=args.checkpoint,
+            input_path=args.input,
+            output_path=args.predictions,
+            batch_size=args.batch_size,
+            max_input_length=resolved_max_input_length,
+            device=args.device,
+            precision=args.precision,
+        )
+    elif config is not None and config.architecture == "generative_reranker":
+        metrics = rerank_predictions(
             config=config,
             checkpoint=args.checkpoint,
             input_path=args.input,
@@ -399,6 +541,7 @@ def main() -> None:
             max_new_tokens=args.max_new_tokens,
             device=args.device,
             precision=args.precision,
+            truncate_inputs=config.input_truncation if config else True,
         )
     metrics.update(
         {

@@ -24,6 +24,51 @@ def load_target_rows(path: Path, split: str | None = None) -> list[dict]:
     return rows
 
 
+def tokenize_seq2seq_inputs(
+    rows: list[dict],
+    tokenizer,
+    max_input_length: int,
+    truncate_inputs: bool,
+):
+    """Tokenize once, explicitly rejecting overflow for full-input configs."""
+    texts = [row["input_text"] for row in rows]
+    if truncate_inputs:
+        return tokenizer(
+            texts,
+            max_length=max_input_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+
+    encoded = tokenizer(
+        texts,
+        max_length=max_input_length,
+        padding=False,
+        truncation=False,
+        return_tensors=None,
+    )
+    overflow = [
+        (rows[index].get("pair_id", str(index)), len(input_ids))
+        for index, input_ids in enumerate(encoded["input_ids"])
+        if len(input_ids) > max_input_length
+    ]
+    if overflow:
+        examples = ", ".join(
+            f"{pair_id}={token_count}" for pair_id, token_count in overflow[:5]
+        )
+        raise ValueError(
+            f"{len(overflow)} seq2seq inputs exceed max_input_length="
+            f"{max_input_length}; truncation is disabled ({examples})"
+        )
+    return tokenizer.pad(
+        encoded,
+        padding="max_length",
+        max_length=max_input_length,
+        return_tensors="pt",
+    )
+
+
 class ERSeq2SeqDataset:
     """Tokenized entity-resolution seq2seq target rows."""
 
@@ -33,16 +78,16 @@ class ERSeq2SeqDataset:
         tokenizer,
         max_input_length: int = 512,
         max_target_length: int = 192,
+        truncate_inputs: bool = True,
     ) -> None:
         self.rows = rows
         self.max_input_length = max_input_length
         self.max_target_length = max_target_length
-        inputs = tokenizer(
-            [row["input_text"] for row in rows],
-            max_length=max_input_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt",
+        inputs = tokenize_seq2seq_inputs(
+            rows,
+            tokenizer,
+            max_input_length,
+            truncate_inputs,
         )
         targets = tokenizer(
             [row["target_text"] for row in rows],
@@ -67,10 +112,18 @@ class ERSeq2SeqDataset:
         }
 
 
-def load_seq2seq(model_name: str = DEFAULT_SEQ2SEQ_MODEL, use_fast: bool = False):
+def load_seq2seq(
+    model_name: str = DEFAULT_SEQ2SEQ_MODEL,
+    use_fast: bool = False,
+    revision: str | None = None,
+):
     """Load a T5-compatible tokenizer and seq2seq model."""
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=use_fast)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name,
+        use_fast=use_fast,
+        revision=revision,
+    )
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, revision=revision)
     return tokenizer, model

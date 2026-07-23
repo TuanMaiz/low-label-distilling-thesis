@@ -1,6 +1,8 @@
 # Google Colab already supplies a CUDA-compatible PyTorch build. Keeping torch
 # out of this file avoids replacing that runtime-specific installation.
 transformers>=4.57.0,<5
+peft>=0.17.0,<1
+accelerate>=1.2.0,<2
 sentencepiece>=0.2.0
 numpy>=1.24.0
 pydantic>=2.0.0

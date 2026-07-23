@@ -11,6 +11,7 @@ from utils.artifact_contract import (
     validate_contract,
     write_contract,
 )
+from utils.runtime_provenance import refresh_runtime_provenance
 
 
 class Phase05ArtifactContractTest(unittest.TestCase):
@@ -22,7 +23,17 @@ class Phase05ArtifactContractTest(unittest.TestCase):
         checkpoint = variant_dir / "best_model"
         checkpoint.mkdir(parents=True)
         student_config = repo_root / "configs" / "students" / "flan_t5_base.json"
-        (run_root / "student_config.json").write_bytes(student_config.read_bytes())
+        snapshot_payload = json.loads(student_config.read_text(encoding="utf-8"))
+        snapshot_payload["model_revision"] = "f" * 40
+        (run_root / "student_config.json").write_text(
+            json.dumps(snapshot_payload),
+            encoding="utf-8",
+        )
+        refresh_runtime_provenance(
+            student_config,
+            run_root / "student_config.json",
+            run_root / "runtime_provenance.json",
+        )
         (checkpoint / "config.json").write_text("{}", encoding="utf-8")
         (variant_dir / "training_summary.json").write_text(
             json.dumps(
@@ -66,6 +77,8 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             "student_architecture=seq2seq",
             "budget=128",
             "batch_size=4",
+            "gradient_accumulation_steps=1",
+            "effective_batch_size=4",
             "validation_batch_size=auto",
             "num_epochs=8",
             "learning_rate=5e-5",
@@ -73,6 +86,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             "warmup_steps=0",
             "warmup_ratio=0",
             "max_input_length=512",
+            "input_truncation=true",
             "max_target_length=8",
             "early_stopping_patience=3",
             "seed=42",
@@ -96,6 +110,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                     "trainer=experiments/trainer.py",
                     "student_backend=models/seq2seq_student.py",
                     "runtime=utils/torch_runtime.py",
+                    f"runtime_provenance={run_root / 'runtime_provenance.json'}",
                 ],
             ),
         )
@@ -112,6 +127,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                     "budget=128",
                     "eval_batch_size=8",
                     "max_input_length=512",
+                    "input_truncation=true",
                     "max_new_tokens=8",
                     "device=cpu",
                     "precision=auto",
@@ -126,6 +142,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                     "evaluation_entrypoint=experiments/evaluate_student.py",
                     "metrics=utils/metrics.py",
                     "runtime=utils/torch_runtime.py",
+                    f"runtime_provenance={run_root / 'runtime_provenance.json'}",
                 ],
             ),
         )
@@ -149,6 +166,8 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                     f"student_config={run_root / 'student_config.json'}",
                     "student_config_schema=models/student_config.py",
                     "runtime=utils/torch_runtime.py",
+                    f"runtime_provenance={run_root / 'runtime_provenance.json'}",
+                    "runtime_provenance_builder=utils/runtime_provenance.py",
                 ],
             ),
         )
@@ -176,10 +195,10 @@ class Phase05ArtifactContractTest(unittest.TestCase):
             self.assertIn("skip completed training", matching.stdout)
             self.assertIn("skip completed evaluation", matching.stdout)
             run_root = output_root / "flan-t5-base" / "train_128"
-            self.assertEqual(
-                (run_root / "student_config.json").read_bytes(),
-                (repo_root / "configs" / "students" / "flan_t5_base.json").read_bytes(),
+            snapshot = json.loads(
+                (run_root / "student_config.json").read_text(encoding="utf-8")
             )
+            self.assertEqual(snapshot["model_revision"], "f" * 40)
             runtime_fields = read_contract_fields(
                 run_root / "runtime_contract.json",
                 ["student_id", "model_name", "student_architecture"],

@@ -194,6 +194,35 @@ class Phase05AggregationTest(unittest.TestCase):
                 ]
             )
 
+    def test_contract_filtered_partial_summary_excludes_stale_variants(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output_root, targets_root, direct_cost, cost_assumptions = self._fixture(root)
+
+            payload = aggregate_results(
+                output_root,
+                targets_root,
+                direct_cost,
+                allow_partial=True,
+                cost_assumptions_path=cost_assumptions,
+                included_variants={"gold_random"},
+            )
+
+            variants = {row["variant"] for row in payload["rows"]}
+            self.assertEqual(
+                variants,
+                {"gold_random_student", "direct_llm_matcher"},
+            )
+            self.assertFalse(payload["complete"])
+            self.assertIn(
+                "current_contract:llm_random",
+                payload["missing_artifacts"],
+            )
+            self.assertIn(
+                "current_contract:llm_active_bucketed_v1",
+                payload["missing_artifacts"],
+            )
+
     def test_explicit_student_run_root_preserves_configured_model_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -20,6 +20,16 @@ Recommended Colab flow after cloning the repository branch:
     STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
     bash scripts/run_phase05_colab.sh all
 
+Full-input FLAN-T5 screening flow (A100 recommended):
+  STUDENT_CONFIG=configs/students/flan_t5_base_full_input.json \
+    STUDENT_OUTPUT_ROOT=outputs/students-flan-full-input \
+    bash scripts/run_phase05_colab.sh all
+
+Qwen3 reranker LoRA screening flow (A100 recommended):
+  STUDENT_CONFIG=configs/students/qwen3_reranker_0_6b.json \
+    STUDENT_OUTPUT_ROOT=outputs/students \
+    bash scripts/run_phase05_colab.sh all
+
 The all command resumes at completed stage boundaries. Completed
 training/evaluation artifacts are skipped unless FORCE=1 is set; interrupted
 training restarts that variant. It never calls a teacher LLM and never reads
@@ -30,19 +40,20 @@ Environment overrides:
   STUDENT_CONFIG=configs/students/flan_t5_base.json
   STUDENT_OUTPUT_ROOT=outputs/students
   BUDGET=128
-  BATCH_SIZE=auto             # classifier: 16; seq2seq: 4
-  VALIDATION_BATCH_SIZE=auto  # A100/BF16: 32; other CUDA: 16
-  EVAL_BATCH_SIZE=8
-  NUM_EPOCHS=8
-  LEARNING_RATE=5e-5
+  BATCH_SIZE=auto             # reranker: 1; classifier: 16; seq2seq: 4
+  VALIDATION_BATCH_SIZE=auto  # reranker/long seq2seq: 1/4; otherwise runtime-selected
+  EVAL_BATCH_SIZE=auto        # reranker: 1; full-input seq2seq: 4; otherwise 8
+  NUM_EPOCHS=auto             # reranker: 10; otherwise 8
+  LEARNING_RATE=auto          # reranker LoRA: 2e-4; otherwise 5e-5
+  GRADIENT_ACCUMULATION_STEPS=auto  # reranker: 16; otherwise 1
   WEIGHT_DECAY=0.01
   WARMUP_STEPS=0
-  WARMUP_RATIO=auto           # classifier: 0.10; seq2seq: 0
+  WARMUP_RATIO=auto           # reranker/classifier: 0.10; seq2seq: 0
   CLASSIFIER_HEAD_EPOCHS=2
   CLASSIFIER_HEAD_LEARNING_RATE=1e-3
   CLASSIFIER_ENCODER_LEARNING_RATE=1e-5
   CLASSIFIER_UNFREEZE_LAST_N_LAYERS=4
-  MAX_INPUT_LENGTH=auto       # classifier: 2400 full-pair cap; seq2seq: 512
+  MAX_INPUT_LENGTH=auto       # reranker: 4096; classifier: 2400; seq2seq: 512
   MAX_TARGET_LENGTH=8
   MAX_NEW_TOKENS=8
   EARLY_STOPPING_PATIENCE=3
@@ -68,9 +79,10 @@ STUDENT_OUTPUT_ROOT="${STUDENT_OUTPUT_ROOT:-${OUTPUT_ROOT:-outputs/students}}"
 BUDGET="${BUDGET:-128}"
 BATCH_SIZE="${BATCH_SIZE:-auto}"
 VALIDATION_BATCH_SIZE="${VALIDATION_BATCH_SIZE:-auto}"
-EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-8}"
-NUM_EPOCHS="${NUM_EPOCHS:-8}"
-LEARNING_RATE="${LEARNING_RATE:-5e-5}"
+EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-auto}"
+NUM_EPOCHS="${NUM_EPOCHS:-auto}"
+LEARNING_RATE="${LEARNING_RATE:-auto}"
+GRADIENT_ACCUMULATION_STEPS="${GRADIENT_ACCUMULATION_STEPS:-auto}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0.01}"
 WARMUP_STEPS="${WARMUP_STEPS:-0}"
 WARMUP_RATIO="${WARMUP_RATIO:-auto}"
@@ -100,22 +112,59 @@ STUDENT_ID="$(read_student_config_field student_id)"
 LEGACY_MODEL_NAME_OVERRIDE="${MODEL_NAME:-}"
 MODEL_NAME="$(read_student_config_field model_name)"
 STUDENT_ARCHITECTURE="$(read_student_config_field architecture)"
+CONFIG_MAX_INPUT_LENGTH="$(read_student_config_field max_input_length)"
+INPUT_TRUNCATION="$(read_student_config_field input_truncation)"
 if [[ "${BATCH_SIZE}" == "auto" ]]; then
   BATCH_SIZE=4
   if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
     BATCH_SIZE=16
+  elif [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    BATCH_SIZE=1
+  fi
+fi
+if [[ "${NUM_EPOCHS}" == "auto" ]]; then
+  NUM_EPOCHS=8
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    NUM_EPOCHS=10
+  fi
+fi
+if [[ "${LEARNING_RATE}" == "auto" ]]; then
+  LEARNING_RATE=5e-5
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    LEARNING_RATE=2e-4
+  fi
+fi
+if [[ "${GRADIENT_ACCUMULATION_STEPS}" == "auto" ]]; then
+  GRADIENT_ACCUMULATION_STEPS=1
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    GRADIENT_ACCUMULATION_STEPS=16
   fi
 fi
 if [[ "${WARMUP_RATIO}" == "auto" ]]; then
   WARMUP_RATIO=0
-  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" \
+      || "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
     WARMUP_RATIO=0.10
   fi
 fi
 if [[ "${MAX_INPUT_LENGTH}" == "auto" ]]; then
-  MAX_INPUT_LENGTH=512
-  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
-    MAX_INPUT_LENGTH=2400
+  MAX_INPUT_LENGTH="${CONFIG_MAX_INPUT_LENGTH}"
+fi
+if [[ "${VALIDATION_BATCH_SIZE}" == "auto" \
+    && "${STUDENT_ARCHITECTURE}" == "seq2seq" \
+    && "${MAX_INPUT_LENGTH}" -gt 512 ]]; then
+  VALIDATION_BATCH_SIZE=4
+elif [[ "${VALIDATION_BATCH_SIZE}" == "auto" \
+    && "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+  VALIDATION_BATCH_SIZE=1
+fi
+if [[ "${EVAL_BATCH_SIZE}" == "auto" ]]; then
+  EVAL_BATCH_SIZE=8
+  if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" \
+      && "${MAX_INPUT_LENGTH}" -gt 512 ]]; then
+    EVAL_BATCH_SIZE=4
+  elif [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    EVAL_BATCH_SIZE=1
   fi
 fi
 if [[ -n "${LEGACY_MODEL_NAME_OVERRIDE}" && "${LEGACY_MODEL_NAME_OVERRIDE}" != "${MODEL_NAME}" ]]; then
@@ -131,10 +180,17 @@ DIRECT_PREDICTIONS="outputs/distiller_wdc/direct_llm/validation.openrouter.opena
 RUN_ROOT="${STUDENT_OUTPUT_ROOT}/${STUDENT_ID}/train_${BUDGET}"
 RUNTIME_CONTRACT="${RUN_ROOT}/runtime_contract.json"
 SNAPSHOT_CONFIG="${RUN_ROOT}/student_config.json"
+RUNTIME_PROVENANCE="${RUN_ROOT}/runtime_provenance.json"
+INPUT_LENGTH_AUDIT="${RUN_ROOT}/input_length_audit.json"
 SUMMARY_ROOT="${STUDENT_OUTPUT_ROOT}/${STUDENT_ID}/summary"
 ARTIFACT_ROOT="${STUDENT_OUTPUT_ROOT}/${STUDENT_ID}/artifacts"
 
 variants=(gold_random llm_random llm_active_bucketed_v1)
+
+uses_validation_threshold() {
+  [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" \
+    || "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]
+}
 
 run_cmd() {
   printf '+'
@@ -152,21 +208,54 @@ archive_if_exists() {
   fi
 }
 
+preserve_before_replace() {
+  local path="$1"
+  if [[ -e "${path}" ]]; then
+    local archived="${path}.stale.$(date -u +%Y%m%dT%H%M%S%N)"
+    cp -a "${path}" "${archived}"
+    echo "preserved stale artifact: ${archived}"
+  fi
+}
+
+archive_all_variant_runs() {
+  local variant
+  for variant in "${variants[@]}"; do
+    archive_if_exists "${RUN_ROOT}/${variant}"
+  done
+}
+
 ensure_student_config_snapshot() {
   mkdir -p "${RUN_ROOT}"
   if [[ -f "${SNAPSHOT_CONFIG}" ]]; then
-    if cmp -s "${STUDENT_CONFIG}" "${SNAPSHOT_CONFIG}"; then
+    if run_cmd "${PYTHON}" -m utils.runtime_provenance refresh \
+        --source "${STUDENT_CONFIG}" \
+        --snapshot "${SNAPSHOT_CONFIG}" \
+        --provenance "${RUNTIME_PROVENANCE}"; then
       return
     fi
     if [[ "${FORCE}" != "1" ]]; then
-      echo "Existing run uses a different student configuration: ${SNAPSHOT_CONFIG}" >&2
-      echo "Use a new student_id/config, or set FORCE=1 to replace the run intentionally." >&2
+      echo "Existing run uses a different student configuration or software runtime." >&2
+      echo "Use a new STUDENT_OUTPUT_ROOT, or set FORCE=1 to replace the run intentionally." >&2
       exit 1
     fi
+    if "${PYTHON}" -m utils.runtime_provenance source-matches \
+        --source "${STUDENT_CONFIG}" \
+        --snapshot "${SNAPSHOT_CONFIG}" \
+        --provenance "${RUNTIME_PROVENANCE}"; then
+      preserve_before_replace "${RUNTIME_PROVENANCE}"
+      run_cmd "${PYTHON}" -m utils.runtime_provenance replace \
+        --source "${STUDENT_CONFIG}" \
+        --snapshot "${SNAPSHOT_CONFIG}" \
+        --provenance "${RUNTIME_PROVENANCE}"
+      return
+    fi
     archive_if_exists "${SNAPSHOT_CONFIG}"
+    archive_if_exists "${RUNTIME_PROVENANCE}"
   fi
-  cp "${STUDENT_CONFIG}" "${SNAPSHOT_CONFIG}.tmp"
-  mv "${SNAPSHOT_CONFIG}.tmp" "${SNAPSHOT_CONFIG}"
+  run_cmd "${PYTHON}" -m utils.runtime_provenance create \
+    --source "${STUDENT_CONFIG}" \
+    --snapshot "${SNAPSHOT_CONFIG}" \
+    --provenance "${RUNTIME_PROVENANCE}"
 }
 
 CONTRACT_ARGS=()
@@ -233,7 +322,15 @@ build_runtime_contract_args() {
     --file "student_config=${SNAPSHOT_CONFIG}"
     --file "student_config_schema=models/student_config.py"
     --file "runtime=utils/torch_runtime.py"
+    --file "runtime_provenance=${RUNTIME_PROVENANCE}"
+    --file "runtime_provenance_builder=utils/runtime_provenance.py"
   )
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    CONTRACT_ARGS+=(
+      --file "input_length_audit=${INPUT_LENGTH_AUDIT}"
+      --file "student_backend=models/generative_reranker_student.py"
+    )
+  fi
 }
 
 ensure_run_runtime_contract() {
@@ -248,16 +345,20 @@ ensure_run_runtime_contract() {
       exit 1
     fi
     archive_if_exists "${RUNTIME_CONTRACT}"
+    archive_all_variant_runs
     build_runtime_contract_args
     write_current_contract "${RUNTIME_CONTRACT}"
     return
   fi
   if [[ -d "${RUN_ROOT}" ]] && find "${RUN_ROOT}" -mindepth 2 -maxdepth 2 \
       \( -name training_summary.json -o -name validation.metrics.json \) \
-      -print -quit | grep -q . && [[ "${FORCE}" != "1" ]]; then
-    echo "Existing Phase 5 artifacts have no run-level runtime contract." >&2
-    echo "Use a new STUDENT_OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
-    exit 1
+      -print -quit | grep -q .; then
+    if [[ "${FORCE}" != "1" ]]; then
+      echo "Existing Phase 5 artifacts have no run-level runtime contract." >&2
+      echo "Use a new STUDENT_OUTPUT_ROOT, or set FORCE=1 and rerun every affected variant." >&2
+      exit 1
+    fi
+    archive_all_variant_runs
   fi
   write_current_contract "${RUNTIME_CONTRACT}"
 }
@@ -276,6 +377,8 @@ build_training_contract_args() {
     --field "student_architecture=${STUDENT_ARCHITECTURE}"
     --field "budget=${BUDGET}"
     --field "batch_size=${BATCH_SIZE}"
+    --field "gradient_accumulation_steps=${GRADIENT_ACCUMULATION_STEPS}"
+    --field "effective_batch_size=$((BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS))"
     --field "validation_batch_size=${VALIDATION_BATCH_SIZE}"
     --field "num_epochs=${NUM_EPOCHS}"
     --field "learning_rate=${LEARNING_RATE}"
@@ -283,6 +386,7 @@ build_training_contract_args() {
     --field "warmup_steps=${WARMUP_STEPS}"
     --field "warmup_ratio=${WARMUP_RATIO}"
     --field "max_input_length=${MAX_INPUT_LENGTH}"
+    --field "input_truncation=${INPUT_TRUNCATION}"
     --field "early_stopping_patience=${EARLY_STOPPING_PATIENCE}"
     --field "seed=${SEED}"
     --field "device=${DEVICE}"
@@ -298,27 +402,53 @@ build_training_contract_args() {
     --file "train_entrypoint=experiments/train_student.py"
     --file "trainer=experiments/trainer.py"
     --file "runtime=utils/torch_runtime.py"
+    --file "runtime_provenance=${RUNTIME_PROVENANCE}"
   )
-  if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" ]]; then
-    CONTRACT_ARGS+=(
-      --field "max_target_length=${MAX_TARGET_LENGTH}"
-      --file "student_backend=models/seq2seq_student.py"
-    )
-  else
-    CONTRACT_ARGS+=(
-      --field "pair_truncation=disabled"
-      --field "full_pair_required=true"
-      --field "checkpoint_metric=validation_macro_f1"
-      --field "decision_threshold_selection=validation_macro_f1"
-      --field "classifier_head_epochs=${CLASSIFIER_HEAD_EPOCHS}"
-      --field "classifier_head_learning_rate=${CLASSIFIER_HEAD_LEARNING_RATE}"
-      --field "classifier_encoder_learning_rate=${CLASSIFIER_ENCODER_LEARNING_RATE}"
-      --field "classifier_unfreeze_last_n_layers=${CLASSIFIER_UNFREEZE_LAST_N_LAYERS}"
-      --file "student_backend=models/classification_student.py"
-      --file "threshold_selection=utils/classification_threshold.py"
-      --file "metrics=utils/metrics.py"
-    )
-  fi
+  case "${STUDENT_ARCHITECTURE}" in
+    seq2seq)
+      CONTRACT_ARGS+=(
+        --field "max_target_length=${MAX_TARGET_LENGTH}"
+        --file "student_backend=models/seq2seq_student.py"
+      )
+      ;;
+    sequence_classification)
+      CONTRACT_ARGS+=(
+        --field "pair_truncation=disabled"
+        --field "full_pair_required=true"
+        --field "checkpoint_metric=validation_macro_f1"
+        --field "decision_threshold_selection=validation_macro_f1"
+        --field "classifier_head_epochs=${CLASSIFIER_HEAD_EPOCHS}"
+        --field "classifier_head_learning_rate=${CLASSIFIER_HEAD_LEARNING_RATE}"
+        --field "classifier_encoder_learning_rate=${CLASSIFIER_ENCODER_LEARNING_RATE}"
+        --field "classifier_unfreeze_last_n_layers=${CLASSIFIER_UNFREEZE_LAST_N_LAYERS}"
+        --file "student_backend=models/classification_student.py"
+        --file "threshold_selection=utils/classification_threshold.py"
+        --file "metrics=utils/metrics.py"
+      )
+      ;;
+    generative_reranker)
+      CONTRACT_ARGS+=(
+        --field "pair_truncation=disabled"
+        --field "full_pair_required=true"
+        --field "padding=dynamic_left"
+        --field "checkpoint_metric=validation_macro_f1"
+        --field "decision_threshold_selection=validation_macro_f1"
+        --field "reranker_score=final_yes_no_token_logits"
+        --field "adapter_checkpoint=best_adapter"
+        --field "evaluation_checkpoint=best_model_merged"
+        --file "student_backend=models/generative_reranker_student.py"
+        --file "input_length_audit=${INPUT_LENGTH_AUDIT}"
+        --file "checkpoint_manifest=${RUN_ROOT}/${variant}/checkpoint_manifest.json"
+        --file "checkpoint_manifest_builder=utils/checkpoint_manifest.py"
+        --file "threshold_selection=utils/classification_threshold.py"
+        --file "metrics=utils/metrics.py"
+      )
+      ;;
+    *)
+      echo "Unsupported student architecture: ${STUDENT_ARCHITECTURE}" >&2
+      exit 2
+      ;;
+  esac
 }
 
 build_evaluation_contract_args() {
@@ -335,6 +465,7 @@ build_evaluation_contract_args() {
     --field "budget=${BUDGET}"
     --field "eval_batch_size=${EVAL_BATCH_SIZE}"
     --field "max_input_length=${MAX_INPUT_LENGTH}"
+    --field "input_truncation=${INPUT_TRUNCATION}"
     --field "device=${DEVICE}"
     --field "precision=${PRECISION}"
     --field "resolved_precision=${RESOLVED_PRECISION}"
@@ -346,6 +477,7 @@ build_evaluation_contract_args() {
     --file "evaluation_entrypoint=experiments/evaluate_student.py"
     --file "metrics=utils/metrics.py"
     --file "runtime=utils/torch_runtime.py"
+    --file "runtime_provenance=${RUNTIME_PROVENANCE}"
   )
   if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" ]]; then
     CONTRACT_ARGS+=(--field "max_new_tokens=${MAX_NEW_TOKENS}")
@@ -354,6 +486,15 @@ build_evaluation_contract_args() {
       --file "decision_threshold=${RUN_ROOT}/${variant}/best_model/decision_threshold.json"
       --file "threshold_selection=utils/classification_threshold.py"
     )
+    if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+      CONTRACT_ARGS+=(
+        --field "reranker_score=final_yes_no_token_logits"
+        --file "student_backend=models/generative_reranker_student.py"
+        --file "checkpoint_manifest=${RUN_ROOT}/${variant}/checkpoint_manifest.json"
+        --file "checkpoint_manifest_builder=utils/checkpoint_manifest.py"
+        --file "input_length_audit=${INPUT_LENGTH_AUDIT}"
+      )
+    fi
   fi
 }
 
@@ -408,9 +549,15 @@ require_rows() {
   fi
 }
 
+validate_reranker_checkpoint() {
+  local output_dir="$1"
+  run_cmd "${PYTHON}" -m utils.checkpoint_manifest check \
+    --output-dir "${output_dir}"
+}
+
 setup_colab() {
   run_cmd "${PYTHON}" -m pip install --quiet -r requirements-colab.txt
-  run_cmd "${PYTHON}" -c 'import torch, transformers; print(f"torch={torch.__version__} transformers={transformers.__version__} cuda={torch.cuda.is_available()}")'
+  run_cmd "${PYTHON}" -c 'import accelerate, peft, torch, transformers; print(f"torch={torch.__version__} transformers={transformers.__version__} peft={peft.__version__} accelerate={accelerate.__version__} cuda={torch.cuda.is_available()}")'
 }
 
 preflight() {
@@ -450,6 +597,19 @@ preflight() {
     exit 1
   fi
   ensure_student_config_snapshot
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    audit_args=(
+      "${PYTHON}" -m models.generative_reranker_student
+      --student-config "${SNAPSHOT_CONFIG}"
+      --output "${INPUT_LENGTH_AUDIT}"
+      --max-input-length "${MAX_INPUT_LENGTH}"
+      --input "${VALIDATION_TARGETS}"
+    )
+    for variant in "${variants[@]}"; do
+      audit_args+=(--input "$(target_for_variant "${variant}")")
+    done
+    run_cmd "${audit_args[@]}"
+  fi
   initialize_runtime_identity
 
   echo "Phase 5 preflight passed: student=${STUDENT_ID} architecture=${STUDENT_ARCHITECTURE} branch=${branch} budget=${BUDGET} device=${RUNTIME_DEVICE_NAME} precision=${RESOLVED_PRECISION}"
@@ -470,12 +630,26 @@ train_variant() {
   evaluation_contract="${output_dir}/evaluation_contract.json"
   mkdir -p "${output_dir}"
   build_training_contract_args "${variant}" "${train_targets}"
+  mkdir -p "${output_dir}"
 
   local threshold_marker="${output_dir}/decision_threshold.json"
+  local adapter_marker="${output_dir}/best_adapter/adapter_config.json"
+  local merged_threshold="${output_dir}/best_model/decision_threshold.json"
+  local checkpoint_manifest="${output_dir}/checkpoint_manifest.json"
   local completion_ready=0
   if [[ -f "${checkpoint}" && -f "${summary}" ]]; then
     completion_ready=1
-    if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" && ! -f "${threshold_marker}" ]]; then
+    if uses_validation_threshold && { [[ ! -f "${threshold_marker}" ]] || [[ ! -f "${merged_threshold}" ]]; }; then
+      completion_ready=0
+    fi
+    if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]] \
+        && { [[ ! -f "${adapter_marker}" ]] || [[ ! -f "${checkpoint_manifest}" ]]; }; then
+      completion_ready=0
+    fi
+    if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" \
+        && "${completion_ready}" == "1" ]] \
+        && ! "${PYTHON}" -m utils.checkpoint_manifest check \
+          --output-dir "${output_dir}"; then
       completion_ready=0
     fi
   fi
@@ -491,6 +665,9 @@ train_variant() {
   archive_if_exists "${predictions}"
   archive_if_exists "${metrics}"
   archive_if_exists "${threshold_marker}"
+  archive_if_exists "${output_dir}/best_model"
+  archive_if_exists "${output_dir}/best_adapter"
+  archive_if_exists "${checkpoint_manifest}"
 
   args=(
     "${PYTHON}" -m experiments.train_student
@@ -499,6 +676,7 @@ train_variant() {
     --validation-targets "${VALIDATION_TARGETS}"
     --output-dir "${output_dir}"
     --batch-size "${BATCH_SIZE}"
+    --gradient-accumulation-steps "${GRADIENT_ACCUMULATION_STEPS}"
     --num-epochs "${NUM_EPOCHS}"
     --learning-rate "${LEARNING_RATE}"
     --weight-decay "${WEIGHT_DECAY}"
@@ -530,6 +708,16 @@ train_variant() {
   printf ' %q' "${args[@]}" | tee -a "${log_path}"
   printf '\n' | tee -a "${log_path}"
   "${args[@]}" 2>&1 | tee -a "${log_path}"
+  require_file "${output_dir}/best_model/config.json"
+  if uses_validation_threshold; then
+    require_file "${threshold_marker}"
+    require_file "${merged_threshold}"
+  fi
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    require_file "${adapter_marker}"
+    require_file "${checkpoint_manifest}"
+    validate_reranker_checkpoint "${output_dir}"
+  fi
   build_training_contract_args "${variant}" "${train_targets}"
   write_current_contract "${training_contract}"
 }
@@ -547,9 +735,14 @@ evaluate_variant() {
   evaluation_contract="${output_dir}/evaluation_contract.json"
   require_file "${checkpoint}/config.json"
   require_file "${training_contract}"
-  if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+  if uses_validation_threshold; then
     require_file "${checkpoint}/decision_threshold.json"
     require_file "${output_dir}/decision_threshold.json"
+  fi
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    require_file "${output_dir}/best_adapter/adapter_config.json"
+    require_file "${output_dir}/checkpoint_manifest.json"
+    validate_reranker_checkpoint "${output_dir}"
   fi
   build_evaluation_contract_args "${variant}" "${training_contract}"
 
@@ -607,7 +800,42 @@ run_selected() {
   fi
 }
 
+AGGREGATE_VARIANT_ARGS=()
+collect_current_contract_variants() {
+  AGGREGATE_VARIANT_ARGS=()
+  if [[ ! -f "${RUNTIME_CONTRACT}" || ! -f "${RUNTIME_PROVENANCE}" ]]; then
+    return
+  fi
+  load_recorded_runtime_identity
+  local variant variant_dir train_targets training_contract evaluation_contract
+  for variant in "${variants[@]}"; do
+    variant_dir="${RUN_ROOT}/${variant}"
+    training_contract="${variant_dir}/training_contract.json"
+    evaluation_contract="${variant_dir}/evaluation_contract.json"
+    if [[ ! -f "${training_contract}" || ! -f "${evaluation_contract}" \
+        || ! -f "${variant_dir}/training_summary.json" \
+        || ! -f "${variant_dir}/validation.metrics.json" ]]; then
+      continue
+    fi
+    train_targets="$(target_for_variant "${variant}")"
+    build_training_contract_args "${variant}" "${train_targets}"
+    if ! "${PYTHON}" -m utils.artifact_contract check \
+        --path "${training_contract}" "${CONTRACT_ARGS[@]}" \
+        >/dev/null 2>&1; then
+      continue
+    fi
+    build_evaluation_contract_args "${variant}" "${training_contract}"
+    if ! "${PYTHON}" -m utils.artifact_contract check \
+        --path "${evaluation_contract}" "${CONTRACT_ARGS[@]}" \
+        >/dev/null 2>&1; then
+      continue
+    fi
+    AGGREGATE_VARIANT_ARGS+=(--include-variant "${variant}")
+  done
+}
+
 aggregate() {
+  collect_current_contract_variants
   run_cmd "${PYTHON}" -m experiments.aggregate_phase05_results \
     --output-root "${STUDENT_OUTPUT_ROOT}" \
     --student-run-root "${RUN_ROOT}" \
@@ -618,6 +846,8 @@ aggregate() {
     --json "${SUMMARY_ROOT}/phase05_train_${BUDGET}.pilot.json" \
     --csv "${SUMMARY_ROOT}/phase05_train_${BUDGET}.pilot.csv" \
     --cost-csv "${SUMMARY_ROOT}/phase05_train_${BUDGET}.cost_scenarios.csv" \
+    --restrict-student-variants \
+    "${AGGREGATE_VARIANT_ARGS[@]}" \
     "$@"
 }
 
@@ -635,6 +865,8 @@ write_manifest() {
     printf 'budget=%s\n' "${BUDGET}"
     printf 'seed=%s\n' "${SEED}"
     printf 'batch_size=%s\n' "${BATCH_SIZE}"
+    printf 'gradient_accumulation_steps=%s\n' "${GRADIENT_ACCUMULATION_STEPS}"
+    printf 'effective_batch_size=%s\n' "$((BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS))"
     printf 'validation_batch_size=%s\n' "${VALIDATION_BATCH_SIZE}"
     printf 'eval_batch_size=%s\n' "${EVAL_BATCH_SIZE}"
     printf 'num_epochs=%s\n' "${NUM_EPOCHS}"
@@ -647,12 +879,21 @@ write_manifest() {
       printf 'classifier_head_learning_rate=%s\n' "${CLASSIFIER_HEAD_LEARNING_RATE}"
       printf 'classifier_encoder_learning_rate=%s\n' "${CLASSIFIER_ENCODER_LEARNING_RATE}"
       printf 'classifier_unfreeze_last_n_layers=%s\n' "${CLASSIFIER_UNFREEZE_LAST_N_LAYERS}"
+    elif [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+      printf 'input_length_audit=%s\n' "${INPUT_LENGTH_AUDIT}"
+      printf 'model_revision=%s\n' \
+        "$("${PYTHON}" -m models.student_config --config "${SNAPSHOT_CONFIG}" --field model_revision)"
+      printf 'adapter_checkpoint=best_adapter\n'
+      printf 'evaluation_checkpoint=best_model_merged\n'
     fi
     printf 'device=%s\n' "${DEVICE}"
     printf 'precision=%s\n' "${PRECISION}"
     printf 'resolved_precision=%s\n' "${RESOLVED_PRECISION}"
     printf 'resolved_validation_batch_size=%s\n' "${RESOLVED_VALIDATION_BATCH_SIZE}"
     printf 'runtime_device_name=%s\n' "${RUNTIME_DEVICE_NAME}"
+    printf 'max_input_length=%s\n' "${MAX_INPUT_LENGTH}"
+    printf 'input_truncation=%s\n' "${INPUT_TRUNCATION}"
+    printf 'runtime_provenance=%s\n' "${RUNTIME_PROVENANCE}"
     if [[ "${STUDENT_ARCHITECTURE}" == "seq2seq" ]]; then
       printf 'max_target_length=%s\n' "${MAX_TARGET_LENGTH}"
       printf 'max_new_tokens=%s\n' "${MAX_NEW_TOKENS}"
@@ -672,6 +913,9 @@ validate_training_contracts() {
     variant_dir="${RUN_ROOT}/${variant}"
     training_contract="${variant_dir}/training_contract.json"
     require_file "${training_contract}"
+    if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+      validate_reranker_checkpoint "${variant_dir}"
+    fi
     build_training_contract_args "${variant}" "${train_targets}"
     require_matching_contract "${training_contract}" "training"
   done
@@ -708,8 +952,12 @@ package_results() {
     require_file "${variant_dir}/evaluation_contract.json"
     require_file "${variant_dir}/validation.predictions.jsonl"
     require_file "${variant_dir}/validation.metrics.json"
-    if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+    if uses_validation_threshold; then
       require_file "${variant_dir}/decision_threshold.json"
+    fi
+    if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+      require_file "${variant_dir}/best_adapter/adapter_config.json"
+      require_file "${variant_dir}/checkpoint_manifest.json"
     fi
     mkdir -p "${stage}/phase05_results/students/${variant}"
     cp "${variant_dir}/training_summary.json" \
@@ -720,8 +968,12 @@ package_results() {
       "${variant_dir}/validation.predictions.jsonl" \
       "${variant_dir}/validation.metrics.json" \
       "${stage}/phase05_results/students/${variant}/"
-    if [[ "${STUDENT_ARCHITECTURE}" == "sequence_classification" ]]; then
+    if uses_validation_threshold; then
       cp "${variant_dir}/decision_threshold.json" \
+        "${stage}/phase05_results/students/${variant}/"
+    fi
+    if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+      cp "${variant_dir}/checkpoint_manifest.json" \
         "${stage}/phase05_results/students/${variant}/"
     fi
     cp "$(target_for_variant "${variant}")" "${stage}/phase05_results/targets/"
@@ -735,7 +987,10 @@ package_results() {
   cp "${DIRECT_COST}" "${DIRECT_PREDICTIONS}" "${stage}/phase05_results/direct_llm/"
   cp "${VALIDATION_TARGETS}" "${stage}/phase05_results/targets/"
   cp "${SNAPSHOT_CONFIG}" "${stage}/phase05_results/student_config.json"
-  cp "${RUNTIME_CONTRACT}" "${stage}/phase05_results/"
+  cp "${RUNTIME_CONTRACT}" "${RUNTIME_PROVENANCE}" "${stage}/phase05_results/"
+  if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+    cp "${INPUT_LENGTH_AUDIT}" "${stage}/phase05_results/"
+  fi
   write_manifest "${stage}/phase05_results/run_manifest.txt"
   tar -czf "${archive}" -C "${stage}" phase05_results
   rm -rf "${stage}"
@@ -751,11 +1006,23 @@ package_checkpoints() {
     checkpoint="${RUN_ROOT}/${variant}/best_model"
     require_file "${checkpoint}/config.json"
     archive="${ARTIFACT_ROOT}/phase05_${STUDENT_ID}_train_${BUDGET}_${variant}_checkpoint.tar.gz"
-    tar -czf "${archive}" -C "${RUN_ROOT}" \
-      "${variant}/best_model" \
-      "${variant}/training_contract.json" \
-      student_config.json \
+    checkpoint_members=(
+      "${variant}/best_model"
+      "${variant}/training_contract.json"
+      student_config.json
       runtime_contract.json
+      runtime_provenance.json
+    )
+    if [[ "${STUDENT_ARCHITECTURE}" == "generative_reranker" ]]; then
+      require_file "${RUN_ROOT}/${variant}/best_adapter/adapter_config.json"
+      require_file "${RUN_ROOT}/${variant}/checkpoint_manifest.json"
+      checkpoint_members+=(
+        "${variant}/best_adapter"
+        "${variant}/checkpoint_manifest.json"
+        input_length_audit.json
+      )
+    fi
+    tar -czf "${archive}" -C "${RUN_ROOT}" "${checkpoint_members[@]}"
     echo "Checkpoint archive ready: ${archive}"
   done
 }
