@@ -18,28 +18,28 @@ history; cleanup removes its exclusive tests/documentation.
 ## Context Links
 
 - Targets: `./phase-03-build-full-label-targets.md`
-- Students: `./phase-04-finalize-cross-encoder-students.md`
+- Compact models: `./phase-04-finalize-compact-cross-encoder-models.md`
 - Deleted Phase-05 runner: Git history only.
 
 ## Requirements
 
 - Discover included configs or accept explicit config-file lists, assert exactly
-  3 datasets × 3 students, and enumerate
+  3 datasets × 3 compact models, and enumerate
   `{gold,llm_hard}` = 18 unique train/evaluate cells. Direct LLM matcher runs
-  once per dataset on frozen evaluation scope and is never treated as a student
-  training arm.
+  once per dataset on frozen evaluation scope and is never treated as a
+  model-training arm.
 - Stable path grammar: `outputs/full_label/{experiment_id}/{dataset_id}/
-  {student_id}/{label_source}/seed_{seed}/`; direct artifacts live under the
+  {model_id}/{label_source}/seed_{seed}/`; direct artifacts live under the
   exact path `outputs/full_label/{experiment_id}/{dataset_id}/direct_llm/
-  {teacher_id}/{scope_id}/`.
+  {labeler_id}/{scope_id}/`.
 - Run manifests record Git commit plus hashes of `experiment-contract.md`, used
-  dataset/student configs, targets, prompt version, and runtime. Skip only exact
+  dataset/model configs, targets, prompt version, and runtime. Skip only exact
   complete matches;
   mismatch fails unless an explicit recoverable archive/force workflow is used.
 - Validation selects threshold/checkpoint. Test evaluation is separately
   allowed once with explicit `--allow-final-test`. Direct accuracy uses the
-  exact student test IDs; a smaller cost-only sample is explicitly
-  non-comparable. Student train/evaluate stages make no teacher calls.
+  exact compact-model test IDs; a smaller cost-only sample is explicitly
+  non-comparable. Model train/evaluate stages make no LLM-labeling calls.
 
 ## Architecture
 
@@ -47,15 +47,15 @@ history; cleanup removes its exclusive tests/documentation.
 delegates computation to Python modules, writes atomic run manifests and
 completion markers, and supports exact stage-boundary resume. `all` stops after
 validation unless `--allow-final-test` is explicitly passed; then `test`
-evaluates student and direct accuracy on common IDs. `experiment_id` is the
+evaluates compact-model and direct accuracy on common IDs. `experiment_id` is the
 stable plan slug by default or an explicit stable CLI value.
 
 ## Related Code Files
 
 - Create: `/mnt/d/study/cao-hoc/luan-van/code/scripts/run_full_label_experiments.sh`
 - Create: `/mnt/d/study/cao-hoc/luan-van/code/experiments/full_label_matrix.py`
-- Modify: `/mnt/d/study/cao-hoc/luan-van/code/experiments/train_student.py`
-- Modify: `/mnt/d/study/cao-hoc/luan-van/code/experiments/evaluate_student.py`
+- Modify: `/mnt/d/study/cao-hoc/luan-van/code/experiments/train_student.py` (legacy identifier)
+- Modify: `/mnt/d/study/cao-hoc/luan-van/code/experiments/evaluate_student.py` (legacy identifier)
 - Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/direct_llm_matcher.py`
 - Reuse: `/mnt/d/study/cao-hoc/luan-van/code/utils/artifact_contract.py`, `/mnt/d/study/cao-hoc/luan-van/code/utils/runtime_provenance.py`, `/mnt/d/study/cao-hoc/luan-van/code/utils/checkpoint_manifest.py`
 - Create: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_full_label_runner.py`
@@ -66,18 +66,18 @@ stable plan slug by default or an explicit stable CLI value.
 Create shell/Python fixture tests before runner code: exact matrix cardinality
 and uniqueness; deterministic paths; direct baseline separation; exact-manifest
 skip/resume; changed target/config/runtime rejection; partial-stage restart;
-test-stage lock; teacher-call prohibition; package completeness; `all` stopping
-before test; common student/direct test IDs;
+test-stage lock; LLM-call prohibition during model runs; package completeness;
+`all` stopping before test; common compact-model/direct test IDs;
 and explicit cost-sample non-comparability.
 
 ## Implementation Steps
 
 1. Discover included config files (or use explicit lists) and validate 18 cells.
 2. Implement preflight: Git commit, experiment-plan hash, six target manifests,
-   three dataset and student config hashes, runtime identity, and ceilings.
+   three dataset and model config hashes, runtime identity, and ceilings.
 3. Implement stage functions and atomic run manifests/completion markers.
 4. Add pre-test cost-only direct sampling on frozen validation IDs and final-test
-   direct accuracy on the exact student test-ID manifest; keep
+   direct accuracy on the exact compact-model test-ID manifest; keep
    artifacts/scopes distinct.
 5. Add validation-only flow; permit final `test` only after all 18 validation
    cells, manual checklist confirmation, and explicit `--allow-final-test`.
@@ -98,8 +98,8 @@ and explicit cost-sample non-comparability.
 | Interrupted cell | Restart at declared stage boundary |
 | `test` without manual check/explicit flag | Refuse |
 | `all` without `--allow-final-test` | Validate only; no accuracy test |
-| Direct accuracy IDs differ from student IDs | Refuse comparison |
-| Student stage attempts provider call | Test/preflight fails |
+| Direct accuracy IDs differ from model IDs | Refuse comparison |
+| Model-training stage attempts LLM call | Test/preflight fails |
 | Same raw pair/model across datasets | Artifacts remain isolated |
 
 ## Success Criteria
@@ -116,7 +116,7 @@ single-cell smoke before full scheduling.
 
 ## Security/Data Integrity
 
-Provider secrets are available only to labeling/direct stages; student jobs do
+Provider secrets are available only to labeling/direct stages; model jobs do
 not receive them. Quote paths, validate IDs, hash stage inputs, and package only
 declared artifacts—never environment files.
 

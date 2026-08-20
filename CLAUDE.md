@@ -7,21 +7,22 @@ Read `../AGENTS.md` and `AGENTS.md` before changing the experiment workflow.
 
 The project is migrating to a full-label Entity Resolution comparison:
 
-`3 datasets × 3 cross-encoder students × {gold, LLM hard labels}`
+`3 datasets × 3 compact cross-encoder models × {gold, LLM hard labels}`
 
 Direct LLM matching is a per-dataset accuracy/cost baseline. Low-label budgets,
-active selection, rationale distillation, adaptive cascades, and multi-seed
-experiments are outside the frozen scope unless the supervisor requires them.
+active selection, rationale generation or distillation, adaptive cascades, and
+multi-seed experiments are outside the frozen scope unless the supervisor
+requires them.
 
 Active plan:
 `plans/260820-1507-full-label-er-migration/plan.md`
 
-Writing plan:
+Legacy writing plan (revise before thesis drafting):
 `plans/260704-distiller-wdc-thesis-writing/plan.md`
 
-The exact datasets, models, teacher, prompt, evaluation scope, artifact schema,
-and cost ceiling remain Phase-1 decisions. Do not guess them from historical
-configs or results.
+The exact datasets, models, LLM labeler, prompt, evaluation scope, artifact
+schema, and cost ceiling remain Phase-1 decisions. Do not guess them from
+historical configs or results.
 
 ## Commands
 

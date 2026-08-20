@@ -17,12 +17,14 @@ source: skill
 
 ## Overview
 
-Test whether compact cross-encoder ER students trained on complete LLM-generated
-hard-label training sets are a practical alternative to the same students
-trained on benchmark gold labels. The fixed matrix is 3 benchmark datasets × 3
-eligible cross-encoder students × 2 training-label sources, with one fixed
-seed/run per cell. A direct LLM matcher is one per-dataset accuracy/cost
-baseline, not a training arm.
+> Can LLM-generated hard labels provide a practical alternative to benchmark
+> gold training labels for compact cross-encoder Entity Resolution models while
+> reducing deployment cost compared with direct LLM matching?
+
+The fixed matrix is 3 benchmark datasets × 3 compact cross-encoder models × 2
+training-label sources, with one fixed seed/run per cell. A direct LLM matcher
+is one per-dataset accuracy/cost baseline, not a training arm. The active framing
+is machine labeling and LLM-generated supervision.
 
 Gold validation/test labels are evaluation-only. Match-class F1 is primary;
 precision, recall, macro F1, accuracy, labeling/training/inference cost,
@@ -35,8 +37,8 @@ result schema are stable.
 
 ## Scope
 
-In scope: immutable dataset/model/teacher declarations, dataset-neutral pair
-loading, complete gold and LLM targets, 18 student cells, 3 direct baselines,
+In scope: immutable dataset/model/LLM-labeler declarations, dataset-neutral pair
+loading, complete gold and LLM targets, 18 model cells, 3 direct baselines,
 provenance, metrics, cost analysis, and handoff documentation.
 
 Out of scope: low-label budgets, active selection, rationale distillation,
@@ -45,14 +47,14 @@ extra datasets/models unless the supervisor explicitly requires them.
 
 ## Architecture
 
-`committed scientific plan -> included dataset/student configs -> namespaced serialized splits ->
+`committed scientific plan -> included dataset/model configs -> namespaced serialized splits ->
 complete gold/LLM train targets -> cross-encoder train/evaluate -> immutable
 cell artifacts -> aggregate accuracy/cost/break-even`
 
 Identities are type-specific: normalized splits use dataset/version/split/hash;
-teacher caches add teacher/prompt; student cells add label source/model/revision/
+labeler caches add LLM/prompt; model cells add label source/model/revision/
 seed; direct outputs use
-`outputs/full_label/{experiment_id}/{dataset_id}/direct_llm/{teacher_id}/{scope_id}/`.
+`outputs/full_label/{experiment_id}/{dataset_id}/direct_llm/{labeler_id}/{scope_id}/`.
 Validation/test labels never enter prompts or train targets. Missing, duplicate,
 invalid, or extra LLM labels fail closed.
 
@@ -63,7 +65,7 @@ invalid, or extra LLM labels fail closed.
 | 1 | [Freeze Experiment Contract](./phase-01-freeze-experiment-contract.md) | Pending |
 | 2 | [Generalize Dataset Pipeline](./phase-02-generalize-dataset-pipeline.md) | Pending |
 | 3 | [Build Full Label Targets](./phase-03-build-full-label-targets.md) | Pending |
-| 4 | [Finalize Cross-Encoder Students](./phase-04-finalize-cross-encoder-students.md) | Pending |
+| 4 | [Finalize Compact Cross-Encoder Models](./phase-04-finalize-compact-cross-encoder-models.md) | Pending |
 | 5 | [Refactor Experiment Runner](./phase-05-refactor-experiment-runner.md) | Pending |
 | 6 | [Aggregate Metrics and Cost](./phase-06-aggregate-metrics-and-cost.md) | Pending |
 | 7 | [Verify and Handoff](./phase-07-verify-and-handoff.md) | Pending |

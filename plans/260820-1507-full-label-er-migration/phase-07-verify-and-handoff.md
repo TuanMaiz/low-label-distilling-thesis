@@ -69,7 +69,7 @@ the current migrated suite, including all newly introduced tests.
 2. Write runbook and artifact schema from tested commands—not anticipated ones.
 3. Execute the full unit/integration suite and clean-clone fixture workflow;
    record commands, environment, counts, hashes, and documented deviations.
-4. Verify matrix expectations: 3 datasets, 6 targets, 3 configs, 18 student
+4. Verify matrix expectations: 3 datasets, 6 targets, 3 configs, 18 model
    cells, 3 direct baselines, 9 paired comparisons; verify packages from hashes.
 5. Update both AGENTS files to the new research question, architecture, commands,
    immediate next steps, scope guardrail, and historical-plan status.

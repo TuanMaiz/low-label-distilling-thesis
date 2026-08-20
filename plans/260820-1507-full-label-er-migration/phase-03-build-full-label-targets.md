@@ -3,7 +3,7 @@ phase: 3
 title: "Build Full Label Targets"
 status: pending
 priority: P1
-effort: "4-7d plus teacher runtime"
+effort: "4-7d plus LLM-labeling runtime"
 dependencies: [1, 2]
 ---
 
@@ -12,25 +12,25 @@ dependencies: [1, 2]
 ## Overview
 
 Build two complete training targets per dataset: benchmark gold labels and
-strict answer-only LLM hard labels. Teacher generation is resumable, but target
+strict answer-only LLM hard labels. Machine labeling is resumable, but target
 publication requires exact one-to-one coverage of the frozen training split.
 
 ## Context Links
 
 - Data phase: `./phase-02-generalize-dataset-pipeline.md`
-- Teacher code: `/mnt/d/study/cao-hoc/luan-van/code/supervision/generate_teacher_labels.py`
+- Machine-labeling code: `/mnt/d/study/cao-hoc/luan-van/code/supervision/generate_teacher_labels.py` (legacy identifier)
 - Target builder: `/mnt/d/study/cao-hoc/luan-van/code/supervision/build_targets.py`
 
 ## Requirements
 
-- Gold targets copy train labels only. Teacher prompt payload contains serialized
+- Gold targets copy train labels only. LLM-labeling prompt payload contains serialized
   records and identifiers but no gold label, entity/cluster truth, or selection
-  metadata. Validation/test labels are never teacher training-target inputs.
-- One valid teacher label for every frozen train pair; missing, duplicate,
+  metadata. Validation/test labels are never machine-labeling inputs.
+- One valid LLM-generated label for every frozen train pair; missing, duplicate,
   invalid, wrong-dataset, wrong-model/prompt, or unexpected pair IDs block the
   LLM target. Rejects remain separate and must be resolved/retried under the
   scientific plan's retry policy before publication.
-- Cache keys include dataset/version/pair/teacher/prompt; resume only exact
+- Cache keys include dataset/version/pair/labeler/prompt; resume only exact
   identity matches. Persist raw response, parsed label, validity, tokens, price,
   timestamps, request identity, and upstream hashes without secrets.
 - Gold and LLM target rows differ only in target/provenance fields; pair order
@@ -42,20 +42,20 @@ publication requires exact one-to-one coverage of the frozen training split.
 
 ## Architecture
 
-`verified train JSONL -> [gold copier | answer-only teacher cache + validator]
+`verified train JSONL -> [gold copier | answer-only LLM-label cache + validator]
 -> completeness join -> atomic targets/{gold,llm_hard}.jsonl + manifest`.
 Evaluation JSONL remains separately gold-labeled and read-only.
 
 ## Related Code Files
 
 - Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/config.py`
-- Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/teacher_label_schema.py`
-- Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/generate_teacher_labels.py`
-- Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/validate_teacher_labels.py`
+- Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/teacher_label_schema.py` (legacy identifier)
+- Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/generate_teacher_labels.py` (legacy identifier)
+- Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/validate_teacher_labels.py` (legacy identifier)
 - Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/build_targets.py`
 - Reuse: `/mnt/d/study/cao-hoc/luan-van/code/supervision/llm_providers.py`, `/mnt/d/study/cao-hoc/luan-van/code/supervision/prompts.py`
 - Create: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_full_label_targets.py`
-- Extend: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_teacher_labels.py`
+- Extend: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_teacher_labels.py` (legacy identifier)
 
 ## Tests Before
 
@@ -63,30 +63,30 @@ Write failing tests for dataset/version path isolation, prompt redaction,
 complete one-to-one joins, unexpected/missing/duplicate/invalid rows, cache
 identity mismatch, resumability, rejects, atomic failure, pair/input parity
 between label sources, and token/cost totals. Retain strict parser/direct-cache
-tests in `test_teacher_labels.py`.
+tests in the legacy-named `test_teacher_labels.py`.
 
 ## Implementation Steps
 
 1. Replace budget/selection path inference with explicit dataset/version/split/
    source identities while retaining readers for historical artifacts only.
-2. Version the teacher schema and define a composite immutable cache identity.
+2. Version the legacy-named label schema and define a composite cache identity.
 3. Remove selection metadata from active request/target requirements; ensure
    gold/cluster fields cannot reach prompt construction.
 4. Generate deterministic gold targets and manifests for all three train splits.
-5. Run a normalized-input teacher dry run, compare tokens/cost with the ceiling,
+5. Run a normalized-input LLM-labeling dry run, compare cost with the ceiling,
    manually check the scientific-plan item, then require
    `--confirm-paid-labeling` for the full three-dataset call set.
 6. Generate/resume labels, validate rejects and exact coverage after every run,
    and publish LLM targets only when coverage is 100%.
 7. Record disagreement matrices between train gold and LLM labels for analysis,
-   never for correcting/cherry-picking teacher labels.
+   never for correcting/cherry-picking LLM-generated labels.
 
 ## Test Scenario Matrix
 
 | Scenario | Expected |
 |---|---|
-| Complete exact teacher set | Publish deterministic LLM target |
-| Missing/duplicate/extra/invalid teacher row | No target; actionable audit |
+| Complete exact LLM-label set | Publish deterministic LLM target |
+| Missing/duplicate/extra/invalid label row | No target; actionable audit |
 | Cache from another dataset/prompt/model | Refuse reuse |
 | Pair has gold/cluster truth in source row | Prompt excludes truth fields |
 | Interrupted generation | Resume exact valid IDs only |
@@ -98,8 +98,8 @@ tests in `test_teacher_labels.py`.
 
 - [ ] Six complete train targets exist with manifests and matching upstream
   hashes; every LLM target has 100% valid unique coverage.
-- [ ] No validation/test truth or train gold truth reaches teacher prompts.
-- [ ] Teacher tokens/costs and gold–LLM disagreement are reproducibly reported.
+- [ ] No validation/test truth or train gold truth reaches labeling prompts.
+- [ ] LLM-labeling tokens/costs and gold–LLM disagreement are reproducibly reported.
 
 ## Risk Assessment
 

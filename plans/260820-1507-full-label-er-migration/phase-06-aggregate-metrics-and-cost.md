@@ -25,21 +25,21 @@ without conflating the direct matcher with a training source.
 
 - Include only artifacts matching one experiment ID, plan/config/input hashes,
   and complete run manifests;
-  default requires all 18 student cells and 3 direct baselines. A clearly marked
+  default requires all 18 model cells and 3 direct baselines. A clearly marked
   diagnostic `--allow-partial` output may not be used as thesis final results.
 - Primary: match precision/recall/F1 with match F1 emphasized. Supporting:
   macro F1, accuracy, confusion counts, invalid rate, and gold-minus-LLM deltas
   per same dataset/model. Report per-dataset first; any cross-dataset summary
   must be macro, never pooled rows that let a large dataset dominate.
-- Costs: observed teacher input/output tokens and labeling cost, synchronized
-  student training/inference seconds, throughput, configured GPU-hour
+- Costs: observed LLM-labeling input/output tokens and cost, synchronized
+  compact-model training/inference seconds, throughput, configured GPU-hour
   sensitivity scenarios, per-pair cost, direct per-pair cost, and break-even
   queries. Do not count gold labels as free: label their acquisition cost as
   unavailable/benchmark-provided unless a declared human-cost scenario exists.
 - Freeze break-even as
-  `N* = (C_label + C_train) / (c_direct - c_student)` only for a positive
+  `N* = (C_label + C_train) / (c_direct - c_model)` only for a positive
   denominator; otherwise report no finite break-even. Charge full labeling cost
-  in each per-student deployment comparison; optionally add a clearly labeled
+  in each per-model deployment comparison; optionally add a clearly labeled
   shared-label three-model portfolio view that charges labeling once.
 - One fixed run means no seed variance/significance claim. Report descriptive
   results and limitations honestly.
@@ -48,7 +48,7 @@ without conflating the direct matcher with a training source.
 
 `artifact discovery -> manifest/hash/schema validation -> normalized result rows
 -> paired gold-vs-LLM deltas -> cost scenarios/break-even -> JSON + CSV + audit
-report`. The aggregator performs no training, teacher calls, or artifact repair.
+report`. The aggregator performs no training, LLM calls, or artifact repair.
 
 ## Related Code Files
 
@@ -64,7 +64,7 @@ report`. The aggregator performs no training, teacher calls, or artifact repair.
 
 Write golden fixture tests for all 18 cells/3 baselines, paired metric deltas,
 class-imbalanced match F1, macro-over-datasets, missing/stale/duplicate cells,
-invalid numeric/negative/nonfinite costs, synchronized timing, direct-vs-student
+invalid numeric/negative/nonfinite costs, synchronized timing, direct-vs-model
 break-even, non-cheaper null break-even, assumption hashes, and partial watermark.
 
 ## Implementation Steps
@@ -78,8 +78,8 @@ break-even, non-cheaper null break-even, assumption hashes, and partial watermar
    stored metrics; fail on differences beyond fixed tolerance.
 4. Join gold and LLM cells by dataset/model; compute directional paired deltas and
    per-dataset rankings without selecting a winner post hoc.
-5. Add teacher, training, inference, direct, sensitivity, and break-even tables
-   using the frozen equation; separate per-student full-labeling and optional
+5. Add labeling, training, inference, direct, sensitivity, and break-even tables
+   using the frozen equation; separate per-model full-labeling and optional
    shared-portfolio views; retain assumption hashes and observed/assumed flags.
 6. Emit deterministic JSON/CSV plus a Markdown audit showing omissions,
    limitations, experiment ID, Git commit, and plan hash. Add partial watermark mode.
@@ -88,12 +88,12 @@ break-even, non-cheaper null break-even, assumption hashes, and partial watermar
 
 | Scenario | Expected |
 |---|---|
-| Complete valid fixture | 18 student rows, 9 paired deltas, 3 direct rows |
+| Complete valid fixture | 18 model rows, 9 paired deltas, 3 direct rows |
 | Missing/stale/duplicate cell | Final aggregation fails |
 | Stored vs recomputed metric mismatch | Fail with cell/path |
 | Highly imbalanced labels | Match F1 uses positive class correctly |
-| Student per-pair cost >= direct | Break-even is null |
-| Label cache reused by 3 models | Per-student charges full label cost; portfolio once |
+| Model per-pair cost >= direct | Break-even is null |
+| Label cache reused by 3 models | Per-model charges full label cost; portfolio once |
 | Missing gold acquisition cost | `unavailable`, never zero |
 | Partial mode | Diagnostic output visibly non-final |
 
