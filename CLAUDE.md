@@ -9,6 +9,13 @@ when starting a fresh conversation or changing workflow conventions.
 **Master's thesis:** Cost-aware active LLM labeling for Entity Resolution /
 Entity Matching, centered on WDC Products.
 
+**Migration in progress (2026-08-20):** This branch retires the low-label and
+active-selection workflow. The replacement experiment compares cross-encoder
+students trained on complete benchmark gold labels versus complete
+LLM-generated labels across three datasets. Treat the older research question
+and execution plan below as historical until the replacement contract is
+written; do not restore or run the retired selection pipeline.
+
 **Current research question:**
 > Under low-label budgets on WDC Products, can active selection of
 > LLM-labeled training pairs produce compact ER students that outperform random
@@ -260,9 +267,10 @@ strategy `llm_active_bucketed_v1` with default 25 percent quotas for
 
 Keep and adapt carefully:
 
-- `data/schema.py`, `data/er_dataset_loader.py`, `data/low_label_sampler.py`,
-  and `data/serialize_pairs.py`: WDC pair loading, random budgets, active
-  selection manifests, and serialization.
+- `data/schema.py`, `data/er_dataset_loader.py`, and
+  `data/serialize_pairs.py`: WDC pair loading and serialization. The low-label
+  sampler and active-selection builder were retired on the full-label migration
+  branch and remain available in Git history.
 - `configs/students/`, `models/student_config.py`,
   `experiments/train_student.py`, and `experiments/evaluate_student.py`:
   config-driven seq2seq/classification student training and evaluation.

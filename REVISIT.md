@@ -6,10 +6,11 @@ experiment run.
 
 ## Active Selection Bucket Scoring
 
-Status: open
+Status: retired
 Created: 2026-07-07
-Updated: 2026-07-07
-Context: Phase 3 `llm_active_bucketed_v1` selector in `data/select_active_pairs.py`
+Updated: 2026-08-20
+Context: Historical Phase 3 `llm_active_bucketed_v1` selector; removed from the
+active tree during the full-label migration and retained in Git history.
 
 ### Current Decision
 

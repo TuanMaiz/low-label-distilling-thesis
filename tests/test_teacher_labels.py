@@ -5,16 +5,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from analysis.cost_summary import summarize_rows
-from data.select_active_pairs import (
-    BUCKET_EASY_MATCH,
-    BUCKET_EASY_NON_MATCH,
-    BUCKET_HARD_MATCH,
-    BUCKET_HARD_NEGATIVE,
-    build_active_bucketed_manifest,
-    build_active_hybrid_manifest,
-    build_random_manifest,
-    bucket_quotas,
-)
 from supervision.direct_llm_matcher import run_direct_llm_matcher, select_evaluation_rows
 from supervision.generate_teacher_labels import generate_teacher_labels
 from supervision.llm_providers import LLMResponse
@@ -213,7 +203,7 @@ class TeacherLabelPipelineTest(unittest.TestCase):
                     "estimated_cost_usd": 0.3,
                     "selection_strategy": "llm_active_bucketed_v1",
                     "selection_uses_gold_label": False,
-                    "selection_bucket": BUCKET_HARD_NEGATIVE,
+                    "selection_bucket": "hard_negative_candidate",
                 },
             ]
         )
@@ -226,7 +216,10 @@ class TeacherLabelPipelineTest(unittest.TestCase):
             summary["selection_strategy_distribution"],
             {"llm_active_bucketed_v1": 1, "random": 2},
         )
-        self.assertEqual(summary["selection_bucket_distribution"], {BUCKET_HARD_NEGATIVE: 1})
+        self.assertEqual(
+            summary["selection_bucket_distribution"],
+            {"hard_negative_candidate": 1},
+        )
 
     def test_direct_matcher_uses_fixed_sample_and_writes_cost_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -284,93 +277,6 @@ class TeacherLabelPipelineTest(unittest.TestCase):
             self.assertEqual(summary["schema_valid_rows"], 2)
             self.assertEqual(summary["schema_error_count"], 1)
             self.assertEqual(summary["duplicate_pair_ids"], ["1#2"])
-
-    def test_selection_manifests_add_rank_score_and_audit_metadata(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            random_input = tmp_path / "train_4.jsonl"
-            train_input = tmp_path / "train.jsonl"
-            random_output = tmp_path / "train_4.random.jsonl"
-            active_output = tmp_path / "train_4.llm_active_hybrid.jsonl"
-            bucketed_output = tmp_path / "train_4.llm_active_bucketed_v1.jsonl"
-            rows = [
-                _pair_row(1, 1),
-                _pair_row(2, 0),
-                _pair_row(3, 1),
-                _pair_row(4, 0),
-                _pair_row(5, 0),
-            ]
-            rows[0]["record_b"]["attributes"]["title"] = "Acme Camera Model X100"
-            rows[0]["record_a"]["attributes"]["title"] = "Acme Camera Model X200"
-            rows[0]["record_a"]["attributes"]["brand"] = "Acme"
-            rows[0]["record_b"]["attributes"]["brand"] = "Acme"
-            _write_jsonl(random_input, rows[:4])
-            _write_jsonl(train_input, rows)
-
-            random_summary = build_random_manifest(
-                selected_pairs_path=random_input,
-                output_path=random_output,
-                budget=4,
-                seed=42,
-            )
-            active_summary = build_active_hybrid_manifest(
-                train_pairs_path=train_input,
-                output_path=active_output,
-                budget=4,
-                seed=42,
-            )
-            bucketed_summary = build_active_bucketed_manifest(
-                train_pairs_path=train_input,
-                output_path=bucketed_output,
-                budget=4,
-                seed=42,
-            )
-
-            random_rows = [json.loads(line) for line in random_output.read_text().splitlines()]
-            active_rows = [json.loads(line) for line in active_output.read_text().splitlines()]
-            bucketed_rows = [json.loads(line) for line in bucketed_output.read_text().splitlines()]
-            self.assertEqual(random_summary["written"], 4)
-            self.assertEqual(active_summary["written"], 4)
-            self.assertEqual(bucketed_summary["written"], 4)
-            self.assertEqual(random_rows[0]["selection_strategy"], "random")
-            self.assertEqual(random_rows[0]["selection_rank"], 1)
-            self.assertIsNone(random_rows[0]["selection_score"])
-            self.assertTrue(random_rows[0]["selection_uses_gold_label"])
-            self.assertTrue(random_rows[0]["metadata"]["selection_uses_gold_label"])
-            self.assertEqual(active_rows[0]["selection_strategy"], "llm_active_hybrid")
-            self.assertEqual(active_rows[0]["selection_rank"], 1)
-            self.assertIsInstance(active_rows[0]["selection_score"], float)
-            self.assertFalse(active_rows[0]["selection_uses_gold_label"])
-            self.assertFalse(active_rows[0]["metadata"]["selection_uses_gold_label"])
-            self.assertGreaterEqual(active_rows[0]["selection_score"], active_rows[-1]["selection_score"])
-            self.assertEqual(bucketed_summary["bucket_quotas"][BUCKET_EASY_MATCH], 1)
-            self.assertEqual(bucketed_summary["bucket_quotas"][BUCKET_HARD_MATCH], 1)
-            self.assertEqual(bucketed_summary["bucket_quotas"][BUCKET_EASY_NON_MATCH], 1)
-            self.assertEqual(bucketed_summary["bucket_quotas"][BUCKET_HARD_NEGATIVE], 1)
-            self.assertEqual(
-                {row["selection_bucket"] for row in bucketed_rows},
-                {BUCKET_EASY_MATCH, BUCKET_HARD_MATCH, BUCKET_EASY_NON_MATCH, BUCKET_HARD_NEGATIVE},
-            )
-            self.assertEqual(bucketed_rows[0]["selection_strategy"], "llm_active_bucketed_v1")
-            self.assertEqual(bucketed_rows[0]["selection_bucket_rank"], 1)
-            self.assertEqual(bucketed_rows[0]["selection_bucket_quota"], 1)
-            self.assertFalse(bucketed_rows[0]["selection_uses_gold_label"])
-
-    def test_bucketed_selector_ratios_are_customizable(self):
-        quotas = bucket_quotas(
-            8,
-            {
-                BUCKET_EASY_MATCH: 0.50,
-                BUCKET_HARD_MATCH: 0.25,
-                BUCKET_EASY_NON_MATCH: 0.25,
-                BUCKET_HARD_NEGATIVE: 0.0,
-            },
-        )
-
-        self.assertEqual(quotas[BUCKET_EASY_MATCH], 4)
-        self.assertEqual(quotas[BUCKET_HARD_MATCH], 2)
-        self.assertEqual(quotas[BUCKET_EASY_NON_MATCH], 2)
-        self.assertEqual(quotas[BUCKET_HARD_NEGATIVE], 0)
 
 
 if __name__ == "__main__":

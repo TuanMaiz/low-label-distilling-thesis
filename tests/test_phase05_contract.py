@@ -182,6 +182,7 @@ class Phase05ArtifactContractTest(unittest.TestCase):
                 "PYTHON": ".venv/bin/python",
                 "DEVICE": "cpu",
                 "ALLOW_CPU": "1",
+                "ALLOW_BRANCH_MISMATCH": "1",
             }
 
             matching = subprocess.run(

@@ -6,7 +6,6 @@ import zipfile
 from pathlib import Path
 
 from data.er_dataset_loader import WDCProductsConfig, load_wdc_products_pairwise
-from data.low_label_sampler import stratified_low_label_samples
 from data.serialize_pairs import serialize_pair
 
 
@@ -73,17 +72,6 @@ class Phase01WDCTest(unittest.TestCase):
             self.assertEqual(len(splits["train"]), 16)
             self.assertTrue(splits["train"][0].record_a.attributes["title"].startswith("Acme"))
             self.assertEqual(splits["train"][0].split, "train")
-
-    def test_low_label_sampler_is_balanced(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            zip_path = _make_wdc_zip(Path(tmp))
-            splits = load_wdc_products_pairwise(zip_path)
-
-            samples = stratified_low_label_samples(splits["train"], budgets=[16], seed=7)
-
-            self.assertEqual(len(samples["16"]), 16)
-            self.assertEqual(sum(pair.label for pair in samples["16"]), 8)
-            self.assertIn("full", samples)
 
     def test_serialization_preserves_field_names(self):
         with tempfile.TemporaryDirectory() as tmp:
