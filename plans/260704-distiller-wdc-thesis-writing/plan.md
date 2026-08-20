@@ -6,7 +6,7 @@ priority: P1
 effort: "8-10 weeks alongside experiments"
 branch: "phase-03/minimal-distillation-pilot"
 tags: [thesis, writing, entity-resolution, llm-labeling, wdc]
-blockedBy: []
+blockedBy: [260820-1507-full-label-er-migration]
 blocks: []
 created: "2026-07-04T08:00:47.237Z"
 createdBy: "ck:plan"
@@ -100,12 +100,12 @@ Recommended order:
 
 The companion execution plan is:
 
-`/mnt/d/Study/Cao-hoc/luan-van/code/plans/260704-distiller-wdc-agent-execution/plan.md`
+`/mnt/d/study/cao-hoc/luan-van/code/plans/260820-1507-full-label-er-migration/plan.md`
 
 Writing should follow the evidence generated there. If the experiment changes,
 update this writing plan before drafting final chapters. The current evidence
-focus is active-vs-random LLM-label selection, direct LLM inference cost,
-teacher-noise behavior, and WDC failure slices.
+focus is gold-vs-LLM hard-label training across three datasets and three
+cross-encoder students, with direct LLM inference and cost as baselines.
 
 ## Final Deliverables
 

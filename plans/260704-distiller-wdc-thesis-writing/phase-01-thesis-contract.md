@@ -36,7 +36,7 @@ research evidence needed
 
 ## Related Files
 
-- Read: `/mnt/d/Study/Cao-hoc/luan-van/code/plans/260704-distiller-wdc-agent-execution/plan.md`
+- Read: `/mnt/d/study/cao-hoc/luan-van/code/plans/260820-1507-full-label-er-migration/plan.md`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/documents/zeakis-2026-distiller-knowledge-distillation-in-entity-resolution-with-large-language-models.pdf`
 - Read: `/mnt/d/Study/Cao-hoc/luan-van/code/documents/steiner-2024-fine-tuning-large-language-models-for-entity-matching.pdf`
 - Create: `/mnt/d/Study/Cao-hoc/luan-van/code/plans/260704-distiller-wdc-thesis-writing/research/thesis-contract.md`

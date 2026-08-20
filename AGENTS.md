@@ -1,311 +1,108 @@
 # AGENTS.md
 
-This file provides guidance for Codex/Codex when working in this repository.
-Workspace-level agent guidance also lives in `../AGENTS.md`; read both files
-when starting a fresh conversation or changing workflow conventions.
+Read `../AGENTS.md` and this file before changing the experiment workflow.
 
-## Active Project Overview
+## Active Project
 
-**Master's thesis:** Cost-aware active LLM labeling for Entity Resolution /
-Entity Matching, centered on WDC Products.
+**Master's thesis:** full-label LLM-to-student distillation for Entity
+Resolution across three benchmarks and three cross-encoder students.
 
-**Migration in progress (2026-08-20):** This branch retires the low-label and
-active-selection workflow. The replacement experiment compares cross-encoder
-students trained on complete benchmark gold labels versus complete
-LLM-generated labels across three datasets. Treat the older research question
-and execution plan below as historical until the replacement contract is
-written; do not restore or run the retired selection pipeline.
+Research question:
 
-**Current research question:**
-> Under low-label budgets on WDC Products, can active selection of
-> LLM-labeled training pairs produce compact ER students that outperform random
-> LLM-label distillation at the same labeling cost, while becoming cheaper than
-> repeated direct LLM matching?
+> Can compact cross-encoder ER students trained on complete LLM-generated hard
+> labels provide a practical alternative to the same students trained on
+> benchmark gold labels?
 
-**Active execution plan:**
-`plans/260704-distiller-wdc-agent-execution/plan.md`
+Active execution plan:
+`plans/260820-1507-full-label-er-migration/plan.md`
 
-**Experiment contract:**
-`plans/260704-distiller-wdc-agent-execution/research/experiment-contract.md`
-
-**Companion writing plan:**
+Companion writing plan:
 `plans/260704-distiller-wdc-thesis-writing/plan.md`
+
+The experiment contract is not frozen yet. Phase 1 of the active plan selects
+the exact two non-WDC datasets, three cross-encoder models, teacher, prompt,
+evaluation scope, artifact schema, and cost ceiling.
+
+## Scope Guardrail
+
+The fixed high-level design is:
+
+- 3 benchmark datasets.
+- 3 cross-encoder students.
+- 2 training-label sources: benchmark gold and LLM-generated hard labels.
+- 1 fixed reproducible seed/run per cell; no multi-seed experiment dimension.
+- 3 direct LLM baselines, one per dataset.
+- Match F1 primary; precision, recall, macro F1, accuracy, timing, throughput,
+  cost, and break-even supporting.
+
+Out of scope: low-label budgets, active selection, rationale distillation,
+adaptive bi-/cross-encoder cascades, and extra datasets/models unless the
+supervisor explicitly requires a change. If the researcher worries that the
+work is not enough, remind them that this design is already thesis-grade and
+favor completing the frozen plan.
 
 ## Current Status
 
-The project has pivoted away from the structured-rationale thesis. The old
-Phase 03 result is preserved as negative evidence:
+- Branch: `refactor/full-label-er-migration`.
+- Low-label sampler, active selector, old Phase-03/04 orchestration, old
+  Phase-05 runner, and superseded execution-plan directory are removed.
+- Historical experiment results and journals remain as research evidence.
+- No active production experiment runner exists during migration.
+- Start with Phase 1; do not make paid teacher calls or final-test predictions
+  before the required contract and approval gates exist.
 
-| Variant | Train rows | Match precision | Match recall | Match F1 | Macro F1 | Accuracy |
-|---|---:|---:|---:|---:|---:|---:|
-| `label_only` | 128 | 0.3887 | 0.5900 | 0.4686 | 0.6449 | 0.7324 |
-| `structured_rationale` | 122 | 0.2487 | 0.6780 | 0.3639 | 0.4931 | 0.5260 |
+## Commands
 
-Interpretation: structured rationales increased recall but badly hurt
-precision, match F1, macro F1, and accuracy. Treat rationale distillation as a
-historical/optional negative-history ablation, not the active thesis claim.
-
-The current thesis direction is label-level LLM-to-student distillation with
-active data selection under scarce labeling budgets:
-
-- `gold_random_student`: compact student trained on randomly sampled dataset
-  labels; quality context, not the cost baseline.
-- `direct_llm_matcher`: LLM classifies fixed evaluation pairs directly; repeated
-  inference-cost baseline.
-- `llm_random_student`: random training pairs are LLM-labeled once, then a
-  compact student performs cheap inference; random distillation control.
-- `llm_active_student`: actively selected training pairs are LLM-labeled once,
-  then distilled into a compact student; main proposed method.
-- `mixed_gold_llm_active`: optional fallback if pure active LLM labels are noisy.
-
-The thesis lens is not "we invented LLM-label distillation or active learning
-for ER." The safer claim is a cost-aware, low-label, data-selection, and
-failure-slice study: which pairs are worth spending LLM teacher calls on, where
-selection fails, how much it costs, and whether patterns replicate on one
-optional later dataset.
-
-Phase 5 FLAN-T5-base validation and the first ModernBERT-base diagnostic are
-complete with **REVISE** decisions. ModernBERT collapsed toward single-class
-predictions under the 128-row budget. Preserve that archive as negative
-diagnostic evidence. The repair run keeps all fixed experiment inputs and adds
-pair-aware truncation, native-BF16 detection, staged encoder unfreezing,
-classifier batch 16, macro-F1 checkpoint selection, and a persisted validation
-threshold. The fixed test split remains untouched.
-
-A separate `flan-t5-base-full-input` diagnostic is predeclared for model
-screening. It reuses the fixed budget-128 inputs but raises FLAN-T5 input length
-to 2,700 tokens, above the measured 2,649-token maximum, with truncation
-disabled. Use A100 when possible and a fresh output root. A possible later FLAN
-calibration job would threshold the validation likelihood ratio of `match`
-versus `non-match`; it is only a note, not part of this rerun.
-
-A `qwen3-reranker-0-6b` LoRA diagnostic is also predeclared for student
-screening. It preserves Qwen's causal-LM reranking interface, maps final
-`no`/`yes` logits to non-match/match probabilities, and reuses the unchanged
-budget-128 targets and validation set. Preflight audits the exact complete
-prompt under a 4,096-token no-truncation contract. Prefer A100 and a fresh
-output root; no teacher or test data is used.
-
-Student definitions now live in `configs/students/`. Config-driven runs write
-to `${STUDENT_OUTPUT_ROOT}/{student_id}/train_{budget}/`; the fixed direct LLM
-baseline remains under `outputs/distiller_wdc/direct_llm/`.
-
-The Colab defaults are optimized for binary answer-only training without
-changing the fixed experiment inputs: ModernBERT classifier pairs are kept in
-full under a 2,400-token default (the fixed inputs peak at 2,334 tokens), while
-seq2seq remains capped at 512; classifier truncation is disabled so an
-over-limit future row fails instead of being silently cut; and automatic
-runtime selection uses BF16 only on native-BF16 CUDA hardware, FP16 on T4/older
-CUDA, and FP32 on CPU. Classifiers default to batch 16, two head-only epochs,
-then the final four encoder blocks, separate `1e-3`/`1e-5` head/encoder rates,
-10% warmup, macro-F1 checkpointing, and threshold persistence. Seq2seq remains
-batch 4 with loss checkpointing. FLAN-T5 target/generation limits remain 8.
-The Qwen reranker defaults to microbatch 1, 16-step gradient accumulation,
-validation/evaluation batch 1, `2e-4` LoRA learning rate, 10 epochs maximum,
-rank 8, and gradient checkpointing. Its selected adapter is preserved and
-merged into the standalone checkpoint used for evaluation.
-
-Phase 5 cost reporting preserves synchronized training and inference seconds as
-the provider-independent primary evidence. Aggregation applies every
-predeclared low/base/high GPU-hour scenario in
-`configs/phase05_cost_assumptions.json`, records the assumptions SHA-256, and
-reports training cost, per-pair student inference cost, comparison-scale
-savings, and break-even query count. These rates are analytical sensitivity
-assumptions, not observed Colab charges or current provider quotes.
-
-## Build & Run Commands
-
-Always use the project uv-managed virtual environment for Python commands.
-Do not run bare system `python`, `pip`, or `pytest` from this repository.
-Prefer `.venv/bin/python -m ...` and `uv pip ...` so commands use the pinned
-project environment.
+Use the uv-managed environment; never use bare system `python`, `pip`, or
+`pytest` for repository work.
 
 ```bash
-cd /mnt/d/Study/Cao-hoc/luan-van/code
+cd /mnt/d/study/cao-hoc/luan-van/code
 source .venv/bin/activate
 .venv/bin/python -m unittest discover -s tests
 ```
 
-Config-selected student runs are intended for a Colab GPU from a fresh clone:
-
-```bash
-bash scripts/run_phase05_colab.sh setup
-STUDENT_CONFIG=configs/students/modernbert_base.json \
-  STUDENT_OUTPUT_ROOT=outputs/students-modernbert-repair \
-  bash scripts/run_phase05_colab.sh all
-```
-
-For the full-input FLAN-T5 diagnostic:
-
-```bash
-STUDENT_CONFIG=configs/students/flan_t5_base_full_input.json \
-  STUDENT_OUTPUT_ROOT=outputs/students-flan-full-input \
-  bash scripts/run_phase05_colab.sh all
-```
-
-For the Qwen reranker LoRA diagnostic:
-
-```bash
-STUDENT_CONFIG=configs/students/qwen3_reranker_0_6b.json \
-  STUDENT_OUTPUT_ROOT=outputs/students \
-  bash scripts/run_phase05_colab.sh all
-```
-
-The Colab environment requires Transformers 4.57 or newer. ModernBERT-base,
-FLAN-T5, and Qwen3-Reranker-0.6B weights are public and ungated, so this workflow
-does not require a Hugging Face token or model-access approval.
-
-See
-`plans/260704-distiller-wdc-agent-execution/reports/phase-05-colab-runbook.md`
-for cloning, Google Drive persistence, recovery, and result handoff. The runner
-must not evaluate the test target or call the teacher LLM.
-
-Recovery is stage-boundary based. The first preflight resolves the configured
-Hugging Face model repository to an immutable commit stored as
-`model_revision` in the run's `student_config.json`. It also writes
-`runtime_provenance.json` with the Python, Torch, Transformers, PEFT,
-Accelerate, and Hugging Face Hub versions. The run-level contract hashes both
-files, so reconnecting with changed dependencies cannot silently mix variants.
-Forcing a run-level identity replacement archives every active variant
-directory before retraining, preventing partial aggregation from mixing old and
-new environments.
-Automatic partial aggregation includes only variants whose current training and
-evaluation contracts match all shared overrides; stale variants are reported as
-missing rather than mixed.
-Atomic `training_summary.json`, validation
-prediction, and validation metric writes serve as completion markers alongside
-the best checkpoint. Each completed stage also has an atomic contract containing
-the Git commit, runtime configuration, and SHA-256 hashes of its target and
-upstream contract files. A run-level contract also fixes the actual GPU name,
-resolved precision, and resolved validation batch across all variants. A rerun
-skips only when the completion markers and current contracts match. A missing
-or mismatched contract blocks reuse and
-requires a new `STUDENT_OUTPUT_ROOT` or explicit `FORCE=1`; forced reruns archive stale
-contracts and downstream artifacts. Interrupted variants restart from the
-beginning rather than resuming mid-epoch. Compact result packages include the
-contracts so returned results retain their provenance.
-Qwen preflight additionally persists `input_length_audit.json`; completed
-training requires the best adapter, merged model, threshold, and checkpoint
-manifest. The manifest contains the size and SHA-256 of every file under both
-checkpoint directories and is verified before reuse, evaluation, or packaging.
-Optional checkpoint archives contain both adapter and merged model.
-
-Student validation records local inference time, wall time, throughput,
-seconds per pair, device name, precision, and batch size, plus generation
-limits for seq2seq students.
-These measurements—not an unrelated small OpenRouter model—provide the student
-inference evidence; provider pricing may later be applied to the measured GPU
-time under a declared pricing assumption. The aggregator reports signed match
-F1, macro F1, and accuracy deltas for every student versus both `llm_random` and
-`gold_random`.
-
-Use the existing 128-row label-only FLAN-T5-base result as historical baseline
-context. New low-budget training targets should map the trusted supervised
-baseline to `gold_random`; validation/test targets can continue using
-`gold_label` naming.
-
-## Active Architecture
+## Planned Architecture
 
 ```text
-WDC Products raw/cache data
-  -> serialized pair JSONL
-  -> low-label budget sampler / active pair selector
-  -> direct LLM matcher on fixed evaluation pairs
-  -> answer-only teacher LLM labeler
-  -> teacher-label validator and cache
-  -> target builder: gold_random / llm_random / llm_active_* / mixed_gold_llm_active
-  -> compact student training
-  -> validation and test evaluation
-  -> aggregation, cost table, error analysis
+frozen contract
+  -> dataset registry and three verified loaders
+  -> dataset-namespaced serialized splits
+  -> complete gold and LLM-hard-label training targets
+  -> three frozen cross-encoder students
+  -> 18 train/evaluate cells plus 3 direct LLM baselines
+  -> provenance-checked metrics and cost aggregation
   -> thesis tables and figures
 ```
 
-Teacher LLM calls are used only for direct-baseline measurement or training-data
-creation. Final distilled-student inference must use the compact student without
-calling the teacher.
+Gold validation/test labels are evaluation-only. Teacher generation operates on
+training pairs only and must publish targets only at 100% valid unique coverage.
+Student inference never calls the teacher.
 
-## Immediate Next Steps
+## Reusable Code
 
-Follow the active plan phases:
-
-1. Commit and push the repaired ModernBERT, full-input FLAN-T5, and Qwen
-   reranker screening change set.
-2. Run each diagnostic on the unchanged budget-128 targets and validation rows
-   under its predeclared `STUDENT_OUTPUT_ROOT`.
-3. Return the compact archives and compare all three arms for each diagnostic
-   with the failed first ModernBERT run, 512-token FLAN-T5 pilot, and fixed
-   direct LLM baseline.
-4. Keep the teacher artifacts fixed and the test split untouched until the
-   revised validation decision is made.
-
-The anti-cherry-pick rule is important: fixed evaluation split/sample, prompt
-version, model slug, budgets, and cost fields must be declared before results
-are inspected.
-
-Predeclared Phase 3 defaults: prompt version `answer_only_v1`, provider
-`openrouter`, default model `openai/gpt-5.4-mini`, temperature `0.0`, first
-teacher budget `train_128`, first selection strategy `random`, first active
-strategy `llm_active_bucketed_v1` with default 25 percent quotas for
-`easy_match_candidate`, `hard_match_candidate`, `easy_non_match_candidate`, and
-`hard_negative_candidate`, and direct-eval output under
-`outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.*`.
-
-## Tech Stack
-
-- Language: Python 3.13
-- ML: PyTorch, HuggingFace Transformers
-- Data: pandas, datasets
-- Validation: Pydantic v2
-- First student: `google/flan-t5-base` (completed Phase 5 pilot)
-- Second-student diagnostic: `answerdotai/ModernBERT-base` sequence classifier
-- Reranker diagnostic: `Qwen/Qwen3-Reranker-0.6B` with LoRA
-- Teacher/direct matcher: OpenRouter-backed LLM calls, answer-only labels first
-- Metrics: match precision, match recall, match F1, macro F1, accuracy,
-  invalid-output rate, confusion matrix counts, token/cost fields
-
-## Reusable Existing Code
-
-Keep and adapt carefully:
-
-- `data/schema.py`, `data/er_dataset_loader.py`, and
-  `data/serialize_pairs.py`: WDC pair loading and serialization. The low-label
-  sampler and active-selection builder were retired on the full-label migration
-  branch and remain available in Git history.
-- `configs/students/`, `models/student_config.py`,
-  `experiments/train_student.py`, and `experiments/evaluate_student.py`:
-  config-driven seq2seq/classification student training and evaluation.
-- `supervision/build_targets.py`: active gold-label target builder; extend here
-  for `llm_random`, `llm_active_*`, and `mixed_gold_llm_active`.
-- `supervision/generate_teacher_labels.py`,
-  `supervision/direct_llm_matcher.py`, and
-  `supervision/validate_teacher_labels.py`: Phase 3 answer-only LLM cache
-  generation, direct-baseline prediction, validation, and cost reporting.
-- `models/seq2seq_student.py`, `models/classification_student.py`, and
-  `models/generative_reranker_student.py`: architecture-specific dataset/model
-  helpers.
-- `utils/metrics.py`: binary Entity Matching metrics.
-
-## Removed Historical Code
-
-The branch intentionally removes old Wikidata, multilingual-name, mBART, FEBRL,
-and structured-rationale code from the active tree. Keep the research record in
-the journals/plans, but do not recreate those packages unless a new experiment
-requires them.
+- Data: `data/schema.py`, `data/er_dataset_loader.py`,
+  `data/serialize_pairs.py`.
+- Supervision: `supervision/generate_teacher_labels.py`,
+  `supervision/direct_llm_matcher.py`, `supervision/build_targets.py`,
+  `supervision/validate_teacher_labels.py`.
+- Students: `configs/students/`, `models/student_config.py`,
+  `models/classification_student.py`, `models/generative_reranker_student.py`,
+  `experiments/train_student.py`, `experiments/evaluate_student.py`.
+- Reproducibility: `utils/artifact_contract.py`,
+  `utils/runtime_provenance.py`, `utils/checkpoint_manifest.py`,
+  `utils/torch_runtime.py`.
+- Metrics/cost: `utils/metrics.py`, `utils/cost_accounting.py`,
+  `analysis/cost_summary.py`.
 
 ## Conventions
 
-- File naming: `snake_case.py`
-- Schemas: Pydantic `BaseModel` with explicit fields
-- Reproducibility: explicit `seed` parameters, default 42
-- Selection: fixed manifests before teacher labels/results are inspected
-- Evaluation: train/validation/test split, no test leakage into teacher-label
-  generation
-- Cost logging: store prompt version, model slug, input tokens, output tokens,
-  estimated cost, parsed label, gold label, validity, and selection strategy for
-  LLM calls
-- Keep files focused; split large modules when they grow beyond a single
-  responsibility
-
-When workflow, status, commands, or conventions change after a meaningful
-implementation iteration, update both `../AGENTS.md` and this file if the
-change affects future agents.
+- Python files: `snake_case.py`.
+- Schemas: Pydantic `BaseModel` with explicit fields.
+- Preserve official dataset splits and namespace pair/cache identities by
+  dataset and version.
+- Freeze manifests, prompts, model revisions, and evaluation IDs before results.
+- Store API keys only in environment variables; never commit secrets.
+- Preserve unrelated dirty-worktree changes.
+- After meaningful workflow changes, update `../AGENTS.md`, this file, and
+  `CLAUDE.md` together.
