@@ -1,13 +1,6 @@
 data/cache/*
 !data/cache/wdc_products/
 data/cache/wdc_products/*
-!data/cache/wdc_products/selection_manifests/
-!data/cache/wdc_products/selection_manifests/*.jsonl
-!data/cache/wdc_products/targets/
-data/cache/wdc_products/targets/*
-!data/cache/wdc_products/targets/train_128.gold_random.targets.jsonl
-!data/cache/wdc_products/targets/train_128.llm_random.openai-gpt-5-4-mini.targets.jsonl
-!data/cache/wdc_products/targets/train_128.llm_active_bucketed_v1.openai-gpt-5-4-mini.targets.jsonl
 data/raw/wdc_products/*.zip
 outputs/
 !outputs/
