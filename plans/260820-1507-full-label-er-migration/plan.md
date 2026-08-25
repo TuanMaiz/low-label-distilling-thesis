@@ -1,7 +1,7 @@
 ---
 title: "Full-Label Cross-Encoder ER Migration"
 description: "Migrate the ER study to a frozen 3-dataset × 3-cross-encoder × 2-label-source experiment with direct-LLM and cost baselines."
-status: pending
+status: in-progress
 priority: P1
 effort: "4-6 weeks"
 branch: "refactor/full-label-er-migration"
@@ -62,9 +62,9 @@ invalid, or extra LLM labels fail closed.
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | [Freeze Experiment Contract](./phase-01-freeze-experiment-contract.md) | Pending |
+| 1 | [Freeze Experiment Contract](./phase-01-freeze-experiment-contract.md) | In progress — WDC vertical slice frozen; broader 3×3 contract remains pending |
 | 2 | [Generalize Dataset Pipeline](./phase-02-generalize-dataset-pipeline.md) | Pending |
-| 3 | [Build Full Label Targets](./phase-03-build-full-label-targets.md) | Pending |
+| 3 | [Build Full Label Targets](./phase-03-build-full-label-targets.md) | In progress — WDC gold/LLM-hard pair published; two datasets pending |
 | 4 | [Finalize Compact Cross-Encoder Models](./phase-04-finalize-compact-cross-encoder-models.md) | Pending |
 | 5 | [Refactor Experiment Runner](./phase-05-refactor-experiment-runner.md) | Pending |
 | 6 | [Aggregate Metrics and Cost](./phase-06-aggregate-metrics-and-cost.md) | Pending |
@@ -76,6 +76,9 @@ invalid, or extra LLM labels fail closed.
   commit freezes changes. Phase 2 implements exactly three included dataset
   configs; Phases 3 and 4 may then proceed in parallel.
 - Phase 5 needs Phases 3-4; Phase 6 needs Phase 5; Phase 7 needs all prior phases.
+- Researcher-approved exception: the frozen WDC/Sol-high vertical slice may
+  execute machine labeling before the broader three-dataset contract is frozen.
+  It does not authorize validation/test calls or alter the final 3×3×2 matrix.
 
 ## Verification Command
 

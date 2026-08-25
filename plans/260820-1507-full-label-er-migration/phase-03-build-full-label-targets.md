@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Build Full Label Targets"
-status: pending
+status: in-progress
 priority: P1
 effort: "4-7d plus LLM-labeling runtime"
 dependencies: [1, 2]
@@ -19,7 +19,9 @@ publication requires exact one-to-one coverage of the frozen training split.
 
 - Data phase: `./phase-02-generalize-dataset-pipeline.md`
 - Machine-labeling code: `/mnt/d/study/cao-hoc/luan-van/code/supervision/generate_teacher_labels.py` (legacy identifier)
-- Target builder: `/mnt/d/study/cao-hoc/luan-van/code/supervision/build_targets.py`
+- Full-label target builder: `/mnt/d/study/cao-hoc/luan-van/code/supervision/build_full_label_targets.py`
+- Independent target validator: `/mnt/d/study/cao-hoc/luan-van/code/supervision/validate_full_label_targets.py`
+- Historical low-label target builder: `/mnt/d/study/cao-hoc/luan-van/code/supervision/build_targets.py`
 
 ## Requirements
 
@@ -53,6 +55,8 @@ Evaluation JSONL remains separately gold-labeled and read-only.
 - Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/generate_teacher_labels.py` (legacy identifier)
 - Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/validate_teacher_labels.py` (legacy identifier)
 - Modify: `/mnt/d/study/cao-hoc/luan-van/code/supervision/build_targets.py`
+- Create: `/mnt/d/study/cao-hoc/luan-van/code/supervision/build_full_label_targets.py`
+- Create: `/mnt/d/study/cao-hoc/luan-van/code/supervision/validate_full_label_targets.py`
 - Reuse: `/mnt/d/study/cao-hoc/luan-van/code/supervision/llm_providers.py`, `/mnt/d/study/cao-hoc/luan-van/code/supervision/prompts.py`
 - Create: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_full_label_targets.py`
 - Extend: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_teacher_labels.py` (legacy identifier)
@@ -80,6 +84,29 @@ tests in the legacy-named `test_teacher_labels.py`.
    and publish LLM targets only when coverage is 100%.
 7. Record disagreement matrices between train gold and LLM labels for analysis,
    never for correcting/cherry-picking LLM-generated labels.
+
+## WDC Vertical Slice Completed
+
+- [x] Published
+  `data/cache/wdc_products/full_label_targets/{gold,llm_hard}.jsonl` with
+  manifests: 2,500 rows per label source and exact official-train coverage.
+- [x] Recorded 79 gold–LLM disagreements (0.9684 agreement) and USD 2.693225
+  cumulative labeler cost in the reproducible artifact bundle.
+- [x] Added `supervision/build_full_label_targets.py` and the independent
+  `supervision/validate_full_label_targets.py`, which rederives the bundle from
+  its upstream source, prediction, attempt, audit, run, settings, and blinded
+  input evidence before accepting it.
+- [x] Confirmed target publication was offline: no paid calls, compact-model
+  training, or validation/test predictions occurred.
+- [ ] Publish equivalent gold and LLM-hard target pairs for the other two
+  datasets after the broader contract and dataset pipeline are frozen.
+
+Validate the completed WDC slice from the repository root:
+
+```bash
+.venv/bin/python -m supervision.validate_full_label_targets \
+  --target-dir data/cache/wdc_products/full_label_targets
+```
 
 ## Test Scenario Matrix
 
@@ -116,3 +143,5 @@ whose identity differs.
 ## Next Steps
 
 Phase 5 may use targets only after all six target manifests validate.
+The WDC pair is ready for its authorized vertical-slice training experiment,
+but it does not satisfy the global six-target gate.
