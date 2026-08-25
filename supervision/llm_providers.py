@@ -109,6 +109,44 @@ class AnswerOnlyLLM(Protocol):
         """Classify one serialized pair prompt."""
 
 
+class OpenRouterHTTPError(RuntimeError):
+    """HTTP failure that preserves status for safe retry classification."""
+
+    def __init__(
+        self,
+        status: int,
+        message: str,
+        retry_after_seconds: float | None = None,
+    ):
+        super().__init__(message)
+        self.status = status
+        self.retry_after_seconds = retry_after_seconds
+
+    @property
+    def retryable(self) -> bool:
+        return self.status in {408, 409, 429} or self.status >= 500
+
+
+class OpenRouterTransportError(RuntimeError):
+    """Network failure where the provider may or may not have completed work."""
+
+
+def _numeric_retry_after(headers: Any) -> float | None:
+    """Return a finite non-negative Retry-After delay when it is numeric."""
+    if headers is None:
+        return None
+    value = headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        delay = float(value)
+    except (TypeError, ValueError):
+        return None
+    if delay < 0 or delay == float("inf") or delay != delay:
+        return None
+    return delay
+
+
 def _content_to_text(content: Any) -> str:
     if isinstance(content, str):
         return content
@@ -152,6 +190,9 @@ class OpenRouterAnswerOnlyClient:
         temperature: float = DEFAULT_TEMPERATURE,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         pricing: TokenPricing | None = None,
+        reasoning: dict[str, Any] | None = None,
+        response_format: dict[str, Any] | None = None,
+        provider_preferences: dict[str, Any] | None = None,
     ):
         resolved_model = resolve_openrouter_model(model=model, env_file=env_file)
         resolved_api_key = resolve_openrouter_api_key(api_key=api_key, env_file=env_file)
@@ -169,17 +210,18 @@ class OpenRouterAnswerOnlyClient:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.pricing = pricing or TokenPricing()
+        self.reasoning = dict(reasoning) if reasoning is not None else None
+        self.response_format = dict(response_format) if response_format is not None else None
+        self.provider_preferences = (
+            dict(provider_preferences) if provider_preferences is not None else None
+        )
 
-    def complete(self, prompt: str) -> LLMResponse:
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
-        }
+    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Send one raw OpenRouter Chat Completions request."""
+        if payload.get("model") != self.model:
+            raise ValueError(
+                f"Request model {payload.get('model')!r} does not match client model {self.model!r}"
+            )
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
             f"{self.base_url}/chat/completions",
@@ -195,10 +237,40 @@ class OpenRouterAnswerOnlyClient:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 response_payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"OpenRouter request failed with HTTP {exc.code}: {body}") from exc
+            body = exc.read().decode("utf-8", errors="replace")[:1000]
+            raise OpenRouterHTTPError(
+                exc.code,
+                f"OpenRouter request failed with HTTP {exc.code}: {body}",
+                retry_after_seconds=_numeric_retry_after(exc.headers),
+            ) from exc
         except urllib.error.URLError as exc:
-            raise RuntimeError(f"OpenRouter request failed: {exc.reason}") from exc
+            raise OpenRouterTransportError(
+                f"OpenRouter request failed: {exc.reason}"
+            ) from exc
+        except TimeoutError as exc:
+            raise OpenRouterTransportError("OpenRouter request timed out") from exc
+
+        if not isinstance(response_payload, dict):
+            raise ValueError("OpenRouter response must be a JSON object")
+        return response_payload
+
+    def complete(self, prompt: str) -> LLMResponse:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+        if self.reasoning is not None:
+            payload["reasoning"] = self.reasoning
+        if self.response_format is not None:
+            payload["response_format"] = self.response_format
+        if self.provider_preferences is not None:
+            payload["provider"] = self.provider_preferences
+        response_payload = self.create(payload)
 
         choice = response_payload["choices"][0]
         raw_answer = _content_to_text(choice.get("message", {}).get("content", ""))

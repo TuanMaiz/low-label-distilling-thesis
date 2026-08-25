@@ -1,0 +1,21 @@
+{
+  "blinded_fields": [
+    "pair_id",
+    "input_text"
+  ],
+  "class_counts": {
+    "match": 58,
+    "non_match": 242
+  },
+  "count": 300,
+  "dataset": "wdc-products",
+  "gold_sha256": "ce364d063e586e5ed6417b16a638ffd06e0a2e36e10d9e22826f582834b10a87",
+  "inputs_sha256": "1475442e91331986a74e07af652e1a47eaa4afa4916dff710b2fd73167a2cb75",
+  "sampled_ids_sha256": "9196b37e188222e9218459d301ec0ef00b83b6d2b66ba5f05080f2ce1d687e1f",
+  "sampling": "uniform_without_replacement",
+  "schema_version": 1,
+  "seed": 42,
+  "source_path": "/mnt/d/study/cao-hoc/luan-van/code/data/cache/wdc_products/serialized/train.jsonl",
+  "source_sha256": "3dd86613eae09c4c5116811f89e5977bd7a9d42c361dd003e69c523a8e3c8628",
+  "split": "train"
+}
