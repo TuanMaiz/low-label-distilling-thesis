@@ -41,7 +41,7 @@ without conflating the direct matcher with a training source.
   denominator; otherwise report no finite break-even. Charge full labeling cost
   in each per-model deployment comparison; optionally add a clearly labeled
   shared-label three-model portfolio view that charges labeling once.
-- One fixed run means no seed variance/significance claim. Report descriptive
+- One run per cell means no repeated-run variance/significance claim. Report descriptive
   results and limitations honestly.
 
 ## Architecture
@@ -70,7 +70,7 @@ break-even, non-cheaper null break-even, assumption hashes, and partial watermar
 ## Implementation Steps
 
 1. Define normalized result/audit schemas keyed by experiment ID, plan hash,
-   dataset, model, label source, seed, split, and exact artifact hashes.
+   dataset, model, label source, split, and exact artifact hashes.
 2. Discover expected paths from included configs and run manifests, never by
    parsing scientific Markdown or relying on loose directory glob semantics;
    validate completeness and provenance before reading metrics.

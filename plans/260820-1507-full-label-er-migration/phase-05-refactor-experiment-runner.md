@@ -19,7 +19,18 @@ history; cleanup removes its exclusive tests/documentation.
 
 - Targets: `./phase-03-build-full-label-targets.md`
 - Compact models: `./phase-04-finalize-compact-cross-encoder-models.md`
+- Narrow WDC/Qwen smoke contract: `./research/wdc-qwen-training-vertical-slice-contract.md`
 - Deleted Phase-05 runner: Git history only.
+
+## Narrow WDC/Qwen boundary
+
+`scripts/run_wdc_qwen_vertical_slice.sh` is not the global 18-cell runner. Its
+current authorization ends after RTX-3090 setup, fail-closed preflight, and a
+tiny balanced smoke train/evaluate/reload check. The smoke evaluates only its
+fixture, with zero warmup solely to make the single optimizer step nonzero.
+The old full-run Qwen config and hyperparameters remain frozen. Full gold and
+LLM-hard training, official full-validation predictions, and all test
+predictions require later explicit approval.
 
 ## Requirements
 
@@ -29,7 +40,7 @@ history; cleanup removes its exclusive tests/documentation.
   once per dataset on frozen evaluation scope and is never treated as a
   model-training arm.
 - Stable path grammar: `outputs/full_label/{experiment_id}/{dataset_id}/
-  {model_id}/{label_source}/seed_{seed}/`; direct artifacts live under the
+  {model_id}/{label_source}/`; direct artifacts live under the
   exact path `outputs/full_label/{experiment_id}/{dataset_id}/direct_llm/
   {labeler_id}/{scope_id}/`.
 - Run manifests record Git commit plus hashes of `experiment-contract.md`, used
@@ -94,7 +105,7 @@ and explicit cost-sample non-comparability.
 |---|---|
 | Matrix listing | Exactly 18 cells + 3 direct jobs |
 | Re-run completed exact cell | Skip without mutation |
-| Target/config/revision/runtime changes | Refuse reuse |
+| Target/config/runtime changes | Refuse reuse |
 | Interrupted cell | Restart at declared stage boundary |
 | `test` without manual check/explicit flag | Refuse |
 | `all` without `--allow-final-test` | Validate only; no accuracy test |

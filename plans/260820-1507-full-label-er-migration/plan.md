@@ -22,7 +22,7 @@ source: skill
 > reducing deployment cost compared with direct LLM matching?
 
 The fixed matrix is 3 benchmark datasets × 3 compact cross-encoder models × 2
-training-label sources, with one fixed seed/run per cell. A direct LLM matcher
+training-label sources, with one predeclared run per cell. A direct LLM matcher
 is one per-dataset accuracy/cost baseline, not a training arm. The active framing
 is machine labeling and LLM-generated supervision.
 
@@ -42,8 +42,8 @@ loading, complete gold and LLM targets, 18 model cells, 3 direct baselines,
 provenance, metrics, cost analysis, and handoff documentation.
 
 Out of scope: low-label budgets, active selection, rationale distillation,
-adaptive bi-/cross-encoder cascades, a multi-seed experiment dimension, and
-extra datasets/models unless the supervisor explicitly requires them.
+adaptive bi-/cross-encoder cascades, repeated-run experiments, and extra
+datasets/models unless the supervisor explicitly requires them.
 
 ## Architecture
 
@@ -52,8 +52,8 @@ complete gold/LLM train targets -> cross-encoder train/evaluate -> immutable
 cell artifacts -> aggregate accuracy/cost/break-even`
 
 Identities are type-specific: normalized splits use dataset/version/split/hash;
-labeler caches add LLM/prompt; model cells add label source/model/revision/
-seed; direct outputs use
+labeler caches add LLM/prompt; model cells add label source/model;
+direct outputs use
 `outputs/full_label/{experiment_id}/{dataset_id}/direct_llm/{labeler_id}/{scope_id}/`.
 Validation/test labels never enter prompts or train targets. Missing, duplicate,
 invalid, or extra LLM labels fail closed.
@@ -65,8 +65,8 @@ invalid, or extra LLM labels fail closed.
 | 1 | [Freeze Experiment Contract](./phase-01-freeze-experiment-contract.md) | In progress — WDC vertical slice frozen; broader 3×3 contract remains pending |
 | 2 | [Generalize Dataset Pipeline](./phase-02-generalize-dataset-pipeline.md) | Pending |
 | 3 | [Build Full Label Targets](./phase-03-build-full-label-targets.md) | In progress — WDC gold/LLM-hard pair published; two datasets pending |
-| 4 | [Finalize Compact Cross-Encoder Models](./phase-04-finalize-compact-cross-encoder-models.md) | Pending |
-| 5 | [Refactor Experiment Runner](./phase-05-refactor-experiment-runner.md) | Pending |
+| 4 | [Finalize Compact Cross-Encoder Models](./phase-04-finalize-compact-cross-encoder-models.md) | Pending globally — WDC/Qwen setup and smoke path prepared |
+| 5 | [Refactor Experiment Runner](./phase-05-refactor-experiment-runner.md) | Pending globally — narrow WDC/Qwen preflight runner prepared |
 | 6 | [Aggregate Metrics and Cost](./phase-06-aggregate-metrics-and-cost.md) | Pending |
 | 7 | [Verify and Handoff](./phase-07-verify-and-handoff.md) | Pending |
 
@@ -78,7 +78,12 @@ invalid, or extra LLM labels fail closed.
 - Phase 5 needs Phases 3-4; Phase 6 needs Phase 5; Phase 7 needs all prior phases.
 - Researcher-approved exception: the frozen WDC/Sol-high vertical slice may
   execute machine labeling before the broader three-dataset contract is frozen.
-  It does not authorize validation/test calls or alter the final 3×3×2 matrix.
+  The separate WDC/Qwen training contract additionally authorizes only rented
+  GPU setup, preflight, and a tiny balanced validation smoke. Neither exception
+  authorizes full model training, official full-validation results, final-test
+  calls, or changes to the final 3×3×2 matrix. The old full-run Qwen config and
+  hyperparameters remain frozen; the smoke-only zero-warmup override does not
+  amend the full-run `0.10` warmup ratio.
 
 ## Verification Command
 

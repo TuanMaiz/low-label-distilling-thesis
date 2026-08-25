@@ -22,14 +22,14 @@ contract is frozen.
 - Three benchmark datasets.
 - Three compact models that jointly encode both records.
 - Two training-label sources: benchmark gold and LLM-generated hard labels.
-- One fixed reproducible seed and one run per experiment cell.
+- One predeclared run per experiment cell.
 - Eighteen compact-model train/evaluate cells.
 - Three logical direct-LLM baselines, one per dataset.
 - Match-class F1 as the primary metric.
 
 Out of scope unless the supervisor explicitly changes the study: low-label
 budgets, active selection, rationale generation or distillation, adaptive
-cascades, multiple seeds, and additional datasets or models.
+cascades, repeated-run experiments, and additional datasets or models.
 
 ## Decision Summary
 
@@ -38,12 +38,11 @@ cascades, multiple seeds, and additional datasets or models.
 | Dataset 1 | Selected; license clarification remains a freeze gate | WDC Products, pair-wise, 80% corner-cases, small development set, 100% unseen-products test | [WDC benchmark page](https://webdatacommons.org/largescaleproductcorpus/wdc-products/); local archive and split hashes below |
 | Dataset 2 | TBD | TBD | TBD |
 | Dataset 3 | TBD | TBD | TBD |
-| Compact model 1 | Selected | `Qwen/Qwen3-Reranker-0.6B` at `e61197ed45024b0ed8a2d74b80b4d909f1255473` | [Pinned model repository](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B/tree/e61197ed45024b0ed8a2d74b80b4d909f1255473); prior repository screening artifacts |
+| Compact model 1 | Selected | `Qwen/Qwen3-Reranker-0.6B` | [Official model repository](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B); prior repository screening artifacts |
 | Compact model 2 | TBD | TBD | TBD |
 | Compact model 3 | TBD | TBD | TBD |
 | LLM provider and model | TBD | TBD | TBD |
 | Prompt version | TBD | TBD | TBD |
-| Fixed seed | TBD | TBD | TBD |
 | Validation threshold metric | TBD | TBD | TBD |
 | Direct-LLM evaluation scope | TBD | TBD | TBD |
 | Cost ceiling | TBD | TBD | TBD |
@@ -131,7 +130,6 @@ Evidence and rationale: TBD.
 
 - Each selected model must jointly encode both records before producing a match
   score or answer.
-- Each repository must be pinned to an immutable revision.
 - The same config and hyperparameters must be used for gold and LLM-hard-label
   arms; only target provenance may differ.
 - Final-test performance must not influence model selection.
@@ -152,13 +150,12 @@ Complete one row for each of exactly three selected models.
 |---|---|---|---|
 | Model ID | `qwen3-reranker-0-6b` | TBD | TBD |
 | Repository | [`Qwen/Qwen3-Reranker-0.6B`](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B) | TBD | TBD |
-| Immutable revision | `e61197ed45024b0ed8a2d74b80b4d909f1255473` | TBD | TBD |
 | Architecture/backend | Qwen3 causal LM adapted as an instruction-aware pointwise generative reranker; repository backend `generative_reranker` | TBD | TBD |
 | Joint-encoding evidence | The official reranker scores one prompt containing the instruction, Query, and Document in the same causal-LM forward pass. The ER adapter maps Record A to Query and Record B to Document and scores the final `no`/`yes` logits. | TBD | TBD |
 | Parameter count | 0.6B | TBD | TBD |
 | License | Apache-2.0 | TBD | TBD |
 | Context length | 32K advertised by the model card; model config has `max_position_embeddings = 40960` | TBD | TBD |
-| Tokenizer revision | Same immutable revision as the model: `e61197ed45024b0ed8a2d74b80b4d909f1255473` | TBD | TBD |
+| Tokenizer source | Same repository as the model | TBD | TBD |
 | Pair separator/prompt | Official Qwen reranker `Instruct`/`Query`/`Document` interface. ER instruction: `Determine whether Record A and Record B describe the same real-world product. Answer yes only when they refer to the same product.` | TBD | TBD |
 | Maximum input length | 4,096 experiment tokens, retained from the verified repository implementation; this is a conservative experiment cap, not the native context limit | TBD | TBD |
 | Pair-aware truncation policy | No truncation. Tokenize the complete prompt and fail preflight if it exceeds 4,096 tokens. Any revised cap requires contract review before results. | TBD | TBD |
@@ -166,7 +163,7 @@ Complete one row for each of exactly three selected models.
 | Tuning method | LoRA: rank 8, alpha 16, dropout 0.05; target `q_proj`, `k_proj`, `v_proj`, `o_proj`; gradient checkpointing enabled | TBD | TBD |
 | Precision and hardware requirements | Base repository weights are BF16. Prior local screening resolved FP16 on a Tesla T4 with microbatch 1; final full-label precision and GPU ceiling remain to be frozen after all-dataset length/resource audits. | TBD | TBD |
 | Resource stop condition | Fail on over-limit input, invalid answer-token mapping, non-LoRA trainable base parameters, OOM, or inability to reproduce saved probabilities. Do not silently truncate or shrink the selected model after results. | TBD | TBD |
-| Eligibility evidence | Official model card classifies it as a 0.6B text reranker and documents the joint Query/Document interface. Repository screening successfully trained, saved, reloaded, and evaluated this exact revision without single-class collapse. | TBD | TBD |
+| Eligibility evidence | Official model card classifies it as a 0.6B text reranker and documents the joint Query/Document interface. Repository screening successfully trained, saved, reloaded, and evaluated this model without single-class collapse. | TBD | TBD |
 | Known limitations | Generative `yes`/`no` scoring needs exact prompt/token compatibility. Prior screening used only 128 labels and does not determine full-label hyperparameters. WDC contamination risk is unknown because the model training disclosure does not enumerate all datasets. | TBD | TBD |
 
 ### Frozen Training Settings
@@ -181,7 +178,6 @@ Complete one row for each of exactly three selected models.
 | Early-stopping policy | TBD |
 | Checkpoint-selection metric | TBD |
 | Threshold-selection metric and tie-break | TBD |
-| Fixed seed | TBD |
 | Determinism policy | TBD |
 | Save/reload numeric tolerance | TBD |
 
@@ -249,7 +245,6 @@ reject state are retained without secrets or provider headers.
 | Datasets | Exactly 3; IDs TBD |
 | Compact models | Exactly 3; IDs TBD |
 | Training-label sources | `gold`, `llm_hard` |
-| Seed | TBD |
 | Runs per cell | 1 |
 | Compact-model cells | 18 |
 | Logical direct-LLM baselines | 3 |
@@ -271,7 +266,7 @@ extra, invalid, or identity-mismatched labels block target publication.
 | Direct-LLM cost-only sample scope | TBD |
 | Direct-LLM final accuracy scope | Exact compact-model test IDs; details TBD |
 | Cross-dataset summary | Macro average across datasets; never pooled rows |
-| Statistical claims | Descriptive only; no seed variance or significance claim |
+| Statistical claims | Descriptive only; no repeated-run variance or significance claim |
 
 Validation selects checkpoints and thresholds. Final-test evaluation is a
 separate gated stage. A smaller direct-LLM cost sample must be labeled
@@ -335,7 +330,7 @@ Each run manifest must record or hash:
 - This contract file and its frozen commit/hash.
 - Used dataset configs and normalized split manifests.
 - Used target files and target manifests.
-- Used model configs and immutable revisions.
+- Used model configs and model identities.
 - Prompt ID/version and content hash where applicable.
 - Runtime, hardware, dependency, and precision identity.
 - Validation, threshold, checkpoint, and final-test scope manifests.
@@ -377,9 +372,9 @@ TBD.
 - [ ] Every `TBD` is resolved or explicitly marked not applicable with rationale.
 - [ ] Exactly three datasets and three models are selected.
 - [ ] All factual claims have authoritative evidence links.
-- [ ] Versions, revisions, licenses, checksums, and pricing dates are explicit.
+- [ ] Dataset versions, model identities, licenses, checksums, and pricing dates are explicit.
 - [ ] Leakage, overlap, retry, reject, and stopping policies are unambiguous.
-- [ ] Experiment matrix, seed, metrics, threshold policy, and scopes are frozen.
+- [ ] Experiment matrix, metrics, threshold policy, and scopes are frozen.
 - [ ] Contamination risks and claim limitations are recorded.
 - [ ] Cost ceiling and break-even interpretation are frozen.
 - [ ] Researcher and supervisor review requirements are satisfied.
@@ -391,7 +386,7 @@ TBD.
 |---|---|---|---|---|
 | 2026-08-21 | Initial contract skeleton created | Phase 1 starting point; no scientific choices frozen | Researcher | Uncommitted |
 | 2026-08-21 | Select WDC Products hard variant as Dataset 1 | Highest corner-case ratio, small development set, and 100% unseen test provide the intended stress benchmark; official files and local hashes recorded | Researcher | Uncommitted |
-| 2026-08-21 | Select Qwen3-Reranker-0.6B as Model 1 | Exact revision already passed the repository's reranker screening and satisfies the joint-record scoring requirement | Researcher | Uncommitted |
+| 2026-08-21 | Select Qwen3-Reranker-0.6B as Model 1 | The repository implementation passed reranker screening and satisfies the joint-record scoring requirement | Researcher | Uncommitted |
 | 2026-08-24 | Freeze a WDC/Sol-high vertical-slice exception for full train labeling | Researcher requested completing one WDC/Qwen experiment before the remaining contract; the narrow paid-labeling checklist, exact prompt, reuse set, and USD 5 ceiling are frozen in `wdc-sol-high-vertical-slice-contract.md` | Researcher | Uncommitted |
 
 ## References
@@ -401,7 +396,6 @@ TBD.
 - [WDC Products official benchmark page](https://webdatacommons.org/largescaleproductcorpus/wdc-products/)
 - [WDC Products construction repository](https://github.com/wbsg-uni-mannheim/wdcproducts)
 - [Qwen3-Reranker-0.6B official model card](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B)
-- [Pinned Qwen3-Reranker-0.6B revision](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B/tree/e61197ed45024b0ed8a2d74b80b4d909f1255473)
 - Selection evidence report: `plans/260820-1507-full-label-er-migration/research/260821-1540-wdc-qwen-selection-evidence.md`
 - Additional authoritative dataset, model, and provider references: TBD.
 

@@ -53,7 +53,7 @@ The fixed high-level design is:
 - 3 benchmark datasets.
 - 3 compact cross-encoder ER models.
 - 2 training-label sources: benchmark gold and LLM-generated hard labels.
-- 1 fixed reproducible seed/run per cell; no multi-seed experiment dimension.
+- 1 predeclared run per cell; no repeated-run experiment dimension.
 - 3 direct LLM baselines, one per dataset.
 - Match F1 primary; precision, recall, macro F1, accuracy, timing, throughput,
   cost, and break-even supporting.
@@ -79,9 +79,17 @@ favor completing the frozen plan.
 - The WDC `gold` and `llm_hard` target artifacts are published at
   `data/cache/wdc_products/full_label_targets/`; both contain all 2,500
   official training pairs and validate against their upstream evidence.
+- The narrow WDC–Qwen training contract authorizes only RTX-3090 setup,
+  preflight, and a tiny balanced LoRA smoke run through
+  `scripts/run_wdc_qwen_vertical_slice.sh`. The old Qwen config and training
+  hyperparameters are frozen; the smoke alone uses zero warmup so its single
+  optimizer step is nonzero. Full two-arm training remains blocked pending
+  smoke review and explicit approval. The smoke predicts only its tiny balanced
+  validation fixture; official full-validation and test predictions are not
+  authorized.
 - The broader Phase-1 contract remains unfinished. Do not run other paid
-  labeling cells, relabel WDC, or make validation/test predictions until their
-  checklists and explicit flags are complete.
+  labeling cells, relabel WDC, or make official full-validation/test
+  predictions until their checklists and explicit flags are complete.
 
 ## Commands
 
@@ -95,6 +103,15 @@ source .venv/bin/activate
 .venv/bin/python -m unittest discover -s labeller-screening/tests -v
 .venv/bin/python -m supervision.validate_full_label_targets \
   --target-dir data/cache/wdc_products/full_label_targets
+```
+
+On the rented RTX 3090, whose image must already include CUDA-compatible
+PyTorch:
+
+```bash
+bash scripts/run_wdc_qwen_vertical_slice.sh setup
+bash scripts/run_wdc_qwen_vertical_slice.sh preflight
+bash scripts/run_wdc_qwen_vertical_slice.sh smoke
 ```
 
 ## Planned Architecture
@@ -139,7 +156,7 @@ coverage. Compact-model inference never calls the LLM labeler.
 - Schemas: Pydantic `BaseModel` with explicit fields.
 - Preserve official dataset splits and namespace pair/cache identities by
   dataset and version.
-- Freeze manifests, prompts, model revisions, and evaluation IDs before results.
+- Freeze manifests, prompts, model identities, and evaluation IDs before results.
 - Store API keys only in environment variables; never commit secrets.
 - Preserve unrelated dirty-worktree changes.
 - After meaningful workflow changes, update `../AGENTS.md`, this file, and

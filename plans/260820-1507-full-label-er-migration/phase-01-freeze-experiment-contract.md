@@ -27,12 +27,12 @@ treats it as executable configuration.
   official splits, expected counts/balance, source hashes, fields, and overlap
   policy. Phase 2 records normalized hashes in generated manifests.
 - Decide exactly three jointly encoding compact cross-encoder models: repository,
-  immutable revision, backend, parameter/license/context facts, and eligibility
+  backend, parameter/license/context facts, and eligibility
   evidence. Record candidates, exclusions, and final choices.
 - Freeze LLM labeler/provider, answer-only prompt/version, temperature, token limit,
   parser, maximum attempts, terminal reject behavior, pricing snapshot, and cost
   ceiling. No automatic fallback labeler.
-- Freeze the 3×3×2 grid, one seed, match-F1 primary metric, supporting metrics,
+- Freeze the 3×3×2 grid, one run per cell, match-F1 primary metric, supporting metrics,
   direct baseline scope, timing/cost fields, and break-even equation.
 - Freeze leakage rules: gold train labels feed only the gold arm; validation/test
   gold labels are evaluation-only; prompts exclude gold/entity truth; direct and
@@ -67,8 +67,8 @@ begin in Phases 2 and 4.
 
 1. Research authoritative dataset/model sources and document candidates.
 2. Choose the two non-WDC datasets; record exact facts and source checksums.
-3. Choose exactly three eligible models; record revisions and contamination risk.
-4. Record LLM labeler/prompt, retry policy, direct scope, grid, seed, metrics,
+3. Choose exactly three eligible models; record identities and contamination risk.
+4. Record LLM labeler/prompt, retry policy, direct scope, grid, metrics,
    leakage rules, ceilings, stopping rules, and break-even definition.
 5. Add unchecked manual items for paid labeling and final testing.
 6. Review with the researcher, remove placeholders, and commit the Markdown.
@@ -85,7 +85,7 @@ begin in Phases 2 and 4.
 
 ## Success Criteria
 
-- [ ] Plan names exact datasets/models, LLM labeler/prompt, grid, seed, metrics,
+- [ ] Plan names exact datasets/models, LLM labeler/prompt, grid, metrics,
   baselines, leakage rules, ceiling, and manual confirmation points.
 - [ ] Source/license/contamination evidence is complete.
 - [ ] Reviewed Markdown is frozen by a dedicated Git commit.
@@ -93,7 +93,7 @@ begin in Phases 2 and 4.
 ## Risk Assessment
 
 Ambiguous versions, architecture claims, or contamination can invalidate the
-comparison. Use primary sources, immutable revisions/checksums, and explicit
+comparison. Use primary sources, dataset checksums, and explicit
 unknown ratings before implementation or spend.
 
 ## Security/Data Integrity

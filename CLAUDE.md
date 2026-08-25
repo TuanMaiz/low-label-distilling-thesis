@@ -11,7 +11,7 @@ The project is migrating to a full-label Entity Resolution comparison:
 
 Direct LLM matching is a per-dataset accuracy/cost baseline. Low-label budgets,
 active selection, rationale generation or distillation, adaptive cascades, and
-multi-seed experiments are outside the frozen scope unless the supervisor
+repeated-run experiments are outside the frozen scope unless the supervisor
 requires them.
 
 Active plan:
@@ -41,6 +41,16 @@ the recorded upstream evidence. Publication made no paid calls, started no
 training, and made no validation/test predictions. Phase 3 remains in progress
 until the other two dataset target pairs are published.
 
+The narrow WDC–Qwen training contract now authorizes only rented-RTX-3090
+setup, preflight, and a tiny balanced LoRA smoke. The executable entry point is
+`scripts/run_wdc_qwen_vertical_slice.sh`. It binds the old Qwen configuration,
+inputs, code, input-length audit, resolved precision, GPU, and package versions;
+it makes no LLM calls and never reads the test split. Full gold-versus-LLM
+training and official full-validation/test predictions are not yet authorized.
+The old full-run Qwen hyperparameters remain frozen at their screened values;
+zero warmup applies only to the one-step smoke and does not amend the full-run
+`0.10` warmup ratio.
+
 Legacy writing plan (revise before thesis drafting):
 `plans/260704-distiller-wdc-thesis-writing/plan.md`
 
@@ -59,10 +69,19 @@ source .venv/bin/activate
   --target-dir data/cache/wdc_products/full_label_targets
 ```
 
-Use the uv-managed environment. The only authorized production path was
+On the rented RTX 3090 with CUDA-compatible PyTorch already installed:
+
+```bash
+bash scripts/run_wdc_qwen_vertical_slice.sh setup
+bash scripts/run_wdc_qwen_vertical_slice.sh preflight
+bash scripts/run_wdc_qwen_vertical_slice.sh smoke
+```
+
+Use the uv-managed environment. The only authorized production labeling path was
 `labeller-screening/run_full_wdc.py` for the frozen WDC Sol-high vertical slice,
-and its full training-label run is complete. Do not relabel WDC or run other
-experiment cells; they remain blocked by the broader Phase-1 contract.
+and its full training-label run is complete. Do not relabel WDC or run full
+experiment cells; only the WDC–Qwen setup/preflight/smoke exception is active,
+and the rest remain blocked by the broader Phase-1 contract.
 
 For complete rules, scope guardrails, reusable files, and conventions, follow
 `AGENTS.md`.

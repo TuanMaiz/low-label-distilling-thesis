@@ -6,8 +6,8 @@ Research timestamp: 2026-08-21 15:40 Asia/Bangkok.
 
 Dataset 1 is WDC Products in the pair-wise 80%-corner-case setting, using the
 official small train/validation files and 100%-unseen test file. Model 1 is
-`Qwen/Qwen3-Reranker-0.6B`, pinned to the exact revision previously resolved
-and screened in this repository.
+`Qwen/Qwen3-Reranker-0.6B`, using the model repository previously screened in
+this repository.
 
 The selections are technically supported. Contract freeze remains blocked on
 clarifying WDC dataset redistribution terms and on freezing full-label training
@@ -19,7 +19,7 @@ settings after the other datasets and models are chosen.
   Qwen config, runtime provenance, and prior screening artifacts.
 - Verified dataset facts against the official WDC Products page.
 - Verified model facts against the official Qwen Hugging Face repository and
-  the exact revision stored by the prior run.
+  the prior screening artifacts.
 - Used SHA-256 to identify the local official archive and selected compressed
   members.
 
@@ -74,7 +74,6 @@ Selected identity:
 
 ```text
 Repository: Qwen/Qwen3-Reranker-0.6B
-Revision: e61197ed45024b0ed8a2d74b80b4d909f1255473
 Backend: generative_reranker
 License: Apache-2.0
 Scale: 0.6B parameters
@@ -86,8 +85,8 @@ the final `yes` versus `no` answer. This jointly encodes both records and meets
 the study's compact cross-encoder eligibility rule. The repository adapter maps
 Record A to Query and Record B to Document.
 
-The prior repository run resolved and persisted the exact revision above. Its
-verified adapter uses a 4,096-token experiment cap without truncation, `no=0`,
+The prior repository run verified an adapter using a 4,096-token experiment
+cap without truncation, `no=0`,
 `yes=1`, and LoRA with rank 8, alpha 16, dropout 0.05, attention projection
 targets, and gradient checkpointing. The screening demonstrated viable
 training and validation behavior; it does not freeze the new full-label
@@ -103,7 +102,6 @@ derived benchmark content.
 - [Official WDC 80% pair-wise archive](https://data.dws.informatik.uni-mannheim.de/largescaleproductcorpus/data/wdc-products/80pair.zip)
 - [WDC Products construction repository](https://github.com/wbsg-uni-mannheim/wdcproducts)
 - [Qwen3-Reranker-0.6B official model card](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B)
-- [Pinned Qwen model revision](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B/tree/e61197ed45024b0ed8a2d74b80b4d909f1255473)
 - Local `data/cache/wdc_products/stats.json`
 - Local prior `student_config.json` and `runtime_provenance.json` under the
   Qwen Phase-05 result package
