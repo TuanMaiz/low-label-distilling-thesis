@@ -12,7 +12,6 @@ from typing import Any
 from models.classification_student import target_label
 from models.seq2seq_student import load_target_rows
 from models.student_config import StudentConfig, load_student_config
-from supervision.build_full_label_targets import validate_full_label_target_directory
 from utils.torch_runtime import runtime_identity
 
 
@@ -160,16 +159,15 @@ def validate_vertical_slice(
     validation_path: Path,
     student_config_path: Path,
 ) -> dict[str, Any]:
-    target_summary = validate_full_label_target_directory(target_dir)
-    if target_summary["dataset_id"] != EXPECTED_DATASET_ID:
-        raise ValueError("Full-label target dataset is not the approved WDC variant")
     config = load_student_config(student_config_path)
     validate_qwen_config(config)
+    gold_rows = load_target_rows(target_dir / "gold.jsonl")
+    llm_hard_rows = load_target_rows(target_dir / "llm_hard.jsonl")
     validation_rows = load_target_rows(validation_path)
     validation_summary = validate_validation_rows(validation_rows)
     train_ids = {
         row["pair_id"]
-        for row in load_target_rows(target_dir / "gold.jsonl")
+        for row in [*gold_rows, *llm_hard_rows]
     }
     validation_ids = {row["pair_id"] for row in validation_rows}
     overlap = train_ids & validation_ids
@@ -182,7 +180,10 @@ def validate_vertical_slice(
         "student_id": config.student_id,
         "model_name": config.model_name,
         "training_arms": ["gold", "llm_hard"],
-        "target_rows_per_arm": target_summary["row_count"],
+        "target_rows_per_arm": {
+            "gold": len(gold_rows),
+            "llm_hard": len(llm_hard_rows),
+        },
         "validation": validation_summary,
         "test_accessed": False,
         "llm_api_accessed": False,

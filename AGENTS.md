@@ -86,7 +86,9 @@ favor completing the frozen plan.
   optimizer step is nonzero. Full two-arm training remains blocked pending
   smoke review and explicit approval. The smoke predicts only its tiny balanced
   validation fixture; official full-validation and test predictions are not
-  authorized.
+  authorized. Its multi-environment preflight consumes the committed final
+  target files directly and does not invoke publication/upstream validation;
+  the separate publication validator retains full upstream rederivation.
 - The broader Phase-1 contract remains unfinished. Do not run other paid
   labeling cells, relabel WDC, or make official full-validation/test
   predictions until their checklists and explicit flags are complete.

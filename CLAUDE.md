@@ -49,7 +49,10 @@ it makes no LLM calls and never reads the test split. Full gold-versus-LLM
 training and official full-validation/test predictions are not yet authorized.
 The old full-run Qwen hyperparameters remain frozen at their screened values;
 zero warmup applies only to the one-step smoke and does not amend the full-run
-`0.10` warmup ratio.
+`0.10` warmup ratio. Training preflight consumes the committed final targets
+directly and does not invoke publication validation;
+`supervision.validate_full_label_targets` remains the separate upstream
+rederivation command for the publication environment.
 
 Legacy writing plan (revise before thesis drafting):
 `plans/260704-distiller-wdc-thesis-writing/plan.md`

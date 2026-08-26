@@ -58,14 +58,17 @@ dimension, output namespace, or aggregation key.
 |---|---|
 | Gold training target | `data/cache/wdc_products/full_label_targets/gold.jsonl` |
 | LLM-hard training target | `data/cache/wdc_products/full_label_targets/llm_hard.jsonl` |
-| Target manifests | `data/cache/wdc_products/full_label_targets/{gold,llm_hard}.manifest.json` |
 | Validation input/truth | `data/cache/wdc_products/serialized/validation.jsonl` |
 | Output root | `outputs/full_label/wdc-qwen-vertical-slice/wdc_products_80cc_small_100un/qwen3-reranker-0-6b/` |
 
-Gold and LLM-hard target manifests must independently validate before setup can
-advance to preflight and smoke. If full training is separately authorized later,
-outputs remain separated under `gold/` and `llm_hard/` and may not be reused
-when a bound config, target, validation input, runtime, or code hash changes.
+Training preflight consumes the committed gold and LLM-hard JSONL files
+directly. It does not invoke target publication validation or require ignored
+source-pair and labeler caches. The final target files remain content-hashed in
+the preflight contract and included in the no-truncation input audit. The
+separate publication validator retains full upstream rederivation. If full
+training is separately authorized later, outputs remain separated under
+`gold/` and `llm_hard/` and may not be reused when a bound config, target,
+validation input, runtime, or code hash changes.
 
 ## Validation boundary
 
@@ -95,7 +98,8 @@ must fail unless all of the following hold:
   explicitly overrides only that hardware-name assertion.
 - `torch`, `transformers`, `peft`, and `accelerate` import successfully.
 - PEFT injects trainable LoRA parameters into a tiny local module.
-- Both full-label manifests rederive successfully with 2,500 rows per arm.
+- The committed gold and LLM-hard target files are present and readable;
+  publication manifests and upstream caches are not training dependencies.
 - The validation split contains 2,500 unique official validation pairs.
 - Qwen tokenization of both targets and validation has no input over 4,096
   tokens and performs no truncation.

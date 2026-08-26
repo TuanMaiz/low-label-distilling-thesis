@@ -179,19 +179,55 @@ class WDCQwenPreflightTests(unittest.TestCase):
             ]
             _write_jsonl(target_dir / "gold.jsonl", [_row("v-match-0", "train", 1)])
             _write_jsonl(validation, validation_rows)
-            with patch(
-                "experiments.wdc_qwen_preflight.validate_full_label_target_directory",
-                return_value={
-                    "dataset_id": "wdc_products_80cc_small_100un",
-                    "row_count": 2500,
-                },
-            ):
-                with self.assertRaisesRegex(ValueError, "overlap"):
-                    validate_vertical_slice(
-                        target_dir=target_dir,
-                        validation_path=validation,
-                        student_config_path=QWEN_CONFIG,
-                    )
+            _write_jsonl(target_dir / "llm_hard.jsonl", [_row("other", "train", 0)])
+            with self.assertRaisesRegex(ValueError, "overlap"):
+                validate_vertical_slice(
+                    target_dir=target_dir,
+                    validation_path=validation,
+                    student_config_path=QWEN_CONFIG,
+                )
+
+            _write_jsonl(target_dir / "gold.jsonl", [_row("other", "train", 0)])
+            _write_jsonl(
+                target_dir / "llm_hard.jsonl",
+                [_row("v-match-0", "train", 1)],
+            )
+            with self.assertRaisesRegex(ValueError, "overlap"):
+                validate_vertical_slice(
+                    target_dir=target_dir,
+                    validation_path=validation,
+                    student_config_path=QWEN_CONFIG,
+                )
+
+    def test_vertical_slice_consumes_targets_without_publication_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target_dir = root / "targets"
+            validation = root / "validation.jsonl"
+            validation_rows = [
+                _row(f"v-match-{index}", "validation", 1)
+                for index in range(500)
+            ] + [
+                _row(f"v-non-match-{index}", "validation", 0)
+                for index in range(2000)
+            ]
+            _write_jsonl(target_dir / "gold.jsonl", [_row("gold", "train", 1)])
+            _write_jsonl(
+                target_dir / "llm_hard.jsonl",
+                [_row("llm-hard", "train", 0)],
+            )
+            _write_jsonl(validation, validation_rows)
+
+            summary = validate_vertical_slice(
+                target_dir=target_dir,
+                validation_path=validation,
+                student_config_path=QWEN_CONFIG,
+            )
+
+            self.assertEqual(
+                summary["target_rows_per_arm"],
+                {"gold": 1, "llm_hard": 1},
+            )
 
     def test_runner_is_seed_revision_and_test_split_free(self) -> None:
         subprocess.run(["bash", "-n", str(RUNNER)], check=True)
@@ -205,6 +241,12 @@ class WDCQwenPreflightTests(unittest.TestCase):
         self.assertIn("runtime_identity=${RUNTIME_IDENTITY}", runner)
         self.assertIn("utils.peft_runtime sanitize", runner)
         self.assertIn("--warmup-ratio 0.0", runner)
+        self.assertNotIn("gold.manifest", runner)
+        self.assertNotIn("llm_hard.manifest", runner)
+        preflight = (
+            REPOSITORY_ROOT / "experiments/wdc_qwen_preflight.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("validate_full_label_target", preflight)
 
 
 if __name__ == "__main__":

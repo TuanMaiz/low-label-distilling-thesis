@@ -96,6 +96,9 @@ tests in the legacy-named `test_teacher_labels.py`.
   `supervision/validate_full_label_targets.py`, which rederives the bundle from
   its upstream source, prediction, attempt, audit, run, settings, and blinded
   input evidence before accepting it.
+- [x] Multi-environment training consumes the committed final target files
+  directly; ignored publication caches remain audit evidence, not training
+  inputs.
 - [x] Confirmed target publication was offline: no paid calls, compact-model
   training, or validation/test predictions occurred.
 - [ ] Publish equivalent gold and LLM-hard target pairs for the other two
