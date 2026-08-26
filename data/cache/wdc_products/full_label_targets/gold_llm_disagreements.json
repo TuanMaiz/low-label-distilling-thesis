@@ -1,0 +1,413 @@
+{
+  "agreement_count": 2421,
+  "agreement_rate": 0.9684,
+  "confusion": {
+    "gold_match__llm_match": 458,
+    "gold_match__llm_non-match": 42,
+    "gold_non-match__llm_match": 37,
+    "gold_non-match__llm_non-match": 1963
+  },
+  "dataset_id": "wdc_products_80cc_small_100un",
+  "dataset_version": "2022-12-22:80pair:80cc-small-100un",
+  "disagreement_count": 79,
+  "disagreements": [
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "13142970#95282914"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "80159309#96279287"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "68891313#72819377"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "31531912#30102415"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "24224044#47282882"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "11665937#46741147"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "16529934#44483408"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "41867761#16470846"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "81603750#34402785"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "962259#1647419"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "46809516#75799899"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "16855766#29825517"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "49058519#77308213"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "96279287#82531103"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "2687477#9951028"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "25870078#84514463"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "17007886#962259"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "42516046#74927976"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "1286250#562267"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "55157414#35100344"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "31558480#30454890"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "35793904#96691496"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "22563019#48435137"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "53081061#54978736"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "46100236#21755591"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "81069691#43780660"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "85033463#7488025"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "40845396#11022309"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "7873500#10373250"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "77020269#62422382"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "962259#9748896"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "27429904#26502310"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "24802094#83274921"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "81920536#87998765"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "2701835#81948691"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "57083116#1515409"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "46809516#50278024"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "25877530#30454889"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "12991173#11406200"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "82531103#80159309"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "8343900#96888760"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "47784049#21658813"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "81948691#74021002"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "49913390#17103408"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "72125402#31510768"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "76569969#14224876"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "49913390#63000389"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "79148737#95222715"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "38447746#31585097"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "45145764#21463573"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "40116448#75384375"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "68731207#64323838"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "98793471#85887866"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "43742368#13718289"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "75132289#17103408"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "14128915#18567164"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "12615558#78504449"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "73248952#45880639"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "66680332#29167528"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "2282686#45759535"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "17465629#79334302"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "73248952#74927976"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "76157897#28465006"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "31276154#14128915"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "12432797#32885383"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "67028945#50278024"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "3764542#53737120"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "93033011#30674519"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "82090972#67614478"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "90806148#31420404"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "10496#30102088"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "3348619#50156673"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "78196838#68731207"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "82531103#18915981"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "43742368#70174967"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "81628037#14224876"
+    },
+    {
+      "gold_target": "match",
+      "llm_hard_target": "non-match",
+      "pair_id": "61868905#26491787"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "51810284#34259452"
+    },
+    {
+      "gold_target": "non-match",
+      "llm_hard_target": "match",
+      "pair_id": "10496#41234714"
+    }
+  ],
+  "policy": "analysis_only_no_label_correction",
+  "row_count": 2500,
+  "schema_version": 1
+}

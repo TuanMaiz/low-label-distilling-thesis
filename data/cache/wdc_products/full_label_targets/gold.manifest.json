@@ -1,0 +1,28 @@
+{
+  "artifact_type": "full_label_training_target",
+  "builder": {
+    "path": "supervision/build_full_label_targets.py",
+    "sha256": "414c70b5eae7821789a49ce4734bb7bdc4e7bb3e266c64634fc4e1960aa03440"
+  },
+  "class_counts": {
+    "match": 500,
+    "non-match": 2000
+  },
+  "dataset_id": "wdc_products_80cc_small_100un",
+  "dataset_version": "2022-12-22:80pair:80cc-small-100un",
+  "input_texts_sha256": "40cfab265abbaa9a8e7e20ad822400ab9f2c92773c0a92d3a9e0a0ed88264be2",
+  "label_source": "gold",
+  "llm_provenance": null,
+  "pair_ids_sha256": "9d3a17a9f3078001136d681400e6ca2365dad823e063e459c83824fca4286c2e",
+  "row_count": 2500,
+  "schema_version": 1,
+  "source_pairs": {
+    "path": "data/cache/wdc_products/serialized/train.jsonl",
+    "sha256": "3dd86613eae09c4c5116811f89e5977bd7a9d42c361dd003e69c523a8e3c8628"
+  },
+  "split": "train",
+  "target": {
+    "path": "gold.jsonl",
+    "sha256": "f4e4120404ccd83295b788706bbf1afeb1b2a26757ab53b50568d2428159424c"
+  }
+}

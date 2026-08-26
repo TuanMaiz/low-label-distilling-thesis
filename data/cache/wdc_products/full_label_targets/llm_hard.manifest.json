@@ -1,0 +1,82 @@
+{
+  "artifact_type": "full_label_training_target",
+  "builder": {
+    "path": "supervision/build_full_label_targets.py",
+    "sha256": "414c70b5eae7821789a49ce4734bb7bdc4e7bb3e266c64634fc4e1960aa03440"
+  },
+  "class_counts": {
+    "match": 495,
+    "non-match": 2005
+  },
+  "dataset_id": "wdc_products_80cc_small_100un",
+  "dataset_version": "2022-12-22:80pair:80cc-small-100un",
+  "input_texts_sha256": "40cfab265abbaa9a8e7e20ad822400ab9f2c92773c0a92d3a9e0a0ed88264be2",
+  "label_source": "llm_hard",
+  "llm_provenance": {
+    "attempts": {
+      "path": "data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.attempts.jsonl",
+      "sha256": "091e29535312299ae8c6d9becabb3c70e0b853d478f65769e01c02c4cf28f0fb"
+    },
+    "audit": {
+      "path": "data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.audit.jsonl",
+      "sha256": "32bfcd11e53c5c8d17b0541dad5e2286e2b051b4263c0d9d542b035730be7b35"
+    },
+    "blinded_inputs": {
+      "path": "data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl",
+      "sha256": "e443fc38fe1206ce961c6f71dce28e50b4e148d720dda3b2bdc688abf196e1ea"
+    },
+    "blinded_inputs_manifest": {
+      "path": "data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.manifest.json",
+      "sha256": "406584698e6423583be342ce82c0f13ed501de9f4fdececa8f6befc8da6e7b1c"
+    },
+    "gateway": "openrouter",
+    "input_tokens": 995653,
+    "instructions_sha256": "af0124e93cb683ab7929ba5138fd3fc6482f1271ee48625e2afb4b275f243fdb",
+    "model": "openai/gpt-5.6-sol",
+    "output_tokens": 63716,
+    "predictions": {
+      "path": "data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv",
+      "sha256": "bc37f9113fd363b76a042588c46e95195cb2821223c2f580941121239c99e5d8"
+    },
+    "prompt_version": "wdc-er-answer-only-v1",
+    "provider_routing": {
+      "allow_fallbacks": false,
+      "data_collection": "deny",
+      "max_price": {
+        "completion": 10.0,
+        "prompt": 2.0
+      },
+      "only": [
+        "openai"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "high",
+      "exclude": true
+    },
+    "run": {
+      "path": "data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.run.json",
+      "sha256": "704be597e76bb155c4290832a39b9b3612ebda24c791f262cef7c7f3dc6eeca3"
+    },
+    "setting": "sol_high",
+    "settings": {
+      "path": "labeller-screening/settings.json",
+      "sha256": "2a32eb183033d6a19d73ae313704c9b365e525f8dd977c4331add5a65e10e3cf"
+    },
+    "total_cost_usd": 2.693225,
+    "upstream_provider": "openai"
+  },
+  "pair_ids_sha256": "9d3a17a9f3078001136d681400e6ca2365dad823e063e459c83824fca4286c2e",
+  "row_count": 2500,
+  "schema_version": 1,
+  "source_pairs": {
+    "path": "data/cache/wdc_products/serialized/train.jsonl",
+    "sha256": "3dd86613eae09c4c5116811f89e5977bd7a9d42c361dd003e69c523a8e3c8628"
+  },
+  "split": "train",
+  "target": {
+    "path": "llm_hard.jsonl",
+    "sha256": "7f45401de90157d11da689c7efd26b2f0934124b953864f8a014694d98f1cdc0"
+  }
+}
