@@ -160,7 +160,13 @@ class Trainer:
                 )
 
             loss = outputs.loss
-            total_loss += loss.item()
+            loss_value = loss.item()
+            if not math.isfinite(loss_value):
+                raise RuntimeError(
+                    f"Non-finite training loss at epoch={epoch}, "
+                    f"microbatch={batch_idx + 1}, precision={self.precision}"
+                )
+            total_loss += loss_value
             num_batches += 1
             accumulation_window_start = (
                 batch_idx // self.gradient_accumulation_steps
@@ -203,7 +209,7 @@ class Trainer:
                     self.global_step += 1
 
             # Update progress bar
-            pbar.set_postfix({"loss": loss.item()})
+            pbar.set_postfix({"loss": loss_value})
 
             # Log to W&B
             if (
@@ -213,7 +219,7 @@ class Trainer:
                 and self.global_step % log_every == 0
             ):
                 wandb.log({
-                    "train/loss": loss.item(),
+                    "train/loss": loss_value,
                     "train/epoch": epoch,
                     "train/global_step": self.global_step
                 })

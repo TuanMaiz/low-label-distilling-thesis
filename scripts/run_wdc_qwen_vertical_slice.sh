@@ -9,6 +9,11 @@ Usage:
   bash scripts/run_wdc_qwen_vertical_slice.sh setup
   bash scripts/run_wdc_qwen_vertical_slice.sh preflight
   bash scripts/run_wdc_qwen_vertical_slice.sh smoke
+  bash scripts/run_wdc_qwen_vertical_slice.sh train-gold --confirm-full-training
+  bash scripts/run_wdc_qwen_vertical_slice.sh package-arm gold
+  bash scripts/run_wdc_qwen_vertical_slice.sh train-llm-hard --confirm-full-training
+  bash scripts/run_wdc_qwen_vertical_slice.sh verify-results
+  bash scripts/run_wdc_qwen_vertical_slice.sh package-results
 
 This workflow makes no LLM calls and never reads the WDC test split.
 The rented image must already provide a CUDA-compatible PyTorch build.
@@ -26,7 +31,7 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "${repo_root}"
 
 PYTHON="${PYTHON:-python}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/full_label/wdc-qwen-vertical-slice/wdc_products_80cc_small_100un/qwen3-reranker-0-6b}"
+OUTPUT_ROOT="$(realpath -m "${OUTPUT_ROOT:-outputs/full_label/wdc-qwen-vertical-slice/wdc_products_80cc_small_100un/qwen3-reranker-0-6b}")"
 EXPECTED_GPU_SUBSTRING="${EXPECTED_GPU_SUBSTRING:-3090}"
 ALLOW_GPU_NAME_MISMATCH="${ALLOW_GPU_NAME_MISMATCH:-0}"
 
@@ -42,6 +47,7 @@ RUNTIME_IDENTITY="${PREFLIGHT_DIR}/runtime-identity.json"
 PREFLIGHT_CONTRACT="${PREFLIGHT_DIR}/artifact-contract.json"
 SMOKE_FIXTURES="${OUTPUT_ROOT}/smoke/fixtures"
 SMOKE_RUN="${OUTPUT_ROOT}/smoke/run"
+FULL_EXPERIMENT_MANIFEST="${OUTPUT_ROOT}/full-experiment-manifest.json"
 
 require_file() {
   if [[ ! -f "$1" ]]; then
@@ -55,6 +61,34 @@ run_cmd() {
   printf ' %q' "$@"
   printf '\n'
   "$@"
+}
+
+write_checksum() {
+  local path="$1"
+  local directory
+  local filename
+  directory="$(dirname "${path}")"
+  filename="$(basename "${path}")"
+  (cd "${directory}" && sha256sum "${filename}" > "${filename}.sha256")
+}
+
+verify_checksum() {
+  local checksum="$1"
+  local directory
+  local filename
+  directory="$(dirname "${checksum}")"
+  filename="$(basename "${checksum}")"
+  (cd "${directory}" && run_cmd sha256sum -c "${filename}")
+}
+
+require_clean_committed_inputs() {
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Tracked files differ from the checked-out commit; commit or restore them before full training." >&2
+    exit 1
+  fi
+  run_cmd git ls-files --error-unmatch \
+    "${GOLD_TARGET}" "${LLM_TARGET}" "${VALIDATION}" "${STUDENT_CONFIG}" \
+    "${TRAINING_CONTRACT}" "scripts/run_wdc_qwen_vertical_slice.sh"
 }
 
 setup_runtime() {
@@ -227,6 +261,216 @@ smoke() {
   echo "WDC–Qwen LoRA smoke train, checkpoint reload, and evaluation passed."
 }
 
+arm_target() {
+  case "$1" in
+    gold) printf '%s\n' "${GOLD_TARGET}" ;;
+    llm_hard) printf '%s\n' "${LLM_TARGET}" ;;
+    *) echo "Unsupported training arm: $1" >&2; exit 2 ;;
+  esac
+}
+
+arm_root() {
+  printf '%s/%s\n' "${OUTPUT_ROOT}" "$1"
+}
+
+verify_arm() {
+  local arm="$1"
+  local write_completion="${2:-}"
+  local target
+  local root
+  local verify_args=()
+  target="$(arm_target "${arm}")"
+  root="$(arm_root "${arm}")"
+  if [[ "${write_completion}" == "--write-completion" ]]; then
+    verify_args+=(--write-completion)
+  fi
+  run_cmd "${PYTHON}" -m experiments.wdc_qwen_preflight verify-arm \
+    --arm "${arm}" \
+    --target "${target}" \
+    --validation "${VALIDATION}" \
+    --run-dir "${root}/run" \
+    --contract "${root}/artifact-contract.json" \
+    --completion "${root}/completion.json" \
+    "${verify_args[@]}"
+}
+
+write_or_check_arm_contract() {
+  local arm="$1"
+  local target="$2"
+  local root="$3"
+  local commit
+  commit="$(git rev-parse HEAD)"
+  local contract_args=(
+    --field "stage=wdc_qwen_full_validation"
+    --field "dataset_id=wdc_products_80cc_small_100un"
+    --field "student_id=qwen3-reranker-0-6b"
+    --field "arm=${arm}"
+    --field "git_commit=${commit}"
+    --field "optimizer=AdamW"
+    --field "learning_rate=2e-4"
+    --field "weight_decay=0.01"
+    --field "schedule=linear"
+    --field "warmup_ratio=0.10"
+    --field "batch_size=1"
+    --field "gradient_accumulation_steps=16"
+    --field "num_epochs=10"
+    --field "early_stopping_patience=3"
+    --field "max_input_length=4096"
+    --field "input_truncation=false"
+    --field "validation_batch_size=1"
+    --field "evaluation_batch_size=1"
+    --field "precision=auto"
+    --field "checkpoint_metric=validation_macro_f1"
+    --field "test_scope=locked"
+    --file "training_contract=${TRAINING_CONTRACT}"
+    --file "student_config=${STUDENT_CONFIG}"
+    --file "train_target=${target}"
+    --file "validation=${VALIDATION}"
+    --file "preflight_contract=${PREFLIGHT_CONTRACT}"
+    --file "runtime_identity=${RUNTIME_IDENTITY}"
+    --file "input_length_audit=${INPUT_AUDIT}"
+    --file "runner=scripts/run_wdc_qwen_vertical_slice.sh"
+    --file "preflight=experiments/wdc_qwen_preflight.py"
+    --file "trainer=experiments/train_student.py"
+    --file "trainer_core=experiments/trainer.py"
+    --file "evaluator=experiments/evaluate_student.py"
+    --file "checkpoint_manifest=utils/checkpoint_manifest.py"
+    --file "classification_threshold=utils/classification_threshold.py"
+    --file "metrics=utils/metrics.py"
+    --file "artifact_contract_impl=utils/artifact_contract.py"
+  )
+  mkdir -p "${root}"
+  if [[ -f "${root}/artifact-contract.json" ]]; then
+    run_cmd "${PYTHON}" -m utils.artifact_contract check \
+      --path "${root}/artifact-contract.json" "${contract_args[@]}"
+  else
+    run_cmd "${PYTHON}" -m utils.artifact_contract write \
+      --path "${root}/artifact-contract.json" "${contract_args[@]}"
+  fi
+}
+
+train_arm() {
+  local arm="$1"
+  local confirmation="${2:-}"
+  if [[ "${confirmation}" != "--confirm-full-training" ]]; then
+    echo "${arm} full training requires --confirm-full-training." >&2
+    exit 2
+  fi
+  require_clean_committed_inputs
+  preflight
+  run_cmd "${PYTHON}" scripts/check_wdc_target_alignment.py
+
+  local target
+  local root
+  local run_dir
+  target="$(arm_target "${arm}")"
+  root="$(arm_root "${arm}")"
+  run_dir="${root}/run"
+  if [[ -f "${root}/completion.json" ]]; then
+    verify_arm "${arm}"
+    echo "Existing completed ${arm} arm verified; nothing to rerun."
+    return
+  fi
+  if [[ -e "${run_dir}" ]]; then
+    echo "Incomplete ${arm} output requires inspection before restart: ${run_dir}" >&2
+    exit 1
+  fi
+  if [[ "${arm}" == "llm_hard" ]]; then
+    verify_arm gold
+    require_file "${OUTPUT_ROOT}/gold.tar.gz"
+    require_file "${OUTPUT_ROOT}/gold.tar.gz.sha256"
+    verify_checksum "${OUTPUT_ROOT}/gold.tar.gz.sha256"
+  fi
+
+  write_or_check_arm_contract "${arm}" "${target}" "${root}"
+  run_cmd "${PYTHON}" -m experiments.train_student \
+    --student-config "${STUDENT_CONFIG}" \
+    --train-targets "${target}" \
+    --validation-targets "${VALIDATION}" \
+    --output-dir "${run_dir}" \
+    --batch-size 1 \
+    --validation-batch-size 1 \
+    --num-epochs 10 \
+    --learning-rate 2e-4 \
+    --weight-decay 0.01 \
+    --warmup-ratio 0.10 \
+    --max-input-length 4096 \
+    --early-stopping-patience 3 \
+    --gradient-accumulation-steps 16 \
+    --precision auto \
+    --device cuda
+  run_cmd "${PYTHON}" -m utils.checkpoint_manifest check --output-dir "${run_dir}"
+  run_cmd "${PYTHON}" -m experiments.evaluate_student \
+    --student-config "${STUDENT_CONFIG}" \
+    --checkpoint "${run_dir}/best_model" \
+    --input "${VALIDATION}" \
+    --predictions "${run_dir}/validation.predictions.jsonl" \
+    --metrics "${run_dir}/validation.metrics.json" \
+    --variant "${arm}" \
+    --budget full \
+    --split validation \
+    --batch-size 1 \
+    --max-input-length 4096 \
+    --precision auto \
+    --device cuda
+  verify_arm "${arm}" --write-completion
+  echo "WDC–Qwen ${arm} full-validation arm passed."
+}
+
+package_arm() {
+  local arm="$1"
+  local root
+  local archive="${OUTPUT_ROOT}/${arm}.tar.gz"
+  local checksum="${archive}.sha256"
+  root="$(arm_root "${arm}")"
+  verify_arm "${arm}"
+  if [[ -f "${archive}" || -f "${checksum}" ]]; then
+    require_file "${archive}"
+    require_file "${checksum}"
+    verify_checksum "${checksum}"
+    echo "Existing ${arm} package verified; nothing to rebuild."
+    return
+  fi
+  run_cmd tar -C "${root}" -czf "${archive}" \
+    artifact-contract.json completion.json run
+  write_checksum "${archive}"
+  verify_checksum "${checksum}"
+  echo "Packaged ${arm} results at ${archive}."
+}
+
+verify_results() {
+  verify_arm gold
+  verify_arm llm_hard
+  run_cmd "${PYTHON}" -m experiments.wdc_qwen_preflight verify-experiment \
+    --gold-completion "${OUTPUT_ROOT}/gold/completion.json" \
+    --llm-hard-completion "${OUTPUT_ROOT}/llm_hard/completion.json" \
+    --gold-summary "${OUTPUT_ROOT}/gold/run/training_summary.json" \
+    --llm-hard-summary "${OUTPUT_ROOT}/llm_hard/run/training_summary.json" \
+    --manifest "${FULL_EXPERIMENT_MANIFEST}"
+  echo "Both WDC–Qwen full-validation arms verified."
+}
+
+package_results() {
+  verify_results
+  package_arm gold
+  package_arm llm_hard
+  local archive="${OUTPUT_ROOT}/wdc-qwen-gold-vs-llm-hard.tar.gz"
+  local checksum="${archive}.sha256"
+  if [[ -f "${archive}" || -f "${checksum}" ]]; then
+    require_file "${archive}"
+    require_file "${checksum}"
+    verify_checksum "${checksum}"
+    echo "Existing full result package verified; nothing to rebuild."
+    return
+  fi
+  run_cmd tar -C "${OUTPUT_ROOT}" -czf "${archive}" \
+    full-experiment-manifest.json gold llm_hard gold.tar.gz \
+    gold.tar.gz.sha256 llm_hard.tar.gz llm_hard.tar.gz.sha256
+  write_checksum "${archive}"
+  verify_checksum "${checksum}"
+  echo "Packaged complete WDC–Qwen comparison at ${archive}."
+}
+
 case "${1:-}" in
   setup)
     setup_runtime
@@ -236,6 +480,21 @@ case "${1:-}" in
     ;;
   smoke)
     smoke
+    ;;
+  train-gold)
+    train_arm gold "${2:-}"
+    ;;
+  train-llm-hard)
+    train_arm llm_hard "${2:-}"
+    ;;
+  package-arm)
+    package_arm "${2:-}"
+    ;;
+  verify-results)
+    verify_results
+    ;;
+  package-results)
+    package_results
     ;;
   *)
     usage >&2

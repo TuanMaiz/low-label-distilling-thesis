@@ -15,9 +15,13 @@ from experiments.wdc_qwen_preflight import (
     validate_qwen_config,
     validate_validation_rows,
     validate_vertical_slice,
+    verify_full_arm,
+    verify_full_experiment,
     write_runtime_identity,
 )
 from models.student_config import load_student_config
+from utils.checkpoint_manifest import write_checkpoint_manifest
+from utils.metrics import compute_metrics
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +50,11 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
         "".join(json.dumps(row) + "\n" for row in rows),
         encoding="utf-8",
     )
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 class WDCQwenPreflightTests(unittest.TestCase):
@@ -247,6 +256,204 @@ class WDCQwenPreflightTests(unittest.TestCase):
             REPOSITORY_ROOT / "experiments/wdc_qwen_preflight.py"
         ).read_text(encoding="utf-8")
         self.assertNotIn("validate_full_label_target", preflight)
+
+    def test_full_training_actions_require_confirmation_before_cuda(self) -> None:
+        for action in ("train-gold", "train-llm-hard"):
+            result = subprocess.run(
+                ["bash", str(RUNNER), action],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--confirm-full-training", result.stderr)
+            self.assertNotIn("CUDA", result.stderr)
+
+    def test_runner_maps_both_arms_to_frozen_full_settings(self) -> None:
+        runner = RUNNER.read_text(encoding="utf-8")
+        self.assertIn('gold) printf \'%s\\n\' "${GOLD_TARGET}"', runner)
+        self.assertIn('llm_hard) printf \'%s\\n\' "${LLM_TARGET}"', runner)
+        self.assertIn("--warmup-ratio 0.10", runner)
+        self.assertIn("--warmup-ratio 0.0", runner)
+        for action in (
+            "train-gold",
+            "train-llm-hard",
+            "verify-results",
+            "package-arm",
+            "package-results",
+        ):
+            self.assertIn(action, runner)
+
+    def _full_arm_fixture(self, root: Path, arm: str) -> dict[str, Path]:
+        target = root / f"{arm}.jsonl"
+        validation = root / "validation.jsonl"
+        run_dir = root / arm / "run"
+        contract = root / arm / "artifact-contract.json"
+        completion = root / arm / "completion.json"
+        train_rows = [_row("t0", "train", 0), _row("t1", "train", 1)]
+        validation_rows = [_row("v0", "validation", 0), _row("v1", "validation", 1)]
+        _write_jsonl(target, train_rows)
+        _write_jsonl(validation, validation_rows)
+        _write_json(contract, {"schema_version": 1})
+        threshold = 0.5
+        threshold_payload = {
+            "decision_threshold": threshold,
+            "selection_metric": "validation_macro_f1",
+        }
+        _write_json(run_dir / "decision_threshold.json", threshold_payload)
+        _write_json(run_dir / "best_model" / "decision_threshold.json", threshold_payload)
+        (run_dir / "best_model" / "model.safetensors").write_bytes(b"merged")
+        (run_dir / "best_adapter").mkdir(parents=True)
+        (run_dir / "best_adapter" / "adapter_model.safetensors").write_bytes(b"adapter")
+        write_checkpoint_manifest(run_dir)
+
+        predictions = [
+            {
+                "pair_id": "v0",
+                "label": 0,
+                "prediction": 0,
+                "is_valid": True,
+                "non_match_probability": 0.8,
+                "match_probability": 0.2,
+            },
+            {
+                "pair_id": "v1",
+                "label": 1,
+                "prediction": 1,
+                "is_valid": True,
+                "non_match_probability": 0.1,
+                "match_probability": 0.9,
+            },
+        ]
+        _write_jsonl(run_dir / "validation.predictions.jsonl", predictions)
+        metrics = {
+            **compute_metrics([False, True], [False, True]),
+            "total": 2,
+            "valid": 2,
+            "invalid": 0,
+            "invalid_output_rate": 0.0,
+            "decision_threshold": threshold,
+            "decision_threshold_selection_metric": "validation_macro_f1",
+            "variant": arm,
+            "split": "validation",
+        }
+        _write_json(run_dir / "validation.metrics.json", metrics)
+        summary = {
+            "student_id": "qwen3-reranker-0-6b",
+            "model_name": "Qwen/Qwen3-Reranker-0.6B",
+            "train_targets": str(target),
+            "validation_targets": str(validation),
+            "train_rows": 2,
+            "validation_rows": 2,
+            "checkpoint_metric": "macro_f1",
+            "warmup_ratio": 0.10,
+            "cuda_device_name": "NVIDIA GeForce RTX 3090",
+            "precision": "bf16",
+            "torch_version": "2.7.0",
+            "transformers_version": "4.55.0",
+            "cuda_version": "12.6",
+            "batch_size": 1,
+            "gradient_accumulation_steps": 16,
+            "validation_batch_size": 1,
+            "num_epochs": 10,
+            "learning_rate": 2e-4,
+            "weight_decay": 0.01,
+            "max_input_length": 4096,
+            "early_stopping_patience": 3,
+            "completed_epochs": 1,
+            "optimizer_steps": 1,
+            "planned_optimizer_steps": 20,
+            "decision_threshold": threshold,
+            "training_wall_seconds": 1.0,
+            "training_action_wall_seconds": 2.0,
+            "history": {
+                "train_loss": [0.4],
+                "val_loss": [0.3],
+                "val_macro_f1": [1.0],
+                "val_same_f1": [1.0],
+            },
+        }
+        _write_json(run_dir / "training_summary.json", summary)
+        return {
+            "target": target,
+            "validation": validation,
+            "run_dir": run_dir,
+            "contract": contract,
+            "completion": completion,
+            "summary": run_dir / "training_summary.json",
+        }
+
+    def test_full_arm_verifier_writes_idempotent_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = self._full_arm_fixture(Path(directory), "gold")
+            first = verify_full_arm(
+                arm="gold",
+                target_path=paths["target"],
+                validation_path=paths["validation"],
+                run_dir=paths["run_dir"],
+                contract_path=paths["contract"],
+                completion_path=paths["completion"],
+                expected_rows=2,
+                write_completion=True,
+            )
+            second = verify_full_arm(
+                arm="gold",
+                target_path=paths["target"],
+                validation_path=paths["validation"],
+                run_dir=paths["run_dir"],
+                contract_path=paths["contract"],
+                completion_path=paths["completion"],
+                expected_rows=2,
+            )
+            self.assertEqual(first, second)
+            self.assertEqual(first["optimizer_steps"], 1)
+
+    def test_full_arm_verifier_rejects_corrupt_probability(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = self._full_arm_fixture(Path(directory), "gold")
+            predictions_path = paths["run_dir"] / "validation.predictions.jsonl"
+            predictions = [json.loads(line) for line in predictions_path.read_text().splitlines()]
+            predictions[0]["match_probability"] = float("nan")
+            _write_jsonl(predictions_path, predictions)
+            with self.assertRaisesRegex(ValueError, "must be finite"):
+                verify_full_arm(
+                    arm="gold",
+                    target_path=paths["target"],
+                    validation_path=paths["validation"],
+                    run_dir=paths["run_dir"],
+                    contract_path=paths["contract"],
+                    completion_path=paths["completion"],
+                    expected_rows=2,
+                    write_completion=True,
+                )
+
+    def test_full_experiment_verifier_rejects_runtime_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gold = self._full_arm_fixture(root / "gold-fixture", "gold")
+            llm = self._full_arm_fixture(root / "llm-fixture", "llm_hard")
+            for arm, paths in (("gold", gold), ("llm_hard", llm)):
+                verify_full_arm(
+                    arm=arm,
+                    target_path=paths["target"],
+                    validation_path=paths["validation"],
+                    run_dir=paths["run_dir"],
+                    contract_path=paths["contract"],
+                    completion_path=paths["completion"],
+                    expected_rows=2,
+                    write_completion=True,
+                )
+            llm_summary = json.loads(llm["summary"].read_text())
+            llm_summary["precision"] = "fp16"
+            _write_json(llm["summary"], llm_summary)
+            with self.assertRaisesRegex(ValueError, "precision"):
+                verify_full_experiment(
+                    gold_completion_path=gold["completion"],
+                    llm_hard_completion_path=llm["completion"],
+                    gold_summary_path=gold["summary"],
+                    llm_hard_summary_path=llm["summary"],
+                    manifest_path=root / "manifest.json",
+                )
 
 
 if __name__ == "__main__":

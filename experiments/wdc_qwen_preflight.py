@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.metadata
 import json
+import math
 import platform
 from collections import Counter
 from pathlib import Path
@@ -12,6 +14,8 @@ from typing import Any
 from models.classification_student import target_label
 from models.seq2seq_student import load_target_rows
 from models.student_config import StudentConfig, load_student_config
+from utils.checkpoint_manifest import validate_checkpoint_manifest
+from utils.metrics import compute_metrics
 from utils.torch_runtime import runtime_identity
 
 
@@ -262,6 +266,281 @@ def write_runtime_identity(
     return payload
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError(f"Required result file is missing: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Result file is invalid JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"Result file must contain a JSON object: {path}")
+    return payload
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    try:
+        with path.open(encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        f"Invalid JSON at {path}:{line_number}"
+                    ) from exc
+                if not isinstance(row, dict):
+                    raise ValueError(f"Expected JSON object at {path}:{line_number}")
+                rows.append(row)
+    except FileNotFoundError as exc:
+        raise ValueError(f"Required result file is missing: {path}") from exc
+    return rows
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _finite_number(value: Any, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be numeric")
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise ValueError(f"{field} must be finite")
+    return numeric
+
+
+def _same_number(left: Any, right: Any) -> bool:
+    try:
+        return math.isclose(float(left), float(right), rel_tol=1e-9, abs_tol=1e-12)
+    except (TypeError, ValueError):
+        return False
+
+
+def verify_full_arm(
+    *,
+    arm: str,
+    target_path: Path,
+    validation_path: Path,
+    run_dir: Path,
+    contract_path: Path,
+    completion_path: Path,
+    expected_rows: int = EXPECTED_VALIDATION_ROWS,
+    write_completion: bool = False,
+) -> dict[str, Any]:
+    """Verify one completed full-training arm without loading a model."""
+    if arm not in {"gold", "llm_hard"}:
+        raise ValueError(f"Unsupported WDC training arm: {arm}")
+    if not contract_path.is_file():
+        raise ValueError(f"Arm artifact contract is missing: {contract_path}")
+
+    target_rows = load_target_rows(target_path)
+    validation_rows = load_target_rows(validation_path)
+    if len(target_rows) != expected_rows or len(validation_rows) != expected_rows:
+        raise ValueError(
+            f"{arm} requires {expected_rows} train and validation rows; found "
+            f"{len(target_rows)} and {len(validation_rows)}"
+        )
+    expected_ids = [row["pair_id"] for row in validation_rows]
+    if len(set(expected_ids)) != expected_rows:
+        raise ValueError("Validation pair IDs are not unique")
+
+    summary_path = run_dir / "training_summary.json"
+    predictions_path = run_dir / "validation.predictions.jsonl"
+    metrics_path = run_dir / "validation.metrics.json"
+    threshold_path = run_dir / "decision_threshold.json"
+    merged_threshold_path = run_dir / "best_model" / "decision_threshold.json"
+    checkpoint_manifest_path = run_dir / "checkpoint_manifest.json"
+    summary = _read_json(summary_path)
+    metrics = _read_json(metrics_path)
+    threshold = _read_json(threshold_path)
+    merged_threshold = _read_json(merged_threshold_path)
+    validate_checkpoint_manifest(run_dir)
+
+    if summary.get("student_id") != EXPECTED_STUDENT_ID:
+        raise ValueError(f"{arm} training summary has the wrong student")
+    if Path(str(summary.get("train_targets"))).resolve() != target_path.resolve():
+        raise ValueError(f"{arm} training summary points to the wrong target")
+    if Path(str(summary.get("validation_targets"))).resolve() != validation_path.resolve():
+        raise ValueError(f"{arm} training summary points to the wrong validation file")
+    if summary.get("train_rows") != expected_rows or summary.get("validation_rows") != expected_rows:
+        raise ValueError(f"{arm} training summary row counts are invalid")
+    if summary.get("checkpoint_metric") != "macro_f1":
+        raise ValueError(f"{arm} used the wrong checkpoint metric")
+    if summary.get("warmup_ratio") != 0.10:
+        raise ValueError(f"{arm} used the wrong full-run warmup ratio")
+    if "3090" not in str(summary.get("cuda_device_name", "")):
+        raise ValueError(f"{arm} did not record an RTX 3090 training device")
+
+    history = summary.get("history")
+    if not isinstance(history, dict) or not isinstance(history.get("train_loss"), list):
+        raise ValueError(f"{arm} training history is missing")
+    completed_epochs = summary.get("completed_epochs")
+    if completed_epochs != len(history["train_loss"]) or not 1 <= completed_epochs <= 10:
+        raise ValueError(f"{arm} completed epoch count is invalid")
+    optimizer_steps = summary.get("optimizer_steps")
+    planned_steps = summary.get("planned_optimizer_steps")
+    if not isinstance(optimizer_steps, int) or not isinstance(planned_steps, int):
+        raise ValueError(f"{arm} optimizer step counts are missing")
+    if not 1 <= optimizer_steps <= planned_steps:
+        raise ValueError(f"{arm} optimizer step counts are invalid")
+    for series_name in ("train_loss", "val_loss", "val_macro_f1", "val_same_f1"):
+        series = history.get(series_name)
+        if not isinstance(series, list) or len(series) != completed_epochs:
+            raise ValueError(f"{arm} history series {series_name!r} is incomplete")
+        for index, value in enumerate(series, start=1):
+            _finite_number(value, f"history.{series_name}[{index}]")
+    _finite_number(summary.get("training_wall_seconds"), "training_wall_seconds")
+    _finite_number(summary.get("training_action_wall_seconds"), "training_action_wall_seconds")
+
+    predictions = _read_jsonl(predictions_path)
+    prediction_ids = [row.get("pair_id") for row in predictions]
+    if prediction_ids != expected_ids or len(set(prediction_ids)) != expected_rows:
+        raise ValueError(f"{arm} validation prediction IDs are incomplete or out of order")
+    predicted: list[bool] = []
+    labels: list[bool] = []
+    decision_threshold = _finite_number(metrics.get("decision_threshold"), "decision_threshold")
+    if not 0.0 <= decision_threshold <= 1.0:
+        raise ValueError(f"{arm} decision threshold is outside [0, 1]")
+    for index, (prediction_row, validation_row) in enumerate(
+        zip(predictions, validation_rows), start=1
+    ):
+        if prediction_row.get("is_valid") is not True:
+            raise ValueError(f"{arm} has an invalid prediction at row {index}")
+        prediction = prediction_row.get("prediction")
+        if prediction not in (0, 1, False, True):
+            raise ValueError(f"{arm} has a non-binary prediction at row {index}")
+        non_match = _finite_number(
+            prediction_row.get("non_match_probability"),
+            f"prediction[{index}].non_match_probability",
+        )
+        match = _finite_number(
+            prediction_row.get("match_probability"),
+            f"prediction[{index}].match_probability",
+        )
+        if not 0.0 <= non_match <= 1.0 or not 0.0 <= match <= 1.0:
+            raise ValueError(f"{arm} has a probability outside [0, 1] at row {index}")
+        if not math.isclose(non_match + match, 1.0, rel_tol=1e-6, abs_tol=1e-6):
+            raise ValueError(f"{arm} probabilities do not sum to one at row {index}")
+        if bool(prediction) != (match >= decision_threshold):
+            raise ValueError(f"{arm} prediction disagrees with its threshold at row {index}")
+        expected_label = bool(target_label(validation_row, EXPECTED_LABEL_MAPPING))
+        if bool(target_label(prediction_row, EXPECTED_LABEL_MAPPING)) != expected_label:
+            raise ValueError(f"{arm} prediction truth differs from validation at row {index}")
+        predicted.append(bool(prediction))
+        labels.append(expected_label)
+
+    recomputed = compute_metrics(predicted, labels)
+    for field, value in recomputed.items():
+        if not _same_number(metrics.get(field), value):
+            raise ValueError(f"{arm} stored metric differs from predictions: {field}")
+    expected_metric_counts = {"total": expected_rows, "valid": expected_rows, "invalid": 0}
+    for field, value in expected_metric_counts.items():
+        if metrics.get(field) != value:
+            raise ValueError(f"{arm} stored metric count differs: {field}")
+    if metrics.get("variant") != arm or metrics.get("split") != "validation":
+        raise ValueError(f"{arm} evaluation scope metadata is invalid")
+    if metrics.get("decision_threshold_selection_metric") != "validation_macro_f1":
+        raise ValueError(f"{arm} threshold selection metric is invalid")
+
+    for source_name, value in (
+        ("training summary", summary.get("decision_threshold")),
+        ("run threshold", threshold.get("decision_threshold")),
+        ("merged threshold", merged_threshold.get("decision_threshold")),
+    ):
+        if not _same_number(value, decision_threshold):
+            raise ValueError(f"{arm} {source_name} disagrees with evaluation threshold")
+
+    completion = {
+        "schema_version": 1,
+        "arm": arm,
+        "student_id": EXPECTED_STUDENT_ID,
+        "train_rows": expected_rows,
+        "validation_rows": expected_rows,
+        "completed_epochs": completed_epochs,
+        "optimizer_steps": optimizer_steps,
+        "decision_threshold": decision_threshold,
+        "files": {
+            "artifact_contract": _sha256(contract_path),
+            "training_summary": _sha256(summary_path),
+            "predictions": _sha256(predictions_path),
+            "metrics": _sha256(metrics_path),
+            "checkpoint_manifest": _sha256(checkpoint_manifest_path),
+        },
+    }
+    if completion_path.exists():
+        if _read_json(completion_path) != completion:
+            raise ValueError(f"{arm} completion contract differs from verified outputs")
+    elif write_completion:
+        _atomic_json(completion_path, completion)
+    else:
+        raise ValueError(f"{arm} completion contract is missing: {completion_path}")
+    return completion
+
+
+def verify_full_experiment(
+    *,
+    gold_completion_path: Path,
+    llm_hard_completion_path: Path,
+    gold_summary_path: Path,
+    llm_hard_summary_path: Path,
+    manifest_path: Path,
+) -> dict[str, Any]:
+    """Verify the two arms used matching runtime properties and publish a manifest."""
+    gold_completion = _read_json(gold_completion_path)
+    llm_completion = _read_json(llm_hard_completion_path)
+    gold_summary = _read_json(gold_summary_path)
+    llm_summary = _read_json(llm_hard_summary_path)
+    shared_fields = (
+        "student_id",
+        "model_name",
+        "precision",
+        "torch_version",
+        "transformers_version",
+        "cuda_version",
+        "cuda_device_name",
+        "batch_size",
+        "gradient_accumulation_steps",
+        "validation_batch_size",
+        "num_epochs",
+        "learning_rate",
+        "weight_decay",
+        "warmup_ratio",
+        "max_input_length",
+        "early_stopping_patience",
+        "checkpoint_metric",
+    )
+    differences = [
+        field for field in shared_fields
+        if gold_summary.get(field) != llm_summary.get(field)
+    ]
+    if differences:
+        raise ValueError("Two-arm runtime/settings mismatch: " + ", ".join(differences))
+    manifest = {
+        "schema_version": 1,
+        "dataset_id": EXPECTED_DATASET_ID,
+        "student_id": EXPECTED_STUDENT_ID,
+        "arms": ["gold", "llm_hard"],
+        "gold_completion_sha256": _sha256(gold_completion_path),
+        "llm_hard_completion_sha256": _sha256(llm_hard_completion_path),
+        "gold_optimizer_steps": gold_completion["optimizer_steps"],
+        "llm_hard_optimizer_steps": llm_completion["optimizer_steps"],
+        "shared": {field: gold_summary.get(field) for field in shared_fields},
+    }
+    if manifest_path.exists():
+        if _read_json(manifest_path) != manifest:
+            raise ValueError("Full experiment manifest differs from verified outputs")
+    else:
+        _atomic_json(manifest_path, manifest)
+    return manifest
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -282,6 +561,23 @@ def main() -> None:
     runtime_parser.add_argument("--expected-gpu-substring", default="3090")
     runtime_parser.add_argument("--allow-gpu-name-mismatch", action="store_true")
 
+    verify_arm_parser = subparsers.add_parser("verify-arm")
+    verify_arm_parser.add_argument("--arm", choices=("gold", "llm_hard"), required=True)
+    verify_arm_parser.add_argument("--target", type=Path, required=True)
+    verify_arm_parser.add_argument("--validation", type=Path, required=True)
+    verify_arm_parser.add_argument("--run-dir", type=Path, required=True)
+    verify_arm_parser.add_argument("--contract", type=Path, required=True)
+    verify_arm_parser.add_argument("--completion", type=Path, required=True)
+    verify_arm_parser.add_argument("--expected-rows", type=int, default=EXPECTED_VALIDATION_ROWS)
+    verify_arm_parser.add_argument("--write-completion", action="store_true")
+
+    verify_experiment_parser = subparsers.add_parser("verify-experiment")
+    verify_experiment_parser.add_argument("--gold-completion", type=Path, required=True)
+    verify_experiment_parser.add_argument("--llm-hard-completion", type=Path, required=True)
+    verify_experiment_parser.add_argument("--gold-summary", type=Path, required=True)
+    verify_experiment_parser.add_argument("--llm-hard-summary", type=Path, required=True)
+    verify_experiment_parser.add_argument("--manifest", type=Path, required=True)
+
     args = parser.parse_args()
     if args.command == "validate":
         payload = validate_vertical_slice(
@@ -296,11 +592,30 @@ def main() -> None:
             output_dir=args.output_dir,
             per_class=args.per_class,
         )
-    else:
+    elif args.command == "runtime":
         payload = write_runtime_identity(
             output=args.output,
             expected_gpu_substring=args.expected_gpu_substring,
             allow_gpu_name_mismatch=args.allow_gpu_name_mismatch,
+        )
+    elif args.command == "verify-arm":
+        payload = verify_full_arm(
+            arm=args.arm,
+            target_path=args.target,
+            validation_path=args.validation,
+            run_dir=args.run_dir,
+            contract_path=args.contract,
+            completion_path=args.completion,
+            expected_rows=args.expected_rows,
+            write_completion=args.write_completion,
+        )
+    else:
+        payload = verify_full_experiment(
+            gold_completion_path=args.gold_completion,
+            llm_hard_completion_path=args.llm_hard_completion,
+            gold_summary_path=args.gold_summary,
+            llm_hard_summary_path=args.llm_hard_summary,
+            manifest_path=args.manifest,
         )
     print(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True))
 

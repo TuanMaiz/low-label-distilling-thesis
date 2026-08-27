@@ -53,6 +53,16 @@ class _NonFiniteLossModel:
         return types.SimpleNamespace(loss=torch.tensor(float("nan")))
 
 
+class _NonFiniteTrainingModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.weight = torch.nn.Parameter(torch.tensor(1.0))
+
+    def forward(self, input_ids, attention_mask, labels):
+        del input_ids, attention_mask, labels
+        return types.SimpleNamespace(loss=self.weight * float("nan"))
+
+
 class _InvertedLabelClassifier:
     def eval(self):
         return self
@@ -125,6 +135,24 @@ class Phase05RuntimeTest(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "PRECISION=fp32"):
             trainer.evaluate([_batch([2], [1])])
+
+    def test_nonfinite_training_loss_stops_before_optimizer_step(self):
+        model = _NonFiniteTrainingModel()
+        trainer = Trainer.__new__(Trainer)
+        trainer.model = model
+        trainer.device = "cpu"
+        trainer.precision = "fp32"
+        trainer.use_wandb = False
+        trainer.optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+        trainer.grad_scaler = None
+        trainer.scheduler = None
+        trainer.global_step = 0
+        trainer.gradient_accumulation_steps = 1
+
+        with self.assertRaisesRegex(RuntimeError, "Non-finite training loss"):
+            trainer.train_epoch([_batch([2], [1])], epoch=1)
+
+        self.assertEqual(trainer.global_step, 0)
 
     def test_classifier_metrics_use_configured_match_label_id(self):
         trainer = Trainer.__new__(Trainer)

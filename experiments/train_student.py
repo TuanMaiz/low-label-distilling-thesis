@@ -135,6 +135,7 @@ def train_configured_student(
     classifier_unfreeze_last_n_layers: int = 4,
     gradient_accumulation_steps: int = 1,
 ) -> dict:
+    training_action_started = time.perf_counter()
     config = load_student_config(student_config)
     if max_input_length is None:
         max_input_length = config.max_input_length
@@ -351,6 +352,14 @@ def train_configured_student(
             "trainer.train, including epoch validation and checkpointing; "
             "excluding model loading and dataset tokenization"
         ),
+        "training_action_wall_seconds": time.perf_counter() - training_action_started,
+        "training_action_time_scope": (
+            "train_configured_student through merged-checkpoint finalization; "
+            "excluding summary serialization"
+        ),
+        "completed_epochs": len(history["train_loss"]),
+        "optimizer_steps": trainer.global_step,
+        "planned_optimizer_steps": total_training_steps,
         "history": history,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
