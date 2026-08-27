@@ -25,12 +25,10 @@ history; cleanup removes its exclusive tests/documentation.
 ## Narrow WDC/Qwen boundary
 
 `scripts/run_wdc_qwen_vertical_slice.sh` is not the global 18-cell runner. Its
-current authorization ends after RTX-3090 setup, fail-closed preflight, and a
-tiny balanced smoke train/evaluate/reload check. The smoke evaluates only its
-fixture, with zero warmup solely to make the single optimizer step nonzero.
-The old full-run Qwen config and hyperparameters remain frozen. Full gold and
-LLM-hard training, official full-validation predictions, and all test
-predictions require later explicit approval.
+narrow authorization covers RTX-3090 setup and preflight plus one WDC/Qwen
+full-validation run for each of `gold` and `llm_hard`. The old Qwen config and
+hyperparameters remain frozen, including full-run warmup `0.10`. No other
+dataset/model cell and no official test prediction is authorized here.
 
 ## Requirements
 

@@ -24,12 +24,11 @@ threshold, and reload without dataset-specific shortcuts.
 
 ## Narrow WDC/Qwen boundary
 
-Before global Phase 4 is complete, the separate WDC/Qwen contract authorizes
-only rented-RTX-3090 setup, preflight, and a tiny balanced LoRA smoke. Retain
-the old full-run Qwen config and hyperparameters without tuning. Zero warmup is
-a smoke-only plumbing exception; the frozen full-run warmup remains `0.10`.
-Full two-arm training and official full-validation/test predictions remain
-blocked pending smoke review and explicit approval.
+Before global Phase 4 is complete, the separate WDC/Qwen contract authorizes a
+narrow exception: rented-RTX-3090 setup and preflight, then one full gold and
+one full `llm_hard` validation-only run. Retain the old Qwen config and
+hyperparameters without tuning. Zero warmup was a smoke-only plumbing
+exception; both full arms use `0.10`. Official test predictions remain locked.
 
 ## Requirements
 

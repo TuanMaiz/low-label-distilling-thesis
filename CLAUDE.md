@@ -41,6 +41,11 @@ the recorded upstream evidence. Publication made no paid calls, started no
 training, and made no validation/test predictions. Phase 3 remains in progress
 until the other two dataset target pairs are published.
 
+The WDC target alignment check passed: both arms contain 2,500 unique training
+pairs with identical ordered pair IDs and input text, with 79 label
+disagreements. Focused tests passed 5/5 and the full repository suite passed
+118/118.
+
 The narrow WDC–Qwen training contract now authorizes only rented-RTX-3090
 setup, preflight, and a tiny balanced LoRA smoke. The executable entry point is
 `scripts/run_wdc_qwen_vertical_slice.sh`. It binds the old Qwen configuration,

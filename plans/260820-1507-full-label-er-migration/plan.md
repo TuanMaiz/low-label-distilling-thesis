@@ -84,6 +84,11 @@ invalid, or extra LLM labels fail closed.
   calls, or changes to the final 3×3×2 matrix. The old full-run Qwen config and
   hyperparameters remain frozen; the smoke-only zero-warmup override does not
   amend the full-run `0.10` warmup ratio.
+- The pending implementation and execution sequence for the first WDC/Qwen
+  `gold` versus `llm_hard` comparison is scoped in
+  `execution/260827-1612-wdc-qwen-gold-llm-hard/plan.md`. Its reviewed smoke now
+  authorizes one full validation-only run per arm on an RTX 3090; this narrow
+  exception does not mark global Phases 4-5 complete or unlock the test split.
 
 ## Verification Command
 

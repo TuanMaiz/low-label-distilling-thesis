@@ -79,6 +79,10 @@ favor completing the frozen plan.
 - The WDC `gold` and `llm_hard` target artifacts are published at
   `data/cache/wdc_products/full_label_targets/`; both contain all 2,500
   official training pairs and validate against their upstream evidence.
+- WDC target alignment check passed: `gold` and `llm_hard` each contain 2,500
+  unique training pairs with identical ordered pair IDs and input text. They
+  have 79 label disagreements. Focused tests passed 5/5 and the full repository
+  suite passed 118/118.
 - The narrow WDC–Qwen training contract authorizes only RTX-3090 setup,
   preflight, and a tiny balanced LoRA smoke run through
   `scripts/run_wdc_qwen_vertical_slice.sh`. The old Qwen config and training

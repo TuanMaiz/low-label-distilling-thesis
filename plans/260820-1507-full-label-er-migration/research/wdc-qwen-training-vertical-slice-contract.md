@@ -4,8 +4,8 @@
 
 | Field | Frozen value |
 |---|---|
-| Status | Frozen for setup, preflight, and smoke only; full two-arm training awaits explicit approval |
-| Date | 2026-08-25 |
+| Status | Frozen and authorized for setup, preflight, smoke, and one full validation-only run per arm |
+| Date | 2026-08-27 |
 | Dataset | `wdc_products_80cc_small_100un` |
 | Compact model | `Qwen/Qwen3-Reranker-0.6B` |
 | Training arms | `gold`, `llm_hard` |
@@ -13,10 +13,9 @@
 | Excluded dimensions | No training-seed dimension and no model-revision pin |
 | Test scope | Locked; this contract authorizes no test predictions |
 
-This narrow contract prepares the previously screened Qwen configuration for
-the first complete gold-versus-machine-label experiment. It does not yet
-authorize that full experiment, select the other datasets or compact models,
-or authorize any paid LLM call.
+This narrow contract authorizes the first complete gold-versus-machine-label
+experiment for WDC and Qwen only. It does not select the other datasets or
+compact models, authorize any paid LLM call, or authorize final-test access.
 
 ## Frozen training configuration
 
@@ -78,12 +77,12 @@ bound. It makes no predictions. The authorized smoke selects a deterministic
 balanced fixture of 16 validation rows (8 per class) and predicts only those
 rows for its train/evaluate/reload plumbing check.
 
-Predictions over the full official validation split are not authorized by this
-contract. If the two full training arms are approved later, the compact Qwen
-model may then score that split to select checkpoints and thresholds. Validation
-truth remains evaluation-only and never enters either training target. The
-official 4,500-pair test split remains untouched and requires a later contract
-and explicit approval.
+The two authorized full training arms may score the full official validation
+split during checkpoint and threshold selection, then once after reloading the
+best merged checkpoint to publish validation metrics. Validation truth remains
+evaluation-only and never enters either training target. The official
+4,500-pair test split remains untouched and requires a later contract and
+explicit approval.
 
 ## Rented RTX 3090 setup and preflight
 
@@ -117,9 +116,13 @@ the two full arms retain the old frozen `0.10` warmup ratio.
 - [x] Smoke-only compact-model predictions are documented separately from LLM
   labeling and official full validation/testing.
 - [x] Setup, preflight, and smoke implementation are authorized.
+- [x] The reviewed T4/FP16 smoke completed one finite optimizer step, produced
+  16/16 valid fixture predictions, and verified its merged checkpoint manifest;
+  its F1 is plumbing evidence, not an experiment result.
+- [x] Researcher reviewed the smoke and authorized one full validation-only run
+  for `gold`, followed by one for `llm_hard`, with warmup restored to `0.10`.
 - [ ] Rented RTX 3090 setup completes.
-- [ ] Preflight and the balanced smoke train/evaluate/reload check pass.
-- [ ] Researcher reviews smoke artifacts before the two full training arms run.
+- [ ] Fresh RTX 3090 preflight passes before full training.
 - [ ] Full gold and LLM-hard validation cells complete with matching provenance.
 
 ## Stop conditions
