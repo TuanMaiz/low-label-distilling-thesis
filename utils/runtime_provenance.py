@@ -17,6 +17,7 @@ TRACKED_PACKAGES = (
     "peft",
     "accelerate",
     "huggingface-hub",
+    "torchao",
 )
 
 

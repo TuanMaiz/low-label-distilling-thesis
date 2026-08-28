@@ -17,9 +17,11 @@ from experiments.wdc_qwen_preflight import (
     validate_vertical_slice,
     verify_full_arm,
     verify_full_experiment,
+    verify_full_training,
     write_runtime_identity,
 )
 from models.student_config import load_student_config
+from utils.artifact_contract import build_contract, write_contract
 from utils.checkpoint_manifest import write_checkpoint_manifest
 from utils.metrics import compute_metrics
 
@@ -294,7 +296,57 @@ class WDCQwenPreflightTests(unittest.TestCase):
         validation_rows = [_row("v0", "validation", 0), _row("v1", "validation", 1)]
         _write_jsonl(target, train_rows)
         _write_jsonl(validation, validation_rows)
-        _write_json(contract, {"schema_version": 1})
+        contract_dependency = root / "contract-dependency.txt"
+        contract_dependency.write_text("frozen", encoding="utf-8")
+        contract_file_keys = (
+            "training_contract",
+            "student_config",
+            "preflight_contract",
+            "runtime_identity",
+            "input_length_audit",
+            "runner",
+            "preflight",
+            "trainer",
+            "trainer_core",
+            "evaluator",
+            "checkpoint_manifest",
+            "classification_threshold",
+            "metrics",
+            "artifact_contract_impl",
+        )
+        contract_payload = build_contract(
+            [
+                "stage=wdc_qwen_full_validation",
+                "dataset_id=wdc_products_80cc_small_100un",
+                "student_id=qwen3-reranker-0-6b",
+                f"arm={arm}",
+                f"git_commit={'a' * 40}",
+                "optimizer=AdamW",
+                "learning_rate=2e-4",
+                "weight_decay=0.01",
+                "schedule=linear",
+                "warmup_ratio=0.10",
+                "warmup_steps=1",
+                "planned_optimizer_steps=10",
+                "batch_size=1",
+                "gradient_accumulation_steps=16",
+                "num_epochs=10",
+                "early_stopping_patience=3",
+                "max_input_length=4096",
+                "input_truncation=false",
+                "validation_batch_size=1",
+                "evaluation_batch_size=1",
+                "precision=auto",
+                "checkpoint_metric=validation_macro_f1",
+                "test_scope=locked",
+            ],
+            [
+                f"train_target={target}",
+                f"validation={validation}",
+                *(f"{key}={contract_dependency}" for key in contract_file_keys),
+            ],
+        )
+        write_contract(contract, contract_payload)
         threshold = 0.5
         threshold_payload = {
             "decision_threshold": threshold,
@@ -305,7 +357,7 @@ class WDCQwenPreflightTests(unittest.TestCase):
         (run_dir / "best_model" / "model.safetensors").write_bytes(b"merged")
         (run_dir / "best_adapter").mkdir(parents=True)
         (run_dir / "best_adapter" / "adapter_model.safetensors").write_bytes(b"adapter")
-        write_checkpoint_manifest(run_dir)
+        checkpoint_manifest = write_checkpoint_manifest(run_dir)
 
         predictions = [
             {
@@ -358,11 +410,15 @@ class WDCQwenPreflightTests(unittest.TestCase):
             "num_epochs": 10,
             "learning_rate": 2e-4,
             "weight_decay": 0.01,
+            "warmup_steps_requested": 0,
+            "warmup_steps": 1,
             "max_input_length": 4096,
+            "input_truncation": False,
             "early_stopping_patience": 3,
+            "checkpoint_manifest": checkpoint_manifest,
             "completed_epochs": 1,
             "optimizer_steps": 1,
-            "planned_optimizer_steps": 20,
+            "planned_optimizer_steps": 10,
             "decision_threshold": threshold,
             "training_wall_seconds": 1.0,
             "training_action_wall_seconds": 2.0,
@@ -381,6 +437,7 @@ class WDCQwenPreflightTests(unittest.TestCase):
             "contract": contract,
             "completion": completion,
             "summary": run_dir / "training_summary.json",
+            "contract_dependency": contract_dependency,
         }
 
     def test_full_arm_verifier_writes_idempotent_completion(self) -> None:
@@ -426,6 +483,188 @@ class WDCQwenPreflightTests(unittest.TestCase):
                     expected_rows=2,
                     write_completion=True,
                 )
+
+    def test_full_training_verifier_rejects_contract_hash_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = self._full_arm_fixture(Path(directory), "gold")
+            paths["contract_dependency"].write_text("changed", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "file hash mismatch"):
+                verify_full_training(
+                    arm="gold",
+                    target_path=paths["target"],
+                    validation_path=paths["validation"],
+                    run_dir=paths["run_dir"],
+                    contract_path=paths["contract"],
+                    expected_rows=2,
+                )
+
+    def test_full_training_verifier_rejects_wrong_derived_schedule(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = self._full_arm_fixture(Path(directory), "gold")
+            summary = json.loads(paths["summary"].read_text())
+            summary["planned_optimizer_steps"] = 20
+            summary["warmup_steps"] = 2
+            _write_json(paths["summary"], summary)
+
+            with self.assertRaisesRegex(ValueError, "planned_optimizer_steps"):
+                verify_full_training(
+                    arm="gold",
+                    target_path=paths["target"],
+                    validation_path=paths["validation"],
+                    run_dir=paths["run_dir"],
+                    contract_path=paths["contract"],
+                    expected_rows=2,
+                )
+
+    def test_full_training_verifier_rejects_summary_checkpoint_manifest_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = self._full_arm_fixture(Path(directory), "gold")
+            summary = json.loads(paths["summary"].read_text())
+            summary["checkpoint_manifest"]["files"][0]["sha256"] = "0" * 64
+            _write_json(paths["summary"], summary)
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "training summary checkpoint manifest differs from persisted manifest",
+            ):
+                verify_full_training(
+                    arm="gold",
+                    target_path=paths["target"],
+                    validation_path=paths["validation"],
+                    run_dir=paths["run_dir"],
+                    contract_path=paths["contract"],
+                    expected_rows=2,
+                )
+
+    def test_full_arm_verifier_rejects_duplicate_predictions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = self._full_arm_fixture(Path(directory), "gold")
+            predictions_path = paths["run_dir"] / "validation.predictions.jsonl"
+            predictions = [json.loads(line) for line in predictions_path.read_text().splitlines()]
+            predictions[1]["pair_id"] = predictions[0]["pair_id"]
+            _write_jsonl(predictions_path, predictions)
+
+            with self.assertRaisesRegex(ValueError, "incomplete or out of order"):
+                verify_full_arm(
+                    arm="gold",
+                    target_path=paths["target"],
+                    validation_path=paths["validation"],
+                    run_dir=paths["run_dir"],
+                    contract_path=paths["contract"],
+                    completion_path=paths["completion"],
+                    expected_rows=2,
+                    write_completion=True,
+                )
+
+    def test_full_arm_verifier_rejects_invalid_checkpoint_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = self._full_arm_fixture(Path(directory), "gold")
+            checkpoint = paths["run_dir"] / "best_model" / "model.safetensors"
+            checkpoint.write_bytes(b"corrupt")
+
+            with self.assertRaisesRegex(ValueError, "Checkpoint size mismatch"):
+                verify_full_arm(
+                    arm="gold",
+                    target_path=paths["target"],
+                    validation_path=paths["validation"],
+                    run_dir=paths["run_dir"],
+                    contract_path=paths["contract"],
+                    completion_path=paths["completion"],
+                    expected_rows=2,
+                    write_completion=True,
+                )
+
+    def test_runner_classifies_recoverable_and_partial_states_without_gpu(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "arm"
+
+            def state() -> str:
+                result = subprocess.run(
+                    [
+                        "bash",
+                        "-c",
+                        f'source "{RUNNER}"; arm_state "{root}"',
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                return result.stdout.strip()
+
+            self.assertEqual(state(), "empty")
+            (root / "run").mkdir(parents=True)
+            self.assertEqual(state(), "partial")
+            _write_json(root / "run" / "training_summary.json", {})
+            _write_json(root / "run" / "checkpoint_manifest.json", {})
+            self.assertEqual(state(), "trained")
+            _write_json(root / "completion.json", {})
+            self.assertEqual(state(), "complete")
+
+    def test_runner_refuses_partial_evaluation_temporary_files_without_gpu(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            run_dir.mkdir()
+
+            def state() -> str:
+                result = subprocess.run(
+                    [
+                        "bash",
+                        "-c",
+                        f'source "{RUNNER}"; evaluation_state "{run_dir}"',
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                return result.stdout.strip()
+
+            self.assertEqual(state(), "empty")
+            predictions = run_dir / "validation.predictions.jsonl"
+            metrics = run_dir / "validation.metrics.json"
+            predictions.with_suffix(predictions.suffix + ".tmp").write_text(
+                "partial\n", encoding="utf-8"
+            )
+            self.assertEqual(state(), "partial")
+            predictions.with_suffix(predictions.suffix + ".tmp").unlink()
+            predictions.write_text("complete\n", encoding="utf-8")
+            self.assertEqual(state(), "partial")
+            metrics.write_text("{}\n", encoding="utf-8")
+            self.assertEqual(state(), "complete")
+            metrics.with_suffix(metrics.suffix + ".tmp").write_text(
+                "partial\n", encoding="utf-8"
+            )
+            self.assertEqual(state(), "partial")
+
+    def test_archive_member_check_rejects_stale_self_consistent_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            current = source / "completion.json"
+            current.write_text('{"version":1}\n', encoding="utf-8")
+            archive = root / "arm.tar.gz"
+            subprocess.run(
+                ["tar", "-C", str(source), "-czf", str(archive), "completion.json"],
+                check=True,
+            )
+            matching = subprocess.run(
+                ["bash", "-c", f'source "{RUNNER}"; verify_archive_member "{archive}" completion.json "{current}"'],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(matching.returncode, 0)
+
+            current.write_text('{"version":2}\n', encoding="utf-8")
+            stale = subprocess.run(
+                ["bash", "-c", f'source "{RUNNER}"; verify_archive_member "{archive}" completion.json "{current}"'],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(stale.returncode, 0)
+            self.assertIn("does not match current verified results", stale.stderr)
 
     def test_full_experiment_verifier_rejects_runtime_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

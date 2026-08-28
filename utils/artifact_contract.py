@@ -87,6 +87,44 @@ def validate_contract(path: Path, expected: dict[str, Any]) -> list[str]:
     return contract_differences(expected, actual)
 
 
+def validate_recorded_contract(path: Path) -> dict[str, Any]:
+    """Validate the shape and current file hashes recorded by a persisted contract."""
+    try:
+        contract = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError(f"Artifact contract is missing: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Artifact contract is invalid JSON: {path}") from exc
+    if not isinstance(contract, dict) or contract.get("schema_version") != CONTRACT_SCHEMA_VERSION:
+        raise ValueError(f"Artifact contract schema is invalid: {path}")
+    fields = contract.get("fields")
+    files = contract.get("files")
+    if not isinstance(fields, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in fields.items()
+    ):
+        raise ValueError(f"Artifact contract fields are invalid: {path}")
+    if not isinstance(files, dict) or not files:
+        raise ValueError(f"Artifact contract files are invalid: {path}")
+    for key, entry in files.items():
+        if not isinstance(key, str) or not isinstance(entry, dict):
+            raise ValueError(f"Artifact contract file entry is invalid: {key!r}")
+        recorded_path = entry.get("path")
+        recorded_sha256 = entry.get("sha256")
+        if not isinstance(recorded_path, str) or not isinstance(recorded_sha256, str):
+            raise ValueError(f"Artifact contract file entry is invalid: {key}")
+        current_path = Path(recorded_path)
+        try:
+            current_sha256 = sha256_file(current_path)
+        except FileNotFoundError as exc:
+            raise ValueError(
+                f"Artifact contract file is missing: {key}={current_path}"
+            ) from exc
+        if current_sha256 != recorded_sha256:
+            raise ValueError(f"Artifact contract file hash mismatch: {key}")
+    return contract
+
+
 def read_contract_fields(path: Path, names: Sequence[str]) -> list[str]:
     try:
         contract = json.loads(path.read_text(encoding="utf-8"))

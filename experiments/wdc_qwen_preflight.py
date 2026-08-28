@@ -15,6 +15,7 @@ from models.classification_student import target_label
 from models.seq2seq_student import load_target_rows
 from models.student_config import StudentConfig, load_student_config
 from utils.checkpoint_manifest import validate_checkpoint_manifest
+from utils.artifact_contract import validate_recorded_contract
 from utils.metrics import compute_metrics
 from utils.torch_runtime import runtime_identity
 
@@ -29,6 +30,34 @@ EXPECTED_RERANKER_INSTRUCTION = (
     "Determine whether Record A and Record B describe the same real-world product. "
     "Answer yes only when they refer to the same product."
 )
+FULL_BATCH_SIZE = 1
+FULL_VALIDATION_BATCH_SIZE = 1
+FULL_GRADIENT_ACCUMULATION_STEPS = 16
+FULL_NUM_EPOCHS = 10
+FULL_LEARNING_RATE = 2e-4
+FULL_WEIGHT_DECAY = 0.01
+FULL_WARMUP_RATIO = 0.10
+FULL_MAX_INPUT_LENGTH = 4096
+FULL_EARLY_STOPPING_PATIENCE = 3
+
+FULL_CONTRACT_FILE_KEYS = {
+    "training_contract",
+    "student_config",
+    "train_target",
+    "validation",
+    "preflight_contract",
+    "runtime_identity",
+    "input_length_audit",
+    "runner",
+    "preflight",
+    "trainer",
+    "trainer_core",
+    "evaluator",
+    "checkpoint_manifest",
+    "classification_threshold",
+    "metrics",
+    "artifact_contract_impl",
+}
 
 
 def _atomic_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -323,6 +352,165 @@ def _same_number(left: Any, right: Any) -> bool:
         return False
 
 
+def _verify_full_arm_contract(
+    contract_path: Path,
+    arm: str,
+    target_path: Path,
+    validation_path: Path,
+    expected_planned_steps: int,
+    expected_warmup_steps: int,
+) -> dict[str, Any]:
+    contract = validate_recorded_contract(contract_path)
+    expected_fields = {
+        "stage": "wdc_qwen_full_validation",
+        "dataset_id": EXPECTED_DATASET_ID,
+        "student_id": EXPECTED_STUDENT_ID,
+        "arm": arm,
+        "optimizer": "AdamW",
+        "learning_rate": "2e-4",
+        "weight_decay": "0.01",
+        "schedule": "linear",
+        "warmup_ratio": "0.10",
+        "warmup_steps": str(expected_warmup_steps),
+        "planned_optimizer_steps": str(expected_planned_steps),
+        "batch_size": "1",
+        "gradient_accumulation_steps": "16",
+        "num_epochs": "10",
+        "early_stopping_patience": "3",
+        "max_input_length": "4096",
+        "input_truncation": "false",
+        "validation_batch_size": "1",
+        "evaluation_batch_size": "1",
+        "precision": "auto",
+        "checkpoint_metric": "validation_macro_f1",
+        "test_scope": "locked",
+    }
+    fields = contract["fields"]
+    differences = [
+        key for key, expected in expected_fields.items()
+        if fields.get(key) != expected
+    ]
+    git_commit = fields.get("git_commit")
+    if not isinstance(git_commit, str) or len(git_commit) != 40:
+        differences.append("git_commit")
+    files = contract["files"]
+    missing_files = sorted(FULL_CONTRACT_FILE_KEYS - set(files))
+    if missing_files:
+        differences.extend(f"files.{key}" for key in missing_files)
+    for key, expected_path in (
+        ("train_target", target_path),
+        ("validation", validation_path),
+    ):
+        entry = files.get(key)
+        if not isinstance(entry, dict) or Path(str(entry.get("path"))).resolve() != expected_path.resolve():
+            differences.append(f"files.{key}.path")
+    if differences:
+        raise ValueError(
+            f"{arm} artifact contract differs from frozen full-run inputs/settings: "
+            + ", ".join(sorted(set(differences)))
+        )
+    return contract
+
+
+def verify_full_training(
+    *,
+    arm: str,
+    target_path: Path,
+    validation_path: Path,
+    run_dir: Path,
+    contract_path: Path,
+    expected_rows: int = EXPECTED_VALIDATION_ROWS,
+) -> dict[str, Any]:
+    """Verify a completed training/checkpoint stage before evaluation recovery."""
+    if arm not in {"gold", "llm_hard"}:
+        raise ValueError(f"Unsupported WDC training arm: {arm}")
+    target_rows = load_target_rows(target_path)
+    validation_rows = load_target_rows(validation_path)
+    if len(target_rows) != expected_rows or len(validation_rows) != expected_rows:
+        raise ValueError(
+            f"{arm} requires {expected_rows} train and validation rows; found "
+            f"{len(target_rows)} and {len(validation_rows)}"
+        )
+
+    optimizer_steps_per_epoch = math.ceil(
+        expected_rows / (FULL_BATCH_SIZE * FULL_GRADIENT_ACCUMULATION_STEPS)
+    )
+    expected_planned_steps = optimizer_steps_per_epoch * FULL_NUM_EPOCHS
+    expected_warmup_steps = math.ceil(expected_planned_steps * FULL_WARMUP_RATIO)
+    _verify_full_arm_contract(
+        contract_path,
+        arm,
+        target_path,
+        validation_path,
+        expected_planned_steps,
+        expected_warmup_steps,
+    )
+
+    summary = _read_json(run_dir / "training_summary.json")
+    checkpoint_manifest = validate_checkpoint_manifest(run_dir)
+    if summary.get("checkpoint_manifest") != checkpoint_manifest:
+        raise ValueError(
+            f"{arm} training summary checkpoint manifest differs from persisted manifest"
+        )
+    expected_summary = {
+        "student_id": EXPECTED_STUDENT_ID,
+        "model_name": EXPECTED_MODEL_NAME,
+        "train_rows": expected_rows,
+        "validation_rows": expected_rows,
+        "batch_size": FULL_BATCH_SIZE,
+        "gradient_accumulation_steps": FULL_GRADIENT_ACCUMULATION_STEPS,
+        "validation_batch_size": FULL_VALIDATION_BATCH_SIZE,
+        "num_epochs": FULL_NUM_EPOCHS,
+        "learning_rate": FULL_LEARNING_RATE,
+        "weight_decay": FULL_WEIGHT_DECAY,
+        "warmup_steps_requested": 0,
+        "warmup_ratio": FULL_WARMUP_RATIO,
+        "warmup_steps": expected_warmup_steps,
+        "planned_optimizer_steps": expected_planned_steps,
+        "max_input_length": FULL_MAX_INPUT_LENGTH,
+        "input_truncation": False,
+        "early_stopping_patience": FULL_EARLY_STOPPING_PATIENCE,
+        "checkpoint_metric": "macro_f1",
+    }
+    differences = [
+        field for field, expected in expected_summary.items()
+        if summary.get(field) != expected
+    ]
+    if differences:
+        raise ValueError(
+            f"{arm} training summary differs from frozen full-run settings: "
+            + ", ".join(differences)
+        )
+    if Path(str(summary.get("train_targets"))).resolve() != target_path.resolve():
+        raise ValueError(f"{arm} training summary points to the wrong target")
+    if Path(str(summary.get("validation_targets"))).resolve() != validation_path.resolve():
+        raise ValueError(f"{arm} training summary points to the wrong validation file")
+    if "3090" not in str(summary.get("cuda_device_name", "")):
+        raise ValueError(f"{arm} did not record an RTX 3090 training device")
+
+    history = summary.get("history")
+    if not isinstance(history, dict) or not isinstance(history.get("train_loss"), list):
+        raise ValueError(f"{arm} training history is missing")
+    completed_epochs = summary.get("completed_epochs")
+    if completed_epochs != len(history["train_loss"]) or not 1 <= completed_epochs <= FULL_NUM_EPOCHS:
+        raise ValueError(f"{arm} completed epoch count is invalid")
+    expected_actual_steps = optimizer_steps_per_epoch * completed_epochs
+    if summary.get("optimizer_steps") != expected_actual_steps:
+        raise ValueError(
+            f"{arm} optimizer steps differ from completed epochs: "
+            f"{summary.get('optimizer_steps')} != {expected_actual_steps}"
+        )
+    for series_name in ("train_loss", "val_loss", "val_macro_f1", "val_same_f1"):
+        series = history.get(series_name)
+        if not isinstance(series, list) or len(series) != completed_epochs:
+            raise ValueError(f"{arm} history series {series_name!r} is incomplete")
+        for index, value in enumerate(series, start=1):
+            _finite_number(value, f"history.{series_name}[{index}]")
+    _finite_number(summary.get("training_wall_seconds"), "training_wall_seconds")
+    _finite_number(summary.get("training_action_wall_seconds"), "training_action_wall_seconds")
+    return summary
+
+
 def verify_full_arm(
     *,
     arm: str,
@@ -335,18 +523,15 @@ def verify_full_arm(
     write_completion: bool = False,
 ) -> dict[str, Any]:
     """Verify one completed full-training arm without loading a model."""
-    if arm not in {"gold", "llm_hard"}:
-        raise ValueError(f"Unsupported WDC training arm: {arm}")
-    if not contract_path.is_file():
-        raise ValueError(f"Arm artifact contract is missing: {contract_path}")
-
-    target_rows = load_target_rows(target_path)
+    summary = verify_full_training(
+        arm=arm,
+        target_path=target_path,
+        validation_path=validation_path,
+        run_dir=run_dir,
+        contract_path=contract_path,
+        expected_rows=expected_rows,
+    )
     validation_rows = load_target_rows(validation_path)
-    if len(target_rows) != expected_rows or len(validation_rows) != expected_rows:
-        raise ValueError(
-            f"{arm} requires {expected_rows} train and validation rows; found "
-            f"{len(target_rows)} and {len(validation_rows)}"
-        )
     expected_ids = [row["pair_id"] for row in validation_rows]
     if len(set(expected_ids)) != expected_rows:
         raise ValueError("Validation pair IDs are not unique")
@@ -357,47 +542,11 @@ def verify_full_arm(
     threshold_path = run_dir / "decision_threshold.json"
     merged_threshold_path = run_dir / "best_model" / "decision_threshold.json"
     checkpoint_manifest_path = run_dir / "checkpoint_manifest.json"
-    summary = _read_json(summary_path)
     metrics = _read_json(metrics_path)
     threshold = _read_json(threshold_path)
     merged_threshold = _read_json(merged_threshold_path)
-    validate_checkpoint_manifest(run_dir)
-
-    if summary.get("student_id") != EXPECTED_STUDENT_ID:
-        raise ValueError(f"{arm} training summary has the wrong student")
-    if Path(str(summary.get("train_targets"))).resolve() != target_path.resolve():
-        raise ValueError(f"{arm} training summary points to the wrong target")
-    if Path(str(summary.get("validation_targets"))).resolve() != validation_path.resolve():
-        raise ValueError(f"{arm} training summary points to the wrong validation file")
-    if summary.get("train_rows") != expected_rows or summary.get("validation_rows") != expected_rows:
-        raise ValueError(f"{arm} training summary row counts are invalid")
-    if summary.get("checkpoint_metric") != "macro_f1":
-        raise ValueError(f"{arm} used the wrong checkpoint metric")
-    if summary.get("warmup_ratio") != 0.10:
-        raise ValueError(f"{arm} used the wrong full-run warmup ratio")
-    if "3090" not in str(summary.get("cuda_device_name", "")):
-        raise ValueError(f"{arm} did not record an RTX 3090 training device")
-
-    history = summary.get("history")
-    if not isinstance(history, dict) or not isinstance(history.get("train_loss"), list):
-        raise ValueError(f"{arm} training history is missing")
     completed_epochs = summary.get("completed_epochs")
-    if completed_epochs != len(history["train_loss"]) or not 1 <= completed_epochs <= 10:
-        raise ValueError(f"{arm} completed epoch count is invalid")
     optimizer_steps = summary.get("optimizer_steps")
-    planned_steps = summary.get("planned_optimizer_steps")
-    if not isinstance(optimizer_steps, int) or not isinstance(planned_steps, int):
-        raise ValueError(f"{arm} optimizer step counts are missing")
-    if not 1 <= optimizer_steps <= planned_steps:
-        raise ValueError(f"{arm} optimizer step counts are invalid")
-    for series_name in ("train_loss", "val_loss", "val_macro_f1", "val_same_f1"):
-        series = history.get(series_name)
-        if not isinstance(series, list) or len(series) != completed_epochs:
-            raise ValueError(f"{arm} history series {series_name!r} is incomplete")
-        for index, value in enumerate(series, start=1):
-            _finite_number(value, f"history.{series_name}[{index}]")
-    _finite_number(summary.get("training_wall_seconds"), "training_wall_seconds")
-    _finite_number(summary.get("training_action_wall_seconds"), "training_action_wall_seconds")
 
     predictions = _read_jsonl(predictions_path)
     prediction_ids = [row.get("pair_id") for row in predictions]
@@ -511,7 +660,10 @@ def verify_full_experiment(
         "num_epochs",
         "learning_rate",
         "weight_decay",
+        "warmup_steps_requested",
         "warmup_ratio",
+        "warmup_steps",
+        "planned_optimizer_steps",
         "max_input_length",
         "early_stopping_patience",
         "checkpoint_metric",
@@ -571,6 +723,16 @@ def main() -> None:
     verify_arm_parser.add_argument("--expected-rows", type=int, default=EXPECTED_VALIDATION_ROWS)
     verify_arm_parser.add_argument("--write-completion", action="store_true")
 
+    verify_training_parser = subparsers.add_parser("verify-training")
+    verify_training_parser.add_argument("--arm", choices=("gold", "llm_hard"), required=True)
+    verify_training_parser.add_argument("--target", type=Path, required=True)
+    verify_training_parser.add_argument("--validation", type=Path, required=True)
+    verify_training_parser.add_argument("--run-dir", type=Path, required=True)
+    verify_training_parser.add_argument("--contract", type=Path, required=True)
+    verify_training_parser.add_argument(
+        "--expected-rows", type=int, default=EXPECTED_VALIDATION_ROWS
+    )
+
     verify_experiment_parser = subparsers.add_parser("verify-experiment")
     verify_experiment_parser.add_argument("--gold-completion", type=Path, required=True)
     verify_experiment_parser.add_argument("--llm-hard-completion", type=Path, required=True)
@@ -608,6 +770,15 @@ def main() -> None:
             completion_path=args.completion,
             expected_rows=args.expected_rows,
             write_completion=args.write_completion,
+        )
+    elif args.command == "verify-training":
+        payload = verify_full_training(
+            arm=args.arm,
+            target_path=args.target,
+            validation_path=args.validation,
+            run_dir=args.run_dir,
+            contract_path=args.contract,
+            expected_rows=args.expected_rows,
         )
     else:
         payload = verify_full_experiment(

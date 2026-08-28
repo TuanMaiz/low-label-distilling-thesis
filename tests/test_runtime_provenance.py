@@ -1,18 +1,32 @@
 import json
 import tempfile
 import unittest
+from importlib import metadata
 from pathlib import Path
 from unittest.mock import patch
 
 from models.student_config import load_student_config
 from utils.runtime_provenance import (
     create_resolved_student_snapshot,
+    installed_package_versions,
     refresh_runtime_provenance,
     source_matches_snapshot,
 )
 
 
 class RuntimeProvenanceTest(unittest.TestCase):
+    def test_installed_versions_track_torchao_or_its_absence(self):
+        def version(package):
+            if package == "torchao":
+                raise metadata.PackageNotFoundError
+            return f"version-for-{package}"
+
+        with patch("utils.runtime_provenance.importlib.metadata.version", version):
+            versions = installed_package_versions()
+
+        self.assertEqual(versions["torchao"], "not-installed")
+        self.assertEqual(versions["peft"], "version-for-peft")
+
     def test_fresh_snapshot_resolves_and_persists_immutable_model_revision(self):
         source_payload = {
             "student_id": "tiny-student",

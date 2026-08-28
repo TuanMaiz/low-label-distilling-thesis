@@ -81,6 +81,16 @@ verify_checksum() {
   (cd "${directory}" && run_cmd sha256sum -c "${filename}")
 }
 
+verify_archive_member() {
+  local archive="$1"
+  local member="$2"
+  local current="$3"
+  if ! tar -xOf "${archive}" "${member}" | cmp -s - "${current}"; then
+    echo "Archive member ${member} does not match current verified results: ${archive}" >&2
+    exit 1
+  fi
+}
+
 require_clean_committed_inputs() {
   if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "Tracked files differ from the checked-out commit; commit or restore them before full training." >&2
@@ -124,6 +134,8 @@ write_or_check_preflight_contract() {
     --field "weight_decay=0.01"
     --field "schedule=linear"
     --field "warmup_ratio=0.10"
+    --field "warmup_steps=157"
+    --field "planned_optimizer_steps=1570"
     --field "batch_size=1"
     --field "gradient_accumulation_steps=16"
     --field "num_epochs=10"
@@ -281,6 +293,7 @@ verify_arm() {
   local verify_args=()
   target="$(arm_target "${arm}")"
   root="$(arm_root "${arm}")"
+  write_or_check_arm_contract "${arm}" "${target}" "${root}" check
   if [[ "${write_completion}" == "--write-completion" ]]; then
     verify_args+=(--write-completion)
   fi
@@ -298,6 +311,7 @@ write_or_check_arm_contract() {
   local arm="$1"
   local target="$2"
   local root="$3"
+  local mode="${4:-check}"
   local commit
   commit="$(git rev-parse HEAD)"
   local contract_args=(
@@ -311,6 +325,8 @@ write_or_check_arm_contract() {
     --field "weight_decay=0.01"
     --field "schedule=linear"
     --field "warmup_ratio=0.10"
+    --field "warmup_steps=157"
+    --field "planned_optimizer_steps=1570"
     --field "batch_size=1"
     --field "gradient_accumulation_steps=16"
     --field "num_epochs=10"
@@ -343,10 +359,79 @@ write_or_check_arm_contract() {
   if [[ -f "${root}/artifact-contract.json" ]]; then
     run_cmd "${PYTHON}" -m utils.artifact_contract check \
       --path "${root}/artifact-contract.json" "${contract_args[@]}"
-  else
+  elif [[ "${mode}" == "write" ]]; then
     run_cmd "${PYTHON}" -m utils.artifact_contract write \
       --path "${root}/artifact-contract.json" "${contract_args[@]}"
+  else
+    echo "Arm artifact contract is missing: ${root}/artifact-contract.json" >&2
+    exit 1
   fi
+}
+
+verify_training_arm() {
+  local arm="$1"
+  local target
+  local root
+  target="$(arm_target "${arm}")"
+  root="$(arm_root "${arm}")"
+  write_or_check_arm_contract "${arm}" "${target}" "${root}" check
+  run_cmd "${PYTHON}" -m experiments.wdc_qwen_preflight verify-training \
+    --arm "${arm}" \
+    --target "${target}" \
+    --validation "${VALIDATION}" \
+    --run-dir "${root}/run" \
+    --contract "${root}/artifact-contract.json"
+}
+
+arm_state() {
+  local root="$1"
+  if [[ -f "${root}/completion.json" ]]; then
+    printf '%s\n' complete
+  elif [[ ! -e "${root}/run" ]]; then
+    printf '%s\n' empty
+  elif [[ -f "${root}/run/training_summary.json" \
+      && -f "${root}/run/checkpoint_manifest.json" ]]; then
+    printf '%s\n' trained
+  else
+    printf '%s\n' partial
+  fi
+}
+
+evaluation_state() {
+  local run_dir="$1"
+  local predictions="${run_dir}/validation.predictions.jsonl"
+  local metrics="${run_dir}/validation.metrics.json"
+  if [[ -e "${predictions}.tmp" || -e "${metrics}.tmp" ]]; then
+    printf '%s\n' partial
+  elif [[ -f "${predictions}" && -f "${metrics}" ]]; then
+    printf '%s\n' complete
+  elif [[ ! -e "${predictions}" && ! -e "${metrics}" ]]; then
+    printf '%s\n' empty
+  else
+    printf '%s\n' partial
+  fi
+}
+
+evaluate_arm() {
+  local arm="$1"
+  local root
+  local run_dir
+  root="$(arm_root "${arm}")"
+  run_dir="${root}/run"
+  run_cmd "${PYTHON}" -m experiments.evaluate_student \
+    --student-config "${STUDENT_CONFIG}" \
+    --checkpoint "${run_dir}/best_model" \
+    --input "${VALIDATION}" \
+    --predictions "${run_dir}/validation.predictions.jsonl" \
+    --metrics "${run_dir}/validation.metrics.json" \
+    --variant "${arm}" \
+    --budget full \
+    --split validation \
+    --batch-size 1 \
+    --max-input-length 4096 \
+    --precision auto \
+    --device cuda
+  verify_arm "${arm}" --write-completion
 }
 
 train_arm() {
@@ -363,26 +448,49 @@ train_arm() {
   local target
   local root
   local run_dir
+  local state
   target="$(arm_target "${arm}")"
   root="$(arm_root "${arm}")"
   run_dir="${root}/run"
-  if [[ -f "${root}/completion.json" ]]; then
-    verify_arm "${arm}"
-    echo "Existing completed ${arm} arm verified; nothing to rerun."
-    return
-  fi
-  if [[ -e "${run_dir}" ]]; then
-    echo "Incomplete ${arm} output requires inspection before restart: ${run_dir}" >&2
-    exit 1
-  fi
+  state="$(arm_state "${root}")"
   if [[ "${arm}" == "llm_hard" ]]; then
     verify_arm gold
     require_file "${OUTPUT_ROOT}/gold.tar.gz"
     require_file "${OUTPUT_ROOT}/gold.tar.gz.sha256"
     verify_checksum "${OUTPUT_ROOT}/gold.tar.gz.sha256"
+    verify_archive_member \
+      "${OUTPUT_ROOT}/gold.tar.gz" completion.json \
+      "${OUTPUT_ROOT}/gold/completion.json"
   fi
 
-  write_or_check_arm_contract "${arm}" "${target}" "${root}"
+  if [[ "${state}" == "complete" ]]; then
+    verify_arm "${arm}"
+    echo "Existing completed ${arm} arm verified; nothing to rerun."
+    return
+  fi
+  if [[ "${state}" == "partial" ]]; then
+    echo "Incomplete ${arm} output requires inspection before restart: ${run_dir}" >&2
+    exit 1
+  fi
+  if [[ "${state}" == "trained" ]]; then
+    verify_training_arm "${arm}"
+    case "$(evaluation_state "${run_dir}")" in
+      complete)
+        verify_arm "${arm}" --write-completion
+        ;;
+      empty)
+        evaluate_arm "${arm}"
+        ;;
+      partial)
+        echo "Partial ${arm} evaluation output requires inspection: ${run_dir}" >&2
+        exit 1
+        ;;
+    esac
+    echo "Recovered and verified completed ${arm} training without retraining."
+    return
+  fi
+
+  write_or_check_arm_contract "${arm}" "${target}" "${root}" write
   run_cmd "${PYTHON}" -m experiments.train_student \
     --student-config "${STUDENT_CONFIG}" \
     --train-targets "${target}" \
@@ -399,21 +507,8 @@ train_arm() {
     --gradient-accumulation-steps 16 \
     --precision auto \
     --device cuda
-  run_cmd "${PYTHON}" -m utils.checkpoint_manifest check --output-dir "${run_dir}"
-  run_cmd "${PYTHON}" -m experiments.evaluate_student \
-    --student-config "${STUDENT_CONFIG}" \
-    --checkpoint "${run_dir}/best_model" \
-    --input "${VALIDATION}" \
-    --predictions "${run_dir}/validation.predictions.jsonl" \
-    --metrics "${run_dir}/validation.metrics.json" \
-    --variant "${arm}" \
-    --budget full \
-    --split validation \
-    --batch-size 1 \
-    --max-input-length 4096 \
-    --precision auto \
-    --device cuda
-  verify_arm "${arm}" --write-completion
+  verify_training_arm "${arm}"
+  evaluate_arm "${arm}"
   echo "WDC–Qwen ${arm} full-validation arm passed."
 }
 
@@ -428,6 +523,7 @@ package_arm() {
     require_file "${archive}"
     require_file "${checksum}"
     verify_checksum "${checksum}"
+    verify_archive_member "${archive}" completion.json "${root}/completion.json"
     echo "Existing ${arm} package verified; nothing to rebuild."
     return
   fi
@@ -435,6 +531,7 @@ package_arm() {
     artifact-contract.json completion.json run
   write_checksum "${archive}"
   verify_checksum "${checksum}"
+  verify_archive_member "${archive}" completion.json "${root}/completion.json"
   echo "Packaged ${arm} results at ${archive}."
 }
 
@@ -460,6 +557,12 @@ package_results() {
     require_file "${archive}"
     require_file "${checksum}"
     verify_checksum "${checksum}"
+    verify_archive_member \
+      "${archive}" full-experiment-manifest.json "${FULL_EXPERIMENT_MANIFEST}"
+    verify_archive_member \
+      "${archive}" gold/completion.json "${OUTPUT_ROOT}/gold/completion.json"
+    verify_archive_member \
+      "${archive}" llm_hard/completion.json "${OUTPUT_ROOT}/llm_hard/completion.json"
     echo "Existing full result package verified; nothing to rebuild."
     return
   fi
@@ -468,9 +571,16 @@ package_results() {
     gold.tar.gz.sha256 llm_hard.tar.gz llm_hard.tar.gz.sha256
   write_checksum "${archive}"
   verify_checksum "${checksum}"
+  verify_archive_member \
+    "${archive}" full-experiment-manifest.json "${FULL_EXPERIMENT_MANIFEST}"
+  verify_archive_member \
+    "${archive}" gold/completion.json "${OUTPUT_ROOT}/gold/completion.json"
+  verify_archive_member \
+    "${archive}" llm_hard/completion.json "${OUTPUT_ROOT}/llm_hard/completion.json"
   echo "Packaged complete WDC–Qwen comparison at ${archive}."
 }
 
+main() {
 case "${1:-}" in
   setup)
     setup_runtime
@@ -501,3 +611,8 @@ case "${1:-}" in
     exit 2
     ;;
 esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
