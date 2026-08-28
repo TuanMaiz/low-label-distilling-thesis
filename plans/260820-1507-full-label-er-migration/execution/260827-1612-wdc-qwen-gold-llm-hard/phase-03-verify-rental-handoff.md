@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Verify Implementation and Rental Handoff"
-status: pending
+status: in_progress
 priority: P1
 effort: "3-5h"
 dependencies: [2]
@@ -66,16 +66,29 @@ git diff --check
 
 ## Todo List
 
-- [ ] Focused and full tests pass.
-- [ ] Static test/LLM/publication-validator boundaries pass.
-- [ ] Contract and guidance documentation are consistent.
+- [x] Focused and full tests pass.
+- [x] Static test/LLM/publication-validator boundaries pass.
+- [x] Contract and guidance documentation are consistent.
 - [ ] Rental command handoff points to one pushed commit.
 
 ## Success Criteria
 
-- [ ] Implementation can be reviewed without starting training.
+- [x] Implementation can be reviewed without starting training.
 - [ ] No unrelated dirty-worktree changes enter the implementation commit.
-- [ ] Rental setup is deterministic and fails on non-3090 hardware by default.
+- [x] Rental setup is deterministic and fails on non-3090 hardware by default.
+
+## CPU Verification Record
+
+Verified on 2026-08-28 without CUDA, model loading, GPU training, official
+full-validation prediction, test access, or paid API calls:
+
+- Shell syntax: passed.
+- Focused WDC–Qwen suite: 21/21 passed.
+- Full repository suite: 132/132 passed.
+- Labeler-screening suite: 12/12 passed.
+- `git diff --check`: passed.
+- Recovery regressions cover partial evaluation temporary files and mismatch
+  between the training summary and persisted checkpoint manifest.
 
 ## Risk Assessment
 
@@ -89,5 +102,5 @@ non-secret path/runtime overrides; no API keys are required.
 
 ## Next Steps
 
-Start Phase 4 only after the implementation commit is pushed and explicitly
-approved for full training.
+Commit and push the reviewed implementation and documentation, then use that
+exact revision for the rented RTX-3090 checkout. Phase 4 remains pending.

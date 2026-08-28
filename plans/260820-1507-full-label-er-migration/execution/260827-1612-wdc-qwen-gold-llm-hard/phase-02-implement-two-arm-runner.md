@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Implement Fail-Closed Two-Arm Runner"
-status: pending
+status: completed
 priority: P1
 effort: "6-10h"
 dependencies: [1]
@@ -80,7 +80,7 @@ Only selected target path, `variant`, and output root differ between arms.
 - Modify: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_phase05_runtime.py`
 - Create: `/mnt/d/study/cao-hoc/luan-van/code/tests/test_wdc_target_alignment.py`
 - Reuse unchanged: `/mnt/d/study/cao-hoc/luan-van/code/experiments/evaluate_student.py`
-- Reuse unchanged: `/mnt/d/study/cao-hoc/luan-van/code/utils/artifact_contract.py`
+- Modify: `/mnt/d/study/cao-hoc/luan-van/code/utils/artifact_contract.py`
 - Reuse unchanged: `/mnt/d/study/cao-hoc/luan-van/code/utils/checkpoint_manifest.py`
 
 ## Tests Before
@@ -123,19 +123,19 @@ Only selected target path, `variant`, and output root differ between arms.
 ## Todo List
 
 - [ ] Tests fail before new behavior exists.
-- [ ] Gold and `llm_hard` actions share one implementation path.
+- [x] Gold and `llm_hard` actions share one implementation path.
 - [x] The small alignment script passes on the committed targets.
-- [ ] Full settings and provenance are bound per arm.
-- [ ] Result verifier covers IDs, probabilities, metrics, and checkpoint files.
-- [ ] No test, LLM, or publication-upstream dependency enters the runner.
+- [x] Full settings and provenance are bound per arm.
+- [x] Result verifier covers IDs, probabilities, metrics, and checkpoint files.
+- [x] No test, LLM, or publication-upstream dependency enters the runner.
 
 ## Success Criteria
 
-- [ ] Gold maps only to `gold.jsonl`; `llm_hard` maps only to `llm_hard.jsonl`.
-- [ ] Both resolve the same precision, planned schedule, warmup, and runtime
+- [x] Gold maps only to `gold.jsonl`; `llm_hard` maps only to `llm_hard.jsonl`.
+- [x] Both resolve the same precision, planned schedule, warmup, and runtime
   properties; actual steps may differ only through early stopping.
-- [ ] No silent overwrite, mid-epoch resume, hyperparameter change, or CPU fallback.
-- [ ] Complete outputs verify idempotently; corruption fails closed.
+- [x] No silent overwrite, mid-epoch resume, hyperparameter change, or CPU fallback.
+- [x] Complete outputs verify idempotently; corruption fails closed.
 
 ## Risk Assessment
 
@@ -151,4 +151,5 @@ package `.env`, ignored upstream caches, or unrelated outputs.
 
 ## Next Steps
 
-Proceed to Phase 3 after focused and full local tests pass.
+Phase 2 is complete. Phase 3 records the passing CPU-side verification and
+prepares the exact pushed revision for the rented GPU.

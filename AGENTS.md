@@ -81,18 +81,24 @@ favor completing the frozen plan.
   official training pairs and validate against their upstream evidence.
 - WDC target alignment check passed: `gold` and `llm_hard` each contain 2,500
   unique training pairs with identical ordered pair IDs and input text. They
-  have 79 label disagreements. Focused tests passed 5/5 and the full repository
-  suite passed 118/118.
-- The narrow WDC–Qwen training contract authorizes only RTX-3090 setup,
-  preflight, and a tiny balanced LoRA smoke run through
-  `scripts/run_wdc_qwen_vertical_slice.sh`. The old Qwen config and training
-  hyperparameters are frozen; the smoke alone uses zero warmup so its single
-  optimizer step is nonzero. Full two-arm training remains blocked pending
-  smoke review and explicit approval. The smoke predicts only its tiny balanced
-  validation fixture; official full-validation and test predictions are not
-  authorized. Its multi-environment preflight consumes the committed final
-  target files directly and does not invoke publication/upstream validation;
-  the separate publication validator retains full upstream rederivation.
+  have 79 label disagreements.
+- The reviewed T4 smoke authorized the narrow WDC–Qwen experiment to proceed to
+  one full-validation run per arm on a rented RTX 3090, in fixed order `gold`
+  then `llm_hard`. The test split remains locked. The old Qwen config and
+  training hyperparameters are frozen; the smoke alone uses zero warmup while
+  each full arm uses the frozen `0.10` warmup ratio.
+- `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
+  both confirmed full-training actions, result verification, and packaging.
+  CPU-side orchestration and recovery verification passes 21/21 focused tests;
+  the full repository suite passes 132/132 and labeler-screening passes 12/12.
+  Recovery fails closed on partial evaluation files, binds the training summary
+  to the persisted checkpoint manifest, revalidates artifact-contract hashes,
+  and checks packaged members against current verified results. No full GPU arm
+  or official full-validation prediction has been run from this implementation
+  yet; commit/push and fresh RTX-3090 setup/preflight remain before execution.
+- The multi-environment training preflight consumes the committed final target
+  files directly and does not invoke publication/upstream validation; the
+  separate publication validator retains full upstream rederivation.
 - The broader Phase-1 contract remains unfinished. Do not run other paid
   labeling cells, relabel WDC, or make official full-validation/test
   predictions until their checklists and explicit flags are complete.
@@ -118,6 +124,11 @@ PyTorch:
 bash scripts/run_wdc_qwen_vertical_slice.sh setup
 bash scripts/run_wdc_qwen_vertical_slice.sh preflight
 bash scripts/run_wdc_qwen_vertical_slice.sh smoke
+bash scripts/run_wdc_qwen_vertical_slice.sh train-gold --confirm-full-training
+bash scripts/run_wdc_qwen_vertical_slice.sh package-arm gold
+bash scripts/run_wdc_qwen_vertical_slice.sh train-llm-hard --confirm-full-training
+bash scripts/run_wdc_qwen_vertical_slice.sh verify-results
+bash scripts/run_wdc_qwen_vertical_slice.sh package-results
 ```
 
 ## Planned Architecture

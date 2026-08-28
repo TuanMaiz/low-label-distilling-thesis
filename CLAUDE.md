@@ -43,21 +43,29 @@ until the other two dataset target pairs are published.
 
 The WDC target alignment check passed: both arms contain 2,500 unique training
 pairs with identical ordered pair IDs and input text, with 79 label
-disagreements. Focused tests passed 5/5 and the full repository suite passed
-118/118.
+disagreements.
 
-The narrow WDC–Qwen training contract now authorizes only rented-RTX-3090
-setup, preflight, and a tiny balanced LoRA smoke. The executable entry point is
+The reviewed T4 smoke expanded the narrow WDC–Qwen contract to authorize one
+full-validation run per arm on a rented RTX 3090, ordered `gold` then
+`llm_hard`; final-test access remains forbidden. The executable entry point is
 `scripts/run_wdc_qwen_vertical_slice.sh`. It binds the old Qwen configuration,
-inputs, code, input-length audit, resolved precision, GPU, and package versions;
-it makes no LLM calls and never reads the test split. Full gold-versus-LLM
-training and official full-validation/test predictions are not yet authorized.
-The old full-run Qwen hyperparameters remain frozen at their screened values;
+inputs, code, input-length audit, resolved precision, GPU, package versions,
+full-run schedule, and per-arm checkpoint evidence; it makes no LLM calls and
+never reads the test split. The old full-run hyperparameters remain frozen;
 zero warmup applies only to the one-step smoke and does not amend the full-run
-`0.10` warmup ratio. Training preflight consumes the committed final targets
-directly and does not invoke publication validation;
-`supervision.validate_full_label_targets` remains the separate upstream
-rederivation command for the publication environment.
+`0.10` warmup ratio.
+
+CPU-side implementation verification passes 21/21 focused WDC–Qwen tests,
+132/132 repository tests, and 12/12 labeler-screening tests. The recovery path
+rejects partial evaluation files instead of overwriting them, verifies that the
+training summary embeds the persisted checkpoint manifest, rechecks recorded
+contract hashes, and compares archive members with live verified results. No
+full GPU arm or official full-validation prediction has run from this
+implementation yet; commit/push and fresh RTX-3090 setup/preflight remain.
+Training preflight consumes the committed final targets directly and does not
+invoke publication validation; `supervision.validate_full_label_targets`
+remains the separate upstream rederivation command for the publication
+environment.
 
 Legacy writing plan (revise before thesis drafting):
 `plans/260704-distiller-wdc-thesis-writing/plan.md`
@@ -83,13 +91,19 @@ On the rented RTX 3090 with CUDA-compatible PyTorch already installed:
 bash scripts/run_wdc_qwen_vertical_slice.sh setup
 bash scripts/run_wdc_qwen_vertical_slice.sh preflight
 bash scripts/run_wdc_qwen_vertical_slice.sh smoke
+bash scripts/run_wdc_qwen_vertical_slice.sh train-gold --confirm-full-training
+bash scripts/run_wdc_qwen_vertical_slice.sh package-arm gold
+bash scripts/run_wdc_qwen_vertical_slice.sh train-llm-hard --confirm-full-training
+bash scripts/run_wdc_qwen_vertical_slice.sh verify-results
+bash scripts/run_wdc_qwen_vertical_slice.sh package-results
 ```
 
 Use the uv-managed environment. The only authorized production labeling path was
 `labeller-screening/run_full_wdc.py` for the frozen WDC Sol-high vertical slice,
-and its full training-label run is complete. Do not relabel WDC or run full
-experiment cells; only the WDC–Qwen setup/preflight/smoke exception is active,
-and the rest remain blocked by the broader Phase-1 contract.
+and its full training-label run is complete. Do not relabel WDC. The only
+authorized full compact-model cells are the two narrow WDC–Qwen validation arms
+described above; all other experiment cells remain blocked by the broader
+Phase-1 contract.
 
 For complete rules, scope guardrails, reusable files, and conventions, follow
 `AGENTS.md`.

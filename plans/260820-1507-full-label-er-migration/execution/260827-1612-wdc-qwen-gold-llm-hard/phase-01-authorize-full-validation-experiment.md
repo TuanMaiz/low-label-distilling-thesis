@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Authorize Full Validation Experiment"
-status: pending
+status: completed
 priority: P1
 effort: "2-3h"
 dependencies: []
@@ -59,17 +59,17 @@ reload to publish validation metrics. It is not final-test evidence.
 
 ## Todo List
 
-- [ ] Smoke evidence recorded without promoting its F1 to an experiment result.
-- [ ] Full validation-only authorization added.
-- [ ] Test and LLM boundaries remain explicit.
-- [ ] Parent plan and guidance agree with the narrow contract.
+- [x] Smoke evidence recorded without promoting its F1 to an experiment result.
+- [x] Full validation-only authorization added.
+- [x] Test and LLM boundaries remain explicit.
+- [x] Parent plan and guidance agree with the narrow contract.
 
 ## Success Criteria
 
-- [ ] Authorization changes scope only; no hyperparameter or input identity changes.
-- [ ] Both arms use the same official validation truth and selection policy.
-- [ ] T4 timing is excluded from RTX 3090 experimental timing.
-- [ ] Phase 3 remains globally in progress for the other two datasets.
+- [x] Authorization changes scope only; no hyperparameter or input identity changes.
+- [x] Both arms use the same official validation truth and selection policy.
+- [x] T4 timing is excluded from RTX 3090 experimental timing.
+- [x] Phase 3 remains globally in progress for the other two datasets.
 
 ## Risk Assessment
 
@@ -84,4 +84,5 @@ truth never enters either training target. The test split remains inaccessible.
 
 ## Next Steps
 
-Proceed to Phase 2 only after the authorization diff is reviewed.
+Phase 1 is complete. Phase 2 implemented the authorized runner without
+broadening the experiment scope.

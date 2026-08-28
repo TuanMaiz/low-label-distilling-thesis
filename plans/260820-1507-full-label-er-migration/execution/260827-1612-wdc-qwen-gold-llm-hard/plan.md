@@ -1,7 +1,7 @@
 ---
 title: "WDC-Qwen Gold vs LLM-Hard Full Training"
 description: "Implement and execute one provenance-bound WDC-Qwen validation experiment for each frozen training-label arm."
-status: pending
+status: in_progress
 priority: P1
 effort: "1-2 implementation days plus GPU runtime"
 branch: "refactor/full-label-er-migration"
@@ -52,9 +52,9 @@ reviewed T4 smoke
 
 | Phase | Name | Status |
 |---|---|---|
-| 1 | [Authorize Full Validation Experiment](./phase-01-authorize-full-validation-experiment.md) | Pending |
-| 2 | [Implement Fail-Closed Two-Arm Runner](./phase-02-implement-two-arm-runner.md) | Pending |
-| 3 | [Verify Implementation and Rental Handoff](./phase-03-verify-rental-handoff.md) | Pending |
+| 1 | [Authorize Full Validation Experiment](./phase-01-authorize-full-validation-experiment.md) | Completed |
+| 2 | [Implement Fail-Closed Two-Arm Runner](./phase-02-implement-two-arm-runner.md) | Completed |
+| 3 | [Verify Implementation and Rental Handoff](./phase-03-verify-rental-handoff.md) | In progress — CPU verification passed; commit/push pending |
 | 4 | [Execute and Preserve RTX 3090 Results](./phase-04-execute-preserve-results.md) | Pending |
 
 ## Dependencies
@@ -69,9 +69,9 @@ reviewed T4 smoke
 
 ## Success Criteria
 
-- [ ] Full-run authorization is explicit while test access remains forbidden.
-- [ ] Separate gold and `llm_hard` commands share every frozen setting.
-- [ ] Exact completed outputs verify and skip; mismatched or partial outputs fail.
+- [x] Full-run authorization is explicit while test access remains forbidden.
+- [x] Separate gold and `llm_hard` commands share every frozen setting.
+- [x] Exact completed outputs verify and skip; mismatched or partial outputs fail.
 - [ ] Both arms record matching RTX 3090 runtime properties and resolved precision.
 - [ ] Both arms produce 2,500 valid validation predictions and verified checkpoints.
 - [ ] Results package is hash-verifiable and preserves both merged checkpoints.
