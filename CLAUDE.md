@@ -45,27 +45,27 @@ The WDC target alignment check passed: both arms contain 2,500 unique training
 pairs with identical ordered pair IDs and input text, with 79 label
 disagreements.
 
-The reviewed T4 smoke expanded the narrow WDC–Qwen contract to authorize one
-full-validation run per arm on a rented RTX 3090, ordered `gold` then
-`llm_hard`; final-test access remains forbidden. The executable entry point is
-`scripts/run_wdc_qwen_vertical_slice.sh`. It binds the old Qwen configuration,
-inputs, code, input-length audit, resolved precision, GPU, package versions,
-full-run schedule, and per-arm checkpoint evidence; it makes no LLM calls and
-never reads the test split. The old full-run hyperparameters remain frozen;
-zero warmup applies only to the one-step smoke and does not amend the full-run
-`0.10` warmup ratio.
+The narrow WDC–Qwen experiment completed one full-validation run per arm on a
+rented RTX 3090 with bf16, ordered `gold` then `llm_hard`; final-test access
+remains forbidden. Each arm produced 2,500 valid validation predictions with
+zero invalid rows. Gold achieved match F1 0.8208409506398537, macro F1
+0.8853308695851598, and accuracy 0.9216. `llm_hard` achieved match F1
+0.8141263940520446, macro F1 0.881578997229896, and accuracy 0.92. The
+executable entry point is `scripts/run_wdc_qwen_vertical_slice.sh`; it makes no
+LLM calls and never reads the test split.
 
 CPU-side implementation verification passes 21/21 focused WDC–Qwen tests,
 132/132 repository tests, and 12/12 labeler-screening tests. The recovery path
 rejects partial evaluation files instead of overwriting them, verifies that the
 training summary embeds the persisted checkpoint manifest, rechecks recorded
-contract hashes, and compares archive members with live verified results. No
-full GPU arm or official full-validation prediction has run from this
-implementation yet; commit/push and fresh RTX-3090 setup/preflight remain.
+contract hashes, and compares archive members with live verified results. The
+combined results package was downloaded and its SHA-256 checksum verified.
 Training preflight consumes the committed final targets directly and does not
 invoke publication validation; `supervision.validate_full_label_targets`
 remains the separate upstream rederivation command for the publication
-environment.
+environment. This first two-arm vertical slice does not complete the global
+3×3 plan; the other 16 compact-model arms and all final-test work remain
+pending.
 
 Legacy writing plan (revise before thesis drafting):
 `plans/260704-distiller-wdc-thesis-writing/plan.md`

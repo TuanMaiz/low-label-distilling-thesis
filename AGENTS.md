@@ -82,20 +82,22 @@ favor completing the frozen plan.
 - WDC target alignment check passed: `gold` and `llm_hard` each contain 2,500
   unique training pairs with identical ordered pair IDs and input text. They
   have 79 label disagreements.
-- The reviewed T4 smoke authorized the narrow WDC–Qwen experiment to proceed to
-  one full-validation run per arm on a rented RTX 3090, in fixed order `gold`
-  then `llm_hard`. The test split remains locked. The old Qwen config and
-  training hyperparameters are frozen; the smoke alone uses zero warmup while
-  each full arm uses the frozen `0.10` warmup ratio.
+- The narrow WDC–Qwen experiment completed one full-validation run per arm on a
+  rented RTX 3090 with bf16, in fixed order `gold` then `llm_hard`. Each arm
+  produced 2,500 valid validation predictions with zero invalid rows. Gold
+  achieved match F1 0.8208409506398537, macro F1 0.8853308695851598, and
+  accuracy 0.9216; `llm_hard` achieved match F1 0.8141263940520446, macro F1
+  0.881578997229896, and accuracy 0.92. The test split remains locked.
 - `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
   both confirmed full-training actions, result verification, and packaging.
   CPU-side orchestration and recovery verification passes 21/21 focused tests;
   the full repository suite passes 132/132 and labeler-screening passes 12/12.
   Recovery fails closed on partial evaluation files, binds the training summary
   to the persisted checkpoint manifest, revalidates artifact-contract hashes,
-  and checks packaged members against current verified results. No full GPU arm
-  or official full-validation prediction has been run from this implementation
-  yet; commit/push and fresh RTX-3090 setup/preflight remain before execution.
+  and checks packaged members against current verified results. The combined
+  results package was downloaded and its SHA-256 checksum verified. This first
+  two-arm vertical slice does not complete the global 3×3 plan; the other 16
+  compact-model arms and all final-test work remain pending.
 - The multi-environment training preflight consumes the committed final target
   files directly and does not invoke publication/upstream validation; the
   separate publication validator retains full upstream rederivation.

@@ -65,8 +65,8 @@ invalid, or extra LLM labels fail closed.
 | 1 | [Freeze Experiment Contract](./phase-01-freeze-experiment-contract.md) | In progress — WDC vertical slice frozen; broader 3×3 contract remains pending |
 | 2 | [Generalize Dataset Pipeline](./phase-02-generalize-dataset-pipeline.md) | Pending |
 | 3 | [Build Full Label Targets](./phase-03-build-full-label-targets.md) | In progress — WDC gold/LLM-hard pair published; two datasets pending |
-| 4 | [Finalize Compact Cross-Encoder Models](./phase-04-finalize-compact-cross-encoder-models.md) | Pending globally — WDC/Qwen setup and smoke path prepared |
-| 5 | [Refactor Experiment Runner](./phase-05-refactor-experiment-runner.md) | Pending globally — narrow WDC/Qwen preflight runner prepared |
+| 4 | [Finalize Compact Cross-Encoder Models](./phase-04-finalize-compact-cross-encoder-models.md) | Pending globally — first WDC/Qwen pair complete; two models pending |
+| 5 | [Refactor Experiment Runner](./phase-05-refactor-experiment-runner.md) | Pending globally — first 2 of 18 validation cells complete |
 | 6 | [Aggregate Metrics and Cost](./phase-06-aggregate-metrics-and-cost.md) | Pending |
 | 7 | [Verify and Handoff](./phase-07-verify-and-handoff.md) | Pending |
 
@@ -79,16 +79,14 @@ invalid, or extra LLM labels fail closed.
 - Researcher-approved exception: the frozen WDC/Sol-high vertical slice may
   execute machine labeling before the broader three-dataset contract is frozen.
   The separate WDC/Qwen training contract additionally authorizes only rented
-  GPU setup, preflight, and a tiny balanced validation smoke. Neither exception
-  authorizes full model training, official full-validation results, final-test
-  calls, or changes to the final 3×3×2 matrix. The old full-run Qwen config and
-  hyperparameters remain frozen; the smoke-only zero-warmup override does not
-  amend the full-run `0.10` warmup ratio.
-- The pending implementation and execution sequence for the first WDC/Qwen
-  `gold` versus `llm_hard` comparison is scoped in
-  `execution/260827-1612-wdc-qwen-gold-llm-hard/plan.md`. Its reviewed smoke now
-  authorizes one full validation-only run per arm on an RTX 3090; this narrow
-  exception does not mark global Phases 4-5 complete or unlock the test split.
+  GPU setup, preflight, a tiny balanced validation smoke, and the subsequently
+  approved WDC/Qwen validation-only pair. This does not authorize final-test
+  calls or changes to the final 3×3×2 matrix. The full runs preserved the old
+  Qwen hyperparameters and the `0.10` warmup ratio.
+- The first WDC/Qwen `gold` versus `llm_hard` comparison is complete under
+  `execution/260827-1612-wdc-qwen-gold-llm-hard/plan.md`: 2 of 18 compact-model
+  validation cells now have verified results. This narrow completion does not
+  mark global Phases 4-5 complete or unlock the test split.
 
 ## Verification Command
 

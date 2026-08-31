@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Execute and Preserve RTX 3090 Results"
-status: pending
+status: completed
 priority: P1
 effort: "GPU-runtime dependent"
 dependencies: [3]
@@ -81,14 +81,14 @@ bash scripts/run_wdc_qwen_vertical_slice.sh package-results
 
 ## Per-Arm Acceptance
 
-- [ ] Exactly 2,500 training and 2,500 validation rows.
-- [ ] Finite train/validation loss history and selected threshold.
-- [ ] CUDA device name contains `3090`; no CPU fallback.
-- [ ] Checkpoint manifest verifies after merged-checkpoint reload.
-- [ ] Exactly 2,500 unique validation IDs in official order.
-- [ ] Zero invalid predictions; finite normalized probabilities.
-- [ ] Recomputed metrics equal stored metrics.
-- [ ] Match precision/recall/F1, macro F1, accuracy, timing, throughput, epochs,
+- [x] Exactly 2,500 training and 2,500 validation rows.
+- [x] Finite train/validation loss history and selected threshold.
+- [x] CUDA device name contains `3090`; no CPU fallback.
+- [x] Checkpoint manifest verifies after merged-checkpoint reload.
+- [x] Exactly 2,500 unique validation IDs in official order.
+- [x] Zero invalid predictions; finite normalized probabilities.
+- [x] Recomputed metrics equal stored metrics.
+- [x] Match precision/recall/F1, macro F1, accuracy, timing, throughput, epochs,
   optimizer steps, precision, and runtime identity are persisted.
 
 ## Failure and Recovery
@@ -106,10 +106,10 @@ bash scripts/run_wdc_qwen_vertical_slice.sh package-results
 
 ## Success Criteria
 
-- [ ] Both arms complete once with matching provenance and frozen settings.
-- [ ] Full validation outputs are preserved and independently hash-verifiable.
-- [ ] The test split remains untouched.
-- [ ] Result artifacts are ready for comparison and cost aggregation.
+- [x] Both arms complete once with matching provenance and frozen settings.
+- [x] Full validation outputs are preserved and independently hash-verifiable.
+- [x] The test split remains untouched.
+- [x] Result artifacts are ready for comparison and cost aggregation.
 
 ## Risk Assessment
 
@@ -123,6 +123,7 @@ No provider key is needed. Package only declared experiment artifacts; exclude
 
 ## Next Steps
 
-After validation review, decide whether to authorize the WDC final-test gate or
-return to the broader Phase-1 dataset/model selections. Do not infer test
-authorization from completion of this plan.
+The verified comparison is recorded in
+`reports/260831-verified-validation-results.md`. Return to the broader Phase-1
+dataset/model selections; do not infer final-test authorization from completion
+of this validation-only plan.

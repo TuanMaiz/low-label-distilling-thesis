@@ -1,7 +1,7 @@
 ---
 title: "WDC-Qwen Gold vs LLM-Hard Full Training"
 description: "Implement and execute one provenance-bound WDC-Qwen validation experiment for each frozen training-label arm."
-status: in_progress
+status: completed
 priority: P1
 effort: "1-2 implementation days plus GPU runtime"
 branch: "refactor/full-label-er-migration"
@@ -54,8 +54,8 @@ reviewed T4 smoke
 |---|---|---|
 | 1 | [Authorize Full Validation Experiment](./phase-01-authorize-full-validation-experiment.md) | Completed |
 | 2 | [Implement Fail-Closed Two-Arm Runner](./phase-02-implement-two-arm-runner.md) | Completed |
-| 3 | [Verify Implementation and Rental Handoff](./phase-03-verify-rental-handoff.md) | In progress — CPU verification passed; commit/push pending |
-| 4 | [Execute and Preserve RTX 3090 Results](./phase-04-execute-preserve-results.md) | Pending |
+| 3 | [Verify Implementation and Rental Handoff](./phase-03-verify-rental-handoff.md) | Completed |
+| 4 | [Execute and Preserve RTX 3090 Results](./phase-04-execute-preserve-results.md) | Completed |
 
 ## Dependencies
 
@@ -72,9 +72,18 @@ reviewed T4 smoke
 - [x] Full-run authorization is explicit while test access remains forbidden.
 - [x] Separate gold and `llm_hard` commands share every frozen setting.
 - [x] Exact completed outputs verify and skip; mismatched or partial outputs fail.
-- [ ] Both arms record matching RTX 3090 runtime properties and resolved precision.
-- [ ] Both arms produce 2,500 valid validation predictions and verified checkpoints.
-- [ ] Results package is hash-verifiable and preserves both merged checkpoints.
+- [x] Both arms record matching RTX 3090 runtime properties and resolved precision.
+- [x] Both arms produce 2,500 valid validation predictions and verified checkpoints.
+- [x] Results package is hash-verifiable and preserves both merged checkpoints.
+
+## Result
+
+Completed on pushed commit `bbbb419c074e6e6b4464f14fd44fbcf63175767e`.
+Gold achieved 0.820841 match F1 and LLM-hard achieved 0.814126 on the same
+2,500-row validation split, with zero invalid predictions. See
+`reports/260831-verified-validation-results.md` for the independently verified
+comparison. This narrow completion does not mark global Phases 4-5 complete or
+unlock final-test evaluation.
 
 ## Unresolved Questions
 
