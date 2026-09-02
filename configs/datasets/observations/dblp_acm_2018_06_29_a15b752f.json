@@ -1,0 +1,213 @@
+{
+  "archive": {
+    "filename": "dblp_acm_exp_data.zip",
+    "members": [
+      {
+        "compressed_size_bytes": 0,
+        "name": "exp_data/",
+        "size_bytes": 0,
+        "timestamp": "2018-06-29T09:45:06"
+      },
+      {
+        "compressed_size_bytes": 114982,
+        "name": "exp_data/tableA.csv",
+        "size_bytes": 344698,
+        "timestamp": "2018-06-04T20:49:10"
+      },
+      {
+        "compressed_size_bytes": 101039,
+        "name": "exp_data/tableB.csv",
+        "size_bytes": 355649,
+        "timestamp": "2018-06-04T20:49:10"
+      },
+      {
+        "compressed_size_bytes": 10758,
+        "name": "exp_data/test.csv",
+        "size_bytes": 27429,
+        "timestamp": "2018-06-04T20:49:52"
+      },
+      {
+        "compressed_size_bytes": 30875,
+        "name": "exp_data/train.csv",
+        "size_bytes": 82310,
+        "timestamp": "2018-06-04T20:49:54"
+      },
+      {
+        "compressed_size_bytes": 10750,
+        "name": "exp_data/valid.csv",
+        "size_bytes": 27441,
+        "timestamp": "2018-06-04T20:49:56"
+      }
+    ],
+    "sha256": "a15b752ffc318a714690cf13286d31c2012f686525803ca803c392ceff4aa4f3",
+    "size_bytes": 269298
+  },
+  "cross_split_overlap": {
+    "train_valid": {
+      "left_record_count": 1058,
+      "pair_count": 0,
+      "right_record_count": 1027
+    }
+  },
+  "files": {
+    "tableA.csv": {
+      "archive_direct_byte_identical": true,
+      "archive_extracted_byte_identical": true,
+      "sha256": "a83dfac196a4e263f3adac7aaf095c7198254a98fcaed0ec68d59130c74c43a7",
+      "size_bytes": 344698
+    },
+    "tableB.csv": {
+      "archive_direct_byte_identical": true,
+      "archive_extracted_byte_identical": true,
+      "sha256": "bd103ffdccdff4d8b9d04c18d90d04110b70b6fc87dec83c4e52e9616c58431a",
+      "size_bytes": 355649
+    },
+    "test.csv": {
+      "archive_direct_byte_identical": true,
+      "archive_extracted_byte_identical": true,
+      "sha256": "e49adc4590d24c18b1a9bbd96011d9c745e10432e10e93e050d856a206fac394",
+      "size_bytes": 27429
+    },
+    "train.csv": {
+      "archive_direct_byte_identical": true,
+      "archive_extracted_byte_identical": true,
+      "sha256": "ad94b36b178bbf76023d3cee689565fbda1fe01b19d9a3926a51db382f45f0a5",
+      "size_bytes": 82310
+    },
+    "valid.csv": {
+      "archive_direct_byte_identical": true,
+      "archive_extracted_byte_identical": true,
+      "sha256": "862f848ed3f3f005ae6c8997ecf571984bd575f6bbd319fc1a2170830a91132b",
+      "size_bytes": 27441
+    }
+  },
+  "generated_by": "scripts/inspect_dblp_acm_source.py",
+  "locked_test": {
+    "header": [
+      "ltable_id",
+      "rtable_id",
+      "label"
+    ],
+    "row_count": 2473
+  },
+  "observed_on": "2026-09-01",
+  "pairs": {
+    "train": {
+      "duplicate_pairs": [],
+      "header": [
+        "ltable_id",
+        "rtable_id",
+        "label"
+      ],
+      "label_counts": {
+        "0": 6085,
+        "1": 1332
+      },
+      "missing_by_column": {
+        "label": 0,
+        "ltable_id": 0,
+        "rtable_id": 0
+      },
+      "row_count": 7417,
+      "unique_left_id_count": 2093,
+      "unique_pair_count": 7417,
+      "unique_right_id_count": 1927,
+      "unresolved_left_ids": [],
+      "unresolved_right_ids": []
+    },
+    "valid": {
+      "duplicate_pairs": [],
+      "header": [
+        "ltable_id",
+        "rtable_id",
+        "label"
+      ],
+      "label_counts": {
+        "0": 2029,
+        "1": 444
+      },
+      "missing_by_column": {
+        "label": 0,
+        "ltable_id": 0,
+        "rtable_id": 0
+      },
+      "row_count": 2473,
+      "unique_left_id_count": 1271,
+      "unique_pair_count": 2473,
+      "unique_right_id_count": 1210,
+      "unresolved_left_ids": [],
+      "unresolved_right_ids": []
+    }
+  },
+  "schema_version": 1,
+  "tables": {
+    "tableA.csv": {
+      "duplicate_content": {
+        "extra_row_count": 40,
+        "group_count": 25
+      },
+      "header": [
+        "id",
+        "title",
+        "authors",
+        "venue",
+        "year"
+      ],
+      "id": {
+        "contiguous": true,
+        "duplicate_values": [],
+        "maximum": 2615,
+        "minimum": 0,
+        "numeric": true,
+        "unique_count": 2616
+      },
+      "missing_by_column": {
+        "authors": 0,
+        "id": 0,
+        "title": 0,
+        "venue": 0,
+        "year": 0
+      },
+      "row_count": 2616,
+      "year": {
+        "maximum": 2003,
+        "minimum": 1994,
+        "observed_count": 2616
+      }
+    },
+    "tableB.csv": {
+      "duplicate_content": {
+        "extra_row_count": 23,
+        "group_count": 16
+      },
+      "header": [
+        "id",
+        "title",
+        "authors",
+        "venue",
+        "year"
+      ],
+      "id": {
+        "contiguous": true,
+        "duplicate_values": [],
+        "maximum": 2293,
+        "minimum": 0,
+        "numeric": true,
+        "unique_count": 2294
+      },
+      "missing_by_column": {
+        "authors": 14,
+        "id": 0,
+        "title": 0,
+        "venue": 0,
+        "year": 0
+      },
+      "row_count": 2294,
+      "year": {
+        "maximum": 2003,
+        "minimum": 1994,
+        "observed_count": 2294
+      }
+    }
+  }
+}

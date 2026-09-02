@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "status": "frozen",
+  "dataset_id": "dblp_acm",
+  "display_name": "DBLP-ACM - DeepMatcher structured benchmark",
+  "logical_version": "deepmatcher-structured-dblp-acm-2018-06-29-a15b752f",
+  "observation_manifest": "configs/datasets/observations/dblp_acm_2018_06_29_a15b752f.json",
+  "source": {
+    "dataset_index_url": "https://github.com/anhaidgroup/deepmatcher/blob/master/Datasets.md",
+    "base_url": "https://pages.cs.wisc.edu/~anhai/data1/deepmatcher_data/Structured/DBLP-ACM/exp_data/",
+    "archive_url": "https://pages.cs.wisc.edu/~anhai/data1/deepmatcher_data/Structured/DBLP-ACM/dblp_acm_exp_data.zip",
+    "archive_filename": "dblp_acm_exp_data.zip",
+    "archive_sha256": "a15b752ffc318a714690cf13286d31c2012f686525803ca803c392ceff4aa4f3",
+    "archive_size_bytes": 269298,
+    "mutable_host": true,
+    "acquisition_authorized": true,
+    "direct_downloads_byte_identical_to_archive": true,
+    "raw_archive_path": "data/raw/dblp_acm/dblp_acm_exp_data.zip",
+    "extracted_root": "data/raw/dblp_acm/archive-2026-09-01/exp_data",
+    "direct_download_root": "data/raw/dblp_acm/acquisition-2026-09-01"
+  },
+  "record_tables": {
+    "dblp": {
+      "filename": "tableA.csv",
+      "sha256": "a83dfac196a4e263f3adac7aaf095c7198254a98fcaed0ec68d59130c74c43a7",
+      "size_bytes": 344698,
+      "row_count": 2616,
+      "columns": ["id", "title", "authors", "venue", "year"],
+      "id_min": 0,
+      "id_max": 2615,
+      "ids_unique_and_contiguous": true,
+      "missing_by_column": {"id": 0, "title": 0, "authors": 0, "venue": 0, "year": 0},
+      "year_min": 1994,
+      "year_max": 2003,
+      "duplicate_content_group_count": 25,
+      "duplicate_content_extra_row_count": 40
+    },
+    "acm": {
+      "filename": "tableB.csv",
+      "sha256": "bd103ffdccdff4d8b9d04c18d90d04110b70b6fc87dec83c4e52e9616c58431a",
+      "size_bytes": 355649,
+      "row_count": 2294,
+      "columns": ["id", "title", "authors", "venue", "year"],
+      "id_min": 0,
+      "id_max": 2293,
+      "ids_unique_and_contiguous": true,
+      "missing_by_column": {"id": 0, "title": 0, "authors": 14, "venue": 0, "year": 0},
+      "year_min": 1994,
+      "year_max": 2003,
+      "duplicate_content_group_count": 16,
+      "duplicate_content_extra_row_count": 23
+    }
+  },
+  "splits": {
+    "train": {
+      "source_name": "train",
+      "filename": "train.csv",
+      "sha256": "ad94b36b178bbf76023d3cee689565fbda1fe01b19d9a3926a51db382f45f0a5",
+      "size_bytes": 82310,
+      "columns": ["ltable_id", "rtable_id", "label"],
+      "row_count": 7417,
+      "match_count": 1332,
+      "non_match_count": 6085,
+      "unique_pair_count": 7417,
+      "unresolved_left_id_count": 0,
+      "unresolved_right_id_count": 0,
+      "materialize": true
+    },
+    "validation": {
+      "source_name": "valid",
+      "filename": "valid.csv",
+      "sha256": "862f848ed3f3f005ae6c8997ecf571984bd575f6bbd319fc1a2170830a91132b",
+      "size_bytes": 27441,
+      "columns": ["ltable_id", "rtable_id", "label"],
+      "row_count": 2473,
+      "match_count": 444,
+      "non_match_count": 2029,
+      "unique_pair_count": 2473,
+      "unresolved_left_id_count": 0,
+      "unresolved_right_id_count": 0,
+      "materialize": true
+    },
+    "test": {
+      "source_name": "test",
+      "filename": "test.csv",
+      "sha256": "e49adc4590d24c18b1a9bbd96011d9c745e10432e10e93e050d856a206fac394",
+      "size_bytes": 27429,
+      "columns": ["ltable_id", "rtable_id", "label"],
+      "row_count": 2473,
+      "materialize": false,
+      "locked": true
+    }
+  },
+  "identity": {
+    "left_record_template": "dblp:{raw_id}",
+    "right_record_template": "acm:{raw_id}",
+    "pair_id_template": "dblp_acm:{version}:{split}:dblp:{left_id}:acm:{right_id}",
+    "canonical_pair_template": "dblp:{left_id}|acm:{right_id}",
+    "content_is_not_identity": true
+  },
+  "label_mapping": {"0": false, "1": true},
+  "attribute_order": ["title", "authors", "venue", "year"],
+  "missing_value": {
+    "normalize_blank_to_null": true,
+    "serialization_token": "<missing>"
+  },
+  "cross_split_policy": {
+    "duplicate_pairs": "fail",
+    "observed_pair_overlap_count": 0,
+    "record_overlap": "allow_and_report",
+    "observed_record_overlap": {
+      "train_validation": {"dblp": 1058, "acm": 1027}
+    }
+  },
+  "serialization": {
+    "entity_noun": "publication",
+    "encoding": "utf-8",
+    "newline": "lf",
+    "preserve_source_order": true
+  },
+  "cache": {
+    "root_template": "data/cache/dblp_acm/{version}",
+    "materialized_splits": ["train", "validation"]
+  },
+  "authorization": {
+    "paid_labeling": false,
+    "gpu_execution": false,
+    "test_evaluation": false
+  }
+}

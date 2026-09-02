@@ -2,6 +2,7 @@ data/cache/*
 !data/cache/wdc_products/
 data/cache/wdc_products/*
 data/raw/wdc_products/*.zip
+data/raw/dblp_acm/
 outputs/
 !outputs/
 outputs/*
