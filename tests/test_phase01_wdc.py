@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 from data.er_dataset_loader import WDCProductsConfig, load_wdc_products_pairwise
-from data.serialize_pairs import serialize_pair
+from data.serialize_pairs import pair_to_training_row, serialize_pair
 
 
 def _row(idx: int, label: int) -> dict:
@@ -84,6 +84,19 @@ class Phase01WDCTest(unittest.TestCase):
             self.assertIn("- title:", text)
             self.assertIn("- brand:", text)
             self.assertIn("same real-world entity", text)
+
+    def test_default_serializer_contract_remains_exact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pair = load_wdc_products_pairwise(_make_wdc_zip(Path(tmp)))["train"][0]
+            row = pair_to_training_row(pair)
+            self.assertEqual(
+                row["input_text"],
+                "Task: decide whether Record A and Record B refer to the same real-world entity.\n\n"
+                "Record A:\n- title: Acme Camera Model 1\n- brand: Acme\n"
+                "- description: Compact digital camera\n- price: 99.00\n- priceCurrency: USD\n\n"
+                "Record B:\n- title: Acme Camera Model 1\n- brand: Acme\n"
+                "- description: Digital camera compact\n- price: 100.00\n- priceCurrency: USD",
+            )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,4 @@
+id,title,authors,venue,year
+0,Shared title,Alice,Venue A,2000
+1,ACM only,,Venue C,2003
+2,Another ACM,Chris,Venue E,1999

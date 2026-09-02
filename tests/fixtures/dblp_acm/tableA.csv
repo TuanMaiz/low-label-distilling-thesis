@@ -1,0 +1,5 @@
+id,title,authors,venue,year
+0,Shared title,Alice,Venue A,2000
+1,DBLP only,Bob,Venue B,2001
+2,Duplicate content,Dana,Venue D,2002
+3,Duplicate content,Dana,Venue D,2002

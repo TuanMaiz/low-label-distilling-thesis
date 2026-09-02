@@ -32,25 +32,33 @@ def serialize_record(
     return "\n".join(lines)
 
 
-def serialize_pair(pair: GenericERPair) -> str:
+def serialize_pair(
+    pair: GenericERPair,
+    attribute_order: Iterable[str] = DEFAULT_ATTRIBUTE_ORDER,
+    missing_value: str = "<missing>",
+) -> str:
     """Serialize a record pair for prompting and mT5 input."""
     return "\n\n".join(
         [
             "Task: decide whether Record A and Record B refer to the same real-world entity.",
-            serialize_record(pair.record_a, "A"),
-            serialize_record(pair.record_b, "B"),
+            serialize_record(pair.record_a, "A", attribute_order, missing_value),
+            serialize_record(pair.record_b, "B", attribute_order, missing_value),
         ]
     )
 
 
-def pair_to_training_row(pair: GenericERPair) -> dict:
+def pair_to_training_row(
+    pair: GenericERPair,
+    attribute_order: Iterable[str] = DEFAULT_ATTRIBUTE_ORDER,
+    missing_value: str = "<missing>",
+) -> dict:
     """Convert a pair to a JSON-serializable training/preparation row."""
     return {
         "pair_id": pair.pair_id,
         "split": pair.split,
         "label": int(pair.label),
         "target_label": "match" if pair.label else "non-match",
-        "input_text": serialize_pair(pair),
+        "input_text": serialize_pair(pair, attribute_order, missing_value),
         "record_a": pair.record_a.model_dump(),
         "record_b": pair.record_b.model_dump(),
         "metadata": pair.metadata,
@@ -61,6 +69,8 @@ def write_serialized_pairs(
     pairs: Iterable[GenericERPair],
     output_path: Path | str,
     limit: Optional[int] = None,
+    attribute_order: Iterable[str] = DEFAULT_ATTRIBUTE_ORDER,
+    missing_value: str = "<missing>",
 ) -> int:
     """Write serialized pairs as JSONL and return the number of rows written."""
     output_path = Path(output_path)
@@ -71,14 +81,25 @@ def write_serialized_pairs(
         for pair in pairs:
             if limit is not None and count >= limit:
                 break
-            handle.write(json.dumps(pair_to_training_row(pair), ensure_ascii=False) + "\n")
+            handle.write(
+                json.dumps(
+                    pair_to_training_row(pair, attribute_order, missing_value),
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
             count += 1
     return count
 
 
-def preview_serialized_pair(pair: GenericERPair, max_chars: int = 1200) -> str:
+def preview_serialized_pair(
+    pair: GenericERPair,
+    max_chars: int = 1200,
+    attribute_order: Iterable[str] = DEFAULT_ATTRIBUTE_ORDER,
+    missing_value: str = "<missing>",
+) -> str:
     """Return a compact human-readable preview for CLI logs."""
-    text = serialize_pair(pair)
+    text = serialize_pair(pair, attribute_order, missing_value)
     if len(text) <= max_chars:
         return text
     return text[: max_chars - 3] + "..."
