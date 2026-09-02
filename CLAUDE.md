@@ -54,8 +54,8 @@ zero invalid rows. Gold achieved match F1 0.8208409506398537, macro F1
 executable entry point is `scripts/run_wdc_qwen_vertical_slice.sh`; it makes no
 LLM calls and never reads the test split.
 
-CPU-side implementation verification passes 21/21 focused WDC–Qwen tests,
-132/132 repository tests, and 12/12 labeler-screening tests. The recovery path
+CPU-side implementation verification passes 21/21 focused WDC–Qwen tests; the
+current repository suite passes 152/152 and labeler-screening passes 12/12. The recovery path
 rejects partial evaluation files instead of overwriting them, verifies that the
 training summary embeds the persisted checkpoint manifest, rechecks recorded
 contract hashes, and compares archive members with live verified results. The
@@ -70,9 +70,19 @@ pending.
 Legacy writing plan (revise before thesis drafting):
 `plans/260704-distiller-wdc-thesis-writing/plan.md`
 
-The exact datasets, models, LLM labeler, prompt, evaluation scope, artifact
-schema, and cost ceiling remain Phase-1 decisions. Do not guess them from
-historical configs or results.
+The remaining global datasets/models and experiment-wide prompt, evaluation,
+artifact, and cost decisions remain Phase-1 work. DBLP-ACM's Dataset-2 contract
+is already frozen. Do not guess unfinished decisions from historical configs or results.
+
+DBLP-ACM is Dataset 2 with a researcher-approved frozen source, normalization,
+identity, and attribution contract. The official archive and independent HTTPS
+file downloads were acquired into ignored raw storage and confirmed
+byte-identical by `scripts/inspect_dblp_acm_source.py`. The executable candidate
+profile and observation manifest are under `configs/datasets/`. Phase 2's
+adapter atomically prepared only ignored train/validation artifacts (7,417 and
+2,473 pairs) and independently verifies their expected bytes. Test remains
+locked and non-materialized. Do not begin Phase 3, make paid labels, run models,
+or expose test rows until the researcher reviews the Phase 2 implementation.
 
 ## Commands
 
@@ -83,6 +93,16 @@ source .venv/bin/activate
 .venv/bin/python -m unittest discover -s labeller-screening/tests -v
 .venv/bin/python -m supervision.validate_full_label_targets \
   --target-dir data/cache/wdc_products/full_label_targets
+.venv/bin/python scripts/inspect_dblp_acm_source.py \
+  --archive data/raw/dblp_acm/dblp_acm_exp_data.zip \
+  --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
+  --direct-root data/raw/dblp_acm/acquisition-2026-09-01 \
+  --observed-on 2026-09-01
+.venv/bin/python -m data.prepare_benchmark \
+  --dataset-config configs/datasets/dblp_acm.json \
+  --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
+  --output-root data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f \
+  --verify-only
 ```
 
 On the rented RTX 3090 with CUDA-compatible PyTorch already installed:

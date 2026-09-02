@@ -36,7 +36,7 @@ cascades, repeated-run experiments, and additional datasets or models.
 | Decision | Status | Selected value | Evidence |
 |---|---|---|---|
 | Dataset 1 | Selected; license clarification remains a freeze gate | WDC Products, pair-wise, 80% corner-cases, small development set, 100% unseen-products test | [WDC benchmark page](https://webdatacommons.org/largescaleproductcorpus/wdc-products/); local archive and split hashes below |
-| Dataset 2 | TBD | TBD | TBD |
+| Dataset 2 | Selected for dataset-level integration; global contract remains draft | DBLP-ACM, DeepMatcher structured snapshot `deepmatcher-structured-dblp-acm-2018-06-29-a15b752f` | Locally reproduced observation manifest and frozen DBLP-ACM dataset contract |
 | Dataset 3 | TBD | TBD | TBD |
 | Compact model 1 | Selected | `Qwen/Qwen3-Reranker-0.6B` | [Official model repository](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B); prior repository screening artifacts |
 | Compact model 2 | TBD | TBD | TBD |
@@ -56,6 +56,7 @@ No row may remain `TBD` when this contract is frozen.
 | Candidate | Exact version | Considered because | Decision | Exclusion reason |
 |---|---|---|---|---|
 | WDC Products | Initial release 2022-12-22; `80pair.zip`; pair-wise 80% corner-cases, small development, 100% unseen test | Existing project stress benchmark; hardest corner-case/unseen/small-data combination | Selected as Dataset 1 | Not excluded |
+| DBLP-ACM | DeepMatcher structured archive, internal version `deepmatcher-structured-dblp-acm-2018-06-29-a15b752f` | Adds an established bibliographic ER domain and clean structured comparison | Selected as Dataset 2 | Not excluded; age and contamination risk must limit claims |
 
 ### Selected Datasets
 
@@ -98,11 +99,36 @@ published row counts. Local archive inspection reproduced those filenames,
 counts, and hashes. See
 [`260821-1540-wdc-qwen-selection-evidence.md`](./260821-1540-wdc-qwen-selection-evidence.md).
 
-#### Dataset 2 — TBD
+#### Dataset 2 — DBLP-ACM Structured
 
-Use the same field table as Dataset 1.
+| Field | Frozen value |
+|---|---|
+| Dataset ID | `dblp_acm` |
+| Display name | DBLP-ACM — DeepMatcher structured benchmark |
+| Exact version/release | Internal immutable version `deepmatcher-structured-dblp-acm-2018-06-29-a15b752f`, derived from the official archive timestamp and SHA prefix; not an upstream release tag |
+| Authoritative source URL | [DeepMatcher dataset index](https://github.com/anhaidgroup/deepmatcher/blob/master/Datasets.md) and [official archive](https://pages.cs.wisc.edu/~anhai/data1/deepmatcher_data/Structured/DBLP-ACM/dblp_acm_exp_data.zip) |
+| License and usage conditions | Attribute DeepMatcher and the original DBLP-ACM/Leipzig source. Do not claim that the raw source's CC BY 4.0 statement automatically covers DeepMatcher's preprocessed files. |
+| Acquisition method | Download official archive and verify archive/member SHA-256 values before parsing; independent HTTPS file downloads reproduced every member byte-for-byte |
+| Source files | `tableA.csv`, `tableB.csv`, `train.csv`, `valid.csv`, `test.csv` |
+| Source checksum algorithm and values | SHA-256 archive `a15b752ffc318a714690cf13286d31c2012f686525803ca803c392ceff4aa4f3`; member values frozen in `configs/datasets/dblp_acm.json` |
+| Official train split | `train.csv`: 7,417 pairs; 1,332 matches; 6,085 non-matches |
+| Official validation split | `valid.csv`: 2,473 pairs; 444 matches; 2,029 non-matches; normalize name to `validation` |
+| Official test split | `test.csv`: 2,473 rows; source hash/header/count contract only; labels and IDs remain locked from analysis and no normalized test JSONL is produced |
+| Validation policy if no official split exists | Not applicable; preserve `valid.csv` |
+| Expected row counts by split | Train 7,417; validation 2,473; test 2,473 |
+| Expected match/non-match balance by split | Train 1,332/6,085; validation 444/2,029; test balance intentionally not inspected or recorded |
+| Left-record fields | `id`, `title`, `authors`, `venue`, `year` from `tableA.csv` |
+| Right-record fields | `id`, `title`, `authors`, `venue`, `year` from `tableB.csv` |
+| Raw pair and record identifiers | Pair references are `ltable_id`/`rtable_id`; normalize records as `dblp:{id}`/`acm:{id}` and keep namespaced pair IDs local |
+| Missing-field policy | Preserve blank/null values; deterministic serialization renders them as `<missing>`; never impute bibliographic data |
+| Within-split duplicate-pair policy | Fail on duplicate canonical source pairs |
+| Cross-split pair-overlap policy | Fail on repeated canonical train/validation pair; observed overlap is zero |
+| Cross-split entity-overlap policy | Preserve official pair splits; allow and report observed train/validation record overlap (1,058 left, 1,027 right); do not claim entity-disjoint generalization |
+| Known limitations | Records span 1994–2003; benchmark is old and relatively clean; public-model contamination is unknown; preprocessed-file license wording is not explicit |
 
-Evidence and rationale: TBD.
+Evidence and rationale: fresh local audit from the official archive is recorded
+in `configs/datasets/observations/dblp_acm_2018_06_29_a15b752f.json` and the
+frozen dataset contract `research/dblp-acm-dataset-contract.md`.
 
 #### Dataset 3 — TBD
 

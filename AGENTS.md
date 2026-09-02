@@ -91,7 +91,7 @@ favor completing the frozen plan.
 - `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
   both confirmed full-training actions, result verification, and packaging.
   CPU-side orchestration and recovery verification passes 21/21 focused tests;
-  the full repository suite passes 132/132 and labeler-screening passes 12/12.
+  the current full repository suite passes 152/152 and labeler-screening passes 12/12.
   Recovery fails closed on partial evaluation files, binds the training summary
   to the persisted checkpoint manifest, revalidates artifact-contract hashes,
   and checks packaged members against current verified results. The combined
@@ -104,6 +104,18 @@ favor completing the frozen plan.
 - The broader Phase-1 contract remains unfinished. Do not run other paid
   labeling cells, relabel WDC, or make official full-validation/test
   predictions until their checklists and explicit flags are complete.
+- Dataset 2 DBLP-ACM has been freshly acquired from the official
+  DeepMatcher archive plus independent HTTPS file downloads. The two copies are
+  byte-identical. A reproducible local audit is implemented at
+  `scripts/inspect_dblp_acm_source.py`; its profile, observation, normalization,
+  identity, and attribution contract are frozen under `configs/datasets/`.
+  Phase 2 now has a strict adapter and atomic preparation path that generated
+  ignored train/validation JSONL for researcher review: 7,417 train and 2,473
+  validation pairs. Test remains source-contract-only and no `test.jsonl`, paid
+  label, model run, or prediction exists. `--verify-only` independently
+  rederives expected bytes and rejects forged manifests and symlink aliases.
+  Phase 3 must not start until the researcher reviews Phase 2. Verification
+  passes 152/152 repository tests and 12/12 labeler-screening tests.
 
 ## Commands
 
@@ -117,6 +129,16 @@ source .venv/bin/activate
 .venv/bin/python -m unittest discover -s labeller-screening/tests -v
 .venv/bin/python -m supervision.validate_full_label_targets \
   --target-dir data/cache/wdc_products/full_label_targets
+.venv/bin/python scripts/inspect_dblp_acm_source.py \
+  --archive data/raw/dblp_acm/dblp_acm_exp_data.zip \
+  --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
+  --direct-root data/raw/dblp_acm/acquisition-2026-09-01 \
+  --observed-on 2026-09-01
+.venv/bin/python -m data.prepare_benchmark \
+  --dataset-config configs/datasets/dblp_acm.json \
+  --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
+  --output-root data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f \
+  --verify-only
 ```
 
 On the rented RTX 3090, whose image must already include CUDA-compatible

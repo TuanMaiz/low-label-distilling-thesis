@@ -87,6 +87,11 @@ invalid, or extra LLM labels fail closed.
   `execution/260827-1612-wdc-qwen-gold-llm-hard/plan.md`: 2 of 18 compact-model
   validation cells now have verified results. This narrow completion does not
   mark global Phases 4-5 complete or unlock the test split.
+- The proposed Dataset 2 structured DBLP-ACM offline-integration plan is under
+  `execution/260831-1541-dblp-acm-integration/plan.md`. It prepares a thin
+  adapter and offline pipeline readiness only; it does not freeze the global
+  three-dataset contract, select Dataset 3, authorize paid labeling/GPU work,
+  materialize the test split, or complete parent Phases 2, 3, or 5.
 
 ## Verification Command
 
