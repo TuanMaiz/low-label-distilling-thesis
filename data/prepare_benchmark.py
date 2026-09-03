@@ -101,6 +101,38 @@ def _inventory(root: Path) -> dict[str, str]:
     return inventory
 
 
+def _publication_inventory(root: Path) -> dict[str, str]:
+    """Inventory only preparation-owned files while rejecting local drift.
+
+    Later phases intentionally place independent artifacts such as
+    ``teacher_labels/`` and ``full_label_targets/`` beside the prepared data.
+    Those directories are not part of the preparation publication contract.
+    """
+    inventory: dict[str, str] = {}
+    owned_roots = (root / "serialized",)
+    allowed_downstream_directories = {"teacher_labels"}
+    for path in sorted(root.iterdir()):
+        if path.is_symlink():
+            raise ValueError(f"prepared output contains a symlink: {path.relative_to(root)}")
+        if path.is_file():
+            inventory[path.relative_to(root).as_posix()] = _sha256(path)
+        elif path.is_dir() and path.name != "serialized":
+            if path.name not in allowed_downstream_directories and not path.name.startswith("full_label_targets"):
+                raise ValueError(
+                    "existing output differs: file inventory mismatch; "
+                    f"unexpected directory {path.name}"
+                )
+    for owned_root in owned_roots:
+        if not owned_root.is_dir() or owned_root.is_symlink():
+            raise ValueError("existing output differs: serialized directory is missing or aliased")
+        for path in sorted(owned_root.rglob("*")):
+            if path.is_symlink():
+                raise ValueError(f"prepared output contains a symlink: {path.relative_to(root)}")
+            if path.is_file():
+                inventory[path.relative_to(root).as_posix()] = _sha256(path)
+    return inventory
+
+
 def _verify_publication(output: Path, profile: DatasetProfile) -> dict[str, Any]:
     if not output.is_dir():
         raise FileNotFoundError(f"prepared output does not exist: {output}")
@@ -115,7 +147,7 @@ def _verify_publication(output: Path, profile: DatasetProfile) -> dict[str, Any]
     if manifest.get("observation_manifest_sha256") != profile.observation_manifest_sha256:
         raise ValueError("existing output differs: observation hash mismatch")
     expected_files = set(manifest.get("outputs", {})) | {"manifest.json"}
-    actual_files = set(_inventory(output))
+    actual_files = set(_publication_inventory(output))
     if actual_files != expected_files:
         raise ValueError("existing output differs: file inventory mismatch")
     for relative, contract in manifest["outputs"].items():
@@ -203,7 +235,7 @@ def prepare_dblp_acm(
         try:
             expected_manifest = _write_stage(staging, profile, source)
             _verify_publication(output, profile)
-            if _inventory(output) != _inventory(staging):
+            if _publication_inventory(output) != _publication_inventory(staging):
                 raise ValueError("existing output differs from deterministic preparation")
             return expected_manifest
         finally:
@@ -219,7 +251,7 @@ def prepare_dblp_acm(
         expected_manifest = _write_stage(staging, profile, source)
         if output.exists():
             existing_manifest = _verify_publication(output, profile)
-            if _inventory(output) != _inventory(staging):
+            if _publication_inventory(output) != _publication_inventory(staging):
                 raise ValueError("existing output differs from deterministic preparation")
             shutil.rmtree(staging)
             return existing_manifest

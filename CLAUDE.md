@@ -55,7 +55,7 @@ executable entry point is `scripts/run_wdc_qwen_vertical_slice.sh`; it makes no
 LLM calls and never reads the test split.
 
 CPU-side implementation verification passes 21/21 focused WDC–Qwen tests; the
-current repository suite passes 167/167 and labeler-screening passes 12/12. The recovery path
+current repository suite passes 181/181 and labeler-screening passes 12/12. The recovery path
 rejects partial evaluation files instead of overwriting them, verifies that the
 training summary embeds the persisted checkpoint manifest, rechecks recorded
 contract hashes, and compares archive members with live verified results. The
@@ -87,9 +87,16 @@ fake run with zero API calls and USD 0 cost; its connected fixture passes the
 unchanged target publisher and independent validator. It created no production
 DBLP target or test artifact. Train-source verification does not open validation
 or test, response reconciliation is durable, and only the exact fake client may
-dispatch. Phase 3 was researcher-approved on 2026-09-03; focused tests pass
-15/15 and independent review reports no blockers. Phase 4 remains pending, with
-no paid labeling, GPU work, or evaluation access authorized by this approval.
+dispatch. Phase 3 was researcher-approved on 2026-09-03. Phase 4's separate
+strict DBLP Qwen execution profile, publication instruction, CPU-only preflight,
+fixture result/package checks, and command-rendering runner are implemented and
+researcher-approved. The derived schedule is 464 optimizer steps per
+epoch, 4,640 planned steps, and 464 warmup steps. Official actions remain locked
+because production GPT-5.6 Sol targets and GPU approval do not exist. Phase 5's
+offline handoff is complete: source/repeated preparation, real-cache
+`--verify-only`, fake publisher/independent-validator integration, DBLP Qwen
+fixtures, and WDC compatibility all pass. Production labels, targets, weights,
+metrics, and test artifacts do not exist.
 
 ## Commands
 
@@ -117,6 +124,9 @@ source .venv/bin/activate
   --output-dir data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/teacher_labels/fake_sol_high_phase3 \
   --expected-count 7417 \
   --fake
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh config
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh identity
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh plan
 ```
 
 On the rented RTX 3090 with CUDA-compatible PyTorch already installed:

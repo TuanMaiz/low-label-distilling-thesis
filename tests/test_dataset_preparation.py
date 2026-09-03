@@ -42,6 +42,49 @@ class DatasetPreparationTests(unittest.TestCase):
         prepare_dblp_acm(self.config, self.source, self.output, workspace_root=self.workspace, verify_only=True)
         self.assertEqual(before, {path: path.stat().st_mtime_ns for path in self.output.rglob("*") if path.is_file()})
 
+    def test_verify_only_ignores_separate_downstream_artifact_directories(self) -> None:
+        prepare_dblp_acm(self.config, self.source, self.output, workspace_root=self.workspace)
+        downstream = self.output / "teacher_labels/fake/completion.json"
+        downstream.parent.mkdir(parents=True)
+        downstream.write_text('{"mode":"offline_fake"}\n', encoding="utf-8")
+        before = downstream.read_bytes()
+
+        manifest = prepare_dblp_acm(
+            self.config,
+            self.source,
+            self.output,
+            workspace_root=self.workspace,
+            verify_only=True,
+        )
+
+        self.assertEqual(manifest["materialized_splits"], ["train", "validation"])
+        self.assertEqual(downstream.read_bytes(), before)
+
+    def test_verify_only_still_rejects_extra_preparation_owned_files(self) -> None:
+        prepare_dblp_acm(self.config, self.source, self.output, workspace_root=self.workspace)
+        extra = self.output / "serialized/unexpected.jsonl"
+        extra.write_text("{}\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "file inventory mismatch"):
+            prepare_dblp_acm(
+                self.config,
+                self.source,
+                self.output,
+                workspace_root=self.workspace,
+                verify_only=True,
+            )
+        extra.unlink()
+        unexpected = self.output / "test"
+        unexpected.mkdir()
+        (unexpected / "test.jsonl").write_text("{}\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "unexpected directory test"):
+            prepare_dblp_acm(
+                self.config,
+                self.source,
+                self.output,
+                workspace_root=self.workspace,
+                verify_only=True,
+            )
+
     def test_verify_only_rejects_forged_bytes_and_manifest(self) -> None:
         prepare_dblp_acm(self.config, self.source, self.output, workspace_root=self.workspace)
         forged = self.output / "serialized/train.jsonl"

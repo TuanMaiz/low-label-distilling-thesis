@@ -69,3 +69,23 @@ This command is offline-only: it accepts no paid client, makes zero API calls,
 and does not publish production targets. Its output stays under ignored cache
 storage. Current provider pricing, paid authorization, and a spend ceiling must
 be reviewed separately before a future production-labeling phase.
+
+## Offline integration verification
+
+The DBLP integration handoff is recorded at
+`plans/260820-1507-full-label-er-migration/execution/260831-1541-dblp-acm-integration/reports/verification.md`.
+The real prepared cache now supports `--verify-only` after later phases add
+separate directories such as `teacher_labels/`; verification still rejects any
+drift or extra file in the preparation-owned root files and `serialized/` tree.
+
+CPU-only Qwen readiness can be inspected without loading Torch or a model:
+
+```bash
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh config
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh identity
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh plan
+```
+
+These commands do not authorize production labels or GPU execution. Any
+`full_label_targets_fake_*` directory is synthetic integration evidence, not a
+production training target.

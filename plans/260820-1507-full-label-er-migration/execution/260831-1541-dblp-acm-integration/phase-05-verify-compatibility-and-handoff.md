@@ -1,10 +1,14 @@
 ---
 phase: 5
-title: "Verify Compatibility and Handoff"
-status: pending
+title: Verify Compatibility and Handoff
+status: completed
 priority: P1
-effort: "0.5-1d"
-dependencies: [1, 2, 3, 4]
+effort: 0.5-1d
+dependencies:
+  - 1
+  - 2
+  - 3
+  - 4
 ---
 
 # Phase 5: Verify Compatibility and Handoff
@@ -96,21 +100,21 @@ and are not chained automatically.
 
 ## Success Criteria
 
-- [ ] New focused tests, existing 21 WDC-focused tests, full repository suite,
+- [x] New focused tests, existing 21 WDC-focused tests, full repository suite,
   and 12 labeler-screening tests pass; actual totals are recorded.
-- [ ] Repeated DBLP preparation is byte-identical and `--verify-only` succeeds
+- [x] Repeated DBLP preparation is byte-identical and `--verify-only` succeeds
   without rewriting or downloading.
-- [ ] Source/count/balance/missingness/overlap audits match the contract; only
+- [x] Source/count/balance/missingness/overlap audits match the contract; only
   train/validation are materialized and test remains contract-only.
-- [ ] Actual fake-run payload/inflight/output artifacts pass security controls,
+- [x] Actual fake-run payload/inflight/output artifacts pass security controls,
   untouched publication, and independent rederivation with zero paid calls.
-- [ ] DBLP preflight/lifecycle/relocation fixtures freeze the locally derived schedule,
+- [x] DBLP preflight/lifecycle/relocation fixtures freeze the locally derived schedule,
   canonical-source separation, gold-first packaging, and test/LLM/CUDA locks.
-- [ ] Temporary WDC regeneration is byte-identical and Git/blob hashes confirm
+- [x] Temporary WDC regeneration is byte-identical and Git/blob hashes confirm
   protected WDC code/config/settings/contracts/artifacts were not edited.
-- [ ] If acquisition lacks approval, handoff says fixture-ready/source-blocked
-  and the plan is not marked source-verified or completed.
-- [ ] Handoff does not imply DBLP labels, targets, trained weights, metrics, or
+- [x] Acquisition was approved in Phase 1; the exact acquired source is verified
+  and the handoff distinguishes this from fixture-only readiness.
+- [x] Handoff does not imply DBLP labels, targets, trained weights, metrics, or
   normalized test artifacts exist.
 
 ## Risk Assessment
@@ -121,3 +125,19 @@ Git/blob comparisons, real connected fake-run integration, independent target
 rederivation, hostile security fixtures, and explicit state terminology. If
 license/source approval is unresolved, report fixture-ready/source-blocked; do
 not acquire or proceed automatically.
+
+## Verification Checkpoint — 2026-09-03
+
+The offline handoff implementation is complete and awaiting researcher review.
+Fresh source inspection exactly matches the
+committed observation; two independent preparations are byte-identical; the
+real cache passes `--verify-only`; the completed 7,417-row fake artifacts pass
+the unchanged publisher and independent target rederivation; DBLP Qwen fixtures
+remain CPU-only and fail closed; and WDC serialization, protected Git blobs, and
+downloaded result-package checksums are unchanged.
+
+Verification passes 41/41 focused DBLP tests, 30/30 expanded WDC compatibility
+checks (including 21/21 Qwen), 181/181 repository tests, and 12/12
+labeler-screening tests. No production DBLP labels/targets, model weights,
+validation metrics, normalized test artifact, paid call, or GPU action exists.
+The evidence and next manual gates are recorded in `reports/verification.md`.

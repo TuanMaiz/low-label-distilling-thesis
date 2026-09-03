@@ -1,15 +1,22 @@
 ---
-title: "DBLP-ACM Dataset Integration"
-description: "Prepare structured DeepMatcher DBLP-ACM for the existing full-label ER pipeline with a thin adapter and narrowly scoped dataset-aware generalization."
-status: in-progress
+title: DBLP-ACM Dataset Integration
+description: >-
+  Prepare structured DeepMatcher DBLP-ACM for the existing full-label ER
+  pipeline with a thin adapter and narrowly scoped dataset-aware generalization.
+status: completed
 priority: P1
-effort: "4.5-8.5d"
-branch: "refactor/full-label-er-migration"
-tags: [full-label, entity-resolution, dblp-acm, dataset-integration, tdd]
+effort: 4.5-8.5d
+branch: refactor/full-label-er-migration
+tags:
+  - full-label
+  - entity-resolution
+  - dblp-acm
+  - dataset-integration
+  - tdd
 blockedBy: []
 blocks: []
-created: "2026-08-31T08:41:42.967Z"
-createdBy: "ck:plan"
+created: '2026-08-31T08:41:42.967Z'
+createdBy: 'ck:plan'
 source: skill
 ---
 
@@ -97,8 +104,8 @@ and normalization rules approved and frozen by the researcher on 2026-09-02.
 | 1 | [Freeze DBLP-ACM Contract](./phase-01-freeze-dblp-acm-contract.md) | Completed — locally observed and researcher-approved 2026-09-02 |
 | 2 | [Implement Adapter and Preparation](./phase-02-implement-adapter-and-preparation.md) | Completed — researcher-approved 2026-09-02 |
 | 3 | [Generalize Dataset-Aware Supervision](./phase-03-generalize-dataset-aware-supervision.md) | Completed — researcher-approved 2026-09-03 |
-| 4 | [Generalize Qwen Preflight and Runner](./phase-04-generalize-qwen-preflight-and-runner.md) | Pending |
-| 5 | [Verify Compatibility and Handoff](./phase-05-verify-compatibility-and-handoff.md) | Pending |
+| 4 | [Generalize Qwen Preflight and Runner](./phase-04-generalize-qwen-preflight-and-runner.md) | Completed |
+| 5 | [Verify Compatibility and Handoff](./phase-05-verify-compatibility-and-handoff.md) | Completed |
 
 ## Dependencies
 
@@ -259,3 +266,18 @@ Unresolved internal contradictions: **zero**.
 - **2026-09-03 — Phase 3 researcher review:** approved. Phase 4 remains pending;
   no paid labeling, GPU execution, or evaluation access was authorized by this
   approval.
+- **2026-09-03 — Phase 4 implementation and review:** the strict DBLP execution
+  profile, publication-specific Qwen config, CPU-only preflight, result/package
+  fixtures, relocation checks, and command-rendering runner were implemented;
+  the researcher approved progression by starting Phase 5. Official actions remain locked until real
+  GPT-5.6 Sol labels/targets and later GPU authorization exist. Focused Phase-4
+  tests pass 12/12, the repository passes 181/181, focused WDC passes 21/21,
+  and labeler-screening passes 12/12. No paid call, CUDA/model load, training,
+  validation prediction, or test access occurred.
+- **2026-09-03 — Phase 5 offline handoff:** source observation, deterministic
+  preparation, full fake supervision-to-target integration, DBLP Qwen fixtures,
+  WDC regeneration/blob checks, and downloaded WDC package checksums pass. A
+  cross-phase `--verify-only` inventory bug was fixed with regression coverage.
+  Final totals are 41/41 focused DBLP, 30/30 expanded WDC compatibility,
+  181/181 repository, and 12/12 labeler-screening. Production DBLP labeling,
+  targets, training, metrics, and test access remain unperformed and locked.

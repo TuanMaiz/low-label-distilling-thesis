@@ -91,7 +91,7 @@ favor completing the frozen plan.
 - `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
   both confirmed full-training actions, result verification, and packaging.
   CPU-side orchestration and recovery verification passes 21/21 focused tests;
-  the current full repository suite passes 167/167 and labeler-screening passes 12/12.
+  the current full repository suite passes 181/181 and labeler-screening passes 12/12.
   Recovery fails closed on partial evaluation files, binds the training summary
   to the persisted checkpoint manifest, revalidates artifact-contract hashes,
   and checks packaged members against current verified results. The combined
@@ -121,10 +121,18 @@ favor completing the frozen plan.
   no production DBLP target or test artifact was created. Source verification
   independently rederives train without opening validation/test, response
   reconciliation is durable, and only the concrete fake client may dispatch.
-  Phase 3 was researcher-approved on 2026-09-03. Verification passes 167/167
-  repository tests, 15/15 focused Phase-3 tests, and 12/12 labeler-screening
-  tests; independent review reports no blockers. Phase 4 remains pending; this
-  approval does not authorize paid labeling, GPU work, or evaluation access.
+  Phase 3 was researcher-approved on 2026-09-03. Phase 4 now has a separate
+  strict DBLP Qwen execution profile, publication-specific student config,
+  CPU-only preflight, fixture result/package verifier, and command-rendering
+  shell dispatcher. It freezes 464 optimizer steps/epoch, 4,640 planned steps,
+  and 464 warmup steps. Official setup/training/evaluation/package actions
+  remain locked until real GPT-5.6 Sol targets and later GPU authorization
+  exist. Phase 4 is researcher-approved and Phase 5's offline compatibility
+  handoff is complete: source inspection and repeated preparation match,
+  `--verify-only` passes alongside downstream artifacts, the 7,417-row fake
+  bundle independently rederives, and WDC compatibility remains unchanged.
+  This does not authorize or imply production DBLP labels, targets, training,
+  metrics, or test access.
 
 ## Commands
 
@@ -155,6 +163,9 @@ source .venv/bin/activate
   --output-dir data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/teacher_labels/fake_sol_high_phase3 \
   --expected-count 7417 \
   --fake
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh config
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh identity
+bash scripts/run_dblp_acm_qwen_vertical_slice.sh plan
 ```
 
 On the rented RTX 3090, whose image must already include CUDA-compatible
