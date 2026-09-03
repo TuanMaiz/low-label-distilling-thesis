@@ -91,7 +91,7 @@ favor completing the frozen plan.
 - `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
   both confirmed full-training actions, result verification, and packaging.
   CPU-side orchestration and recovery verification passes 21/21 focused tests;
-  the current full repository suite passes 152/152 and labeler-screening passes 12/12.
+  the current full repository suite passes 167/167 and labeler-screening passes 12/12.
   Recovery fails closed on partial evaluation files, binds the training summary
   to the persisted checkpoint manifest, revalidates artifact-contract hashes,
   and checks packaged members against current verified results. The combined
@@ -109,13 +109,22 @@ favor completing the frozen plan.
   byte-identical. A reproducible local audit is implemented at
   `scripts/inspect_dblp_acm_source.py`; its profile, observation, normalization,
   identity, and attribution contract are frozen under `configs/datasets/`.
-  Phase 2 now has a strict adapter and atomic preparation path that generated
+  Phase 2 has a strict adapter and atomic preparation path that generated
   ignored train/validation JSONL for researcher review: 7,417 train and 2,473
   validation pairs. Test remains source-contract-only and no `test.jsonl`, paid
   label, model run, or prediction exists. `--verify-only` independently
   rederives expected bytes and rejects forged manifests and symlink aliases.
-  Phase 3 must not start until the researcher reviews Phase 2. Verification
-  passes 152/152 repository tests and 12/12 labeler-screening tests.
+  Phase 2 is researcher-approved. Phase 3's separate neutral JSON-Schema stack
+  now prepares gold-free train inputs and completed a 7,417-row deterministic
+  offline fake run with zero API calls and USD 0 cost. Its connected temporary
+  integration passes the unchanged target publisher and independent validator;
+  no production DBLP target or test artifact was created. Source verification
+  independently rederives train without opening validation/test, response
+  reconciliation is durable, and only the concrete fake client may dispatch.
+  Phase 3 was researcher-approved on 2026-09-03. Verification passes 167/167
+  repository tests, 15/15 focused Phase-3 tests, and 12/12 labeler-screening
+  tests; independent review reports no blockers. Phase 4 remains pending; this
+  approval does not authorize paid labeling, GPU work, or evaluation access.
 
 ## Commands
 
@@ -139,6 +148,13 @@ source .venv/bin/activate
   --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
   --output-root data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f \
   --verify-only
+.venv/bin/python -m supervision.run_full_labeling \
+  --pairs data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/serialized/train.jsonl \
+  --dataset-profile configs/datasets/dblp_acm.json \
+  --labeler-config configs/labelers/dblp_acm_sol_high.json \
+  --output-dir data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/teacher_labels/fake_sol_high_phase3 \
+  --expected-count 7417 \
+  --fake
 ```
 
 On the rented RTX 3090, whose image must already include CUDA-compatible
@@ -179,6 +195,10 @@ coverage. Compact-model inference never calls the LLM labeler.
 - Supervision: `supervision/generate_teacher_labels.py`,
   `supervision/direct_llm_matcher.py`, `supervision/build_targets.py`,
   `supervision/validate_teacher_labels.py`,
+  `supervision/full_label_protocol.py`,
+  `supervision/openrouter_json_schema_client.py`,
+  `supervision/prepare_full_label_inputs.py`,
+  `supervision/run_full_labeling.py`,
   `supervision/build_full_label_targets.py`,
   `supervision/validate_full_label_targets.py`.
 - Compact ER models (legacy code paths retain `student` naming during migration):

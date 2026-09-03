@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Implement Adapter and Preparation"
-status: in-progress
+status: completed
 priority: P1
 effort: "1-2d"
 dependencies: [1]
@@ -9,8 +9,8 @@ dependencies: [1]
 
 # Phase 2: Implement Adapter and Preparation
 
-Implementation is complete and independently tested; status remains in
-progress until researcher review. No Phase 3 work has started.
+Implementation was independently tested and researcher-approved on 2026-09-02.
+Phase 3 subsequently began from this approved preparation boundary.
 
 ## Overview
 

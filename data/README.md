@@ -49,3 +49,23 @@ Prepare its train and validation splits with the frozen profile:
 Add `--verify-only` to audit the frozen source and all prepared hashes without
 rewriting the cache. Only `train.jsonl` and `validation.jsonl` are materialized;
 the test split remains represented by its locked hash/header/row-count contract.
+
+## Offline labeling readiness
+
+Phase 3 prepares gold-free full-training inputs and exercises the complete
+dataset-aware supervision path with a deterministic fake client:
+
+```bash
+.venv/bin/python -m supervision.run_full_labeling \
+  --pairs data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/serialized/train.jsonl \
+  --dataset-profile configs/datasets/dblp_acm.json \
+  --labeler-config configs/labelers/dblp_acm_sol_high.json \
+  --output-dir data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/teacher_labels/fake_sol_high_phase3 \
+  --expected-count 7417 \
+  --fake
+```
+
+This command is offline-only: it accepts no paid client, makes zero API calls,
+and does not publish production targets. Its output stays under ignored cache
+storage. Current provider pricing, paid authorization, and a spend ceiling must
+be reviewed separately before a future production-labeling phase.

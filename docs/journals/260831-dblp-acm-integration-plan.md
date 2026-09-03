@@ -53,8 +53,40 @@ and fuller ID/year/missingness/canonical-pair audit output.
 
 Final Phase 2 evidence: 152/152 repository tests, 12/12 labeler-screening tests,
 real DBLP `--verify-only`, and a non-skipped fresh WDC byte-compatibility check
-all pass. Phase 3 remains pending researcher review; no paid call, GPU run,
+all pass. Phase 2 was subsequently approved by the researcher; no paid call, GPU run,
 validation prediction, target publication, or test evaluation occurred.
+
+## Phase 3 implementation checkpoint
+
+Phase 3 adds a separate neutral JSON-Schema supervision path without modifying
+the completed WDC labeling stack. The local blinded artifact contains all 7,417
+DBLP-ACM training pairs with exactly `pair_id,input_text`; only the frozen
+instruction and `input_text` enter each simulated provider request. Response
+parsing accepts exactly one structured `match` or `non_match` label.
+
+The full offline fake run produced 7,417 predictions and attempts, plus 7,417
+inflight, 7,417 response-received, and 7,417 resolved journal entries. It made zero network/API calls and
+recorded USD 0 cost. A paid-run estimate was intentionally not invented:
+current pricing inputs, authorization, and a spend ceiling must be reviewed
+separately before any charged execution path exists.
+
+Connected temporary-fixture tests feed the runner's real artifacts into the
+unchanged target publisher and independent validator. Fail-closed tests cover
+request leakage, strict response parsing, exact OpenRouter origin enforcement,
+unsafe/symlink/WDC-overlap paths, composite cache drift, forged cache contents,
+missing results, and unresolved inflight recovery. Final local evidence is
+167/167 repository tests, 15/15 focused Phase-3 tests, and 12/12
+labeler-screening tests. Independent debugger and reviewer rechecks report no
+remaining blockers. Their findings led to three material corrections: train
+bytes are now independently rederived from the frozen tables and train source,
+response evidence is durable before parsing/resolution, and only the concrete
+fake client can dispatch. A train-lock guard proves neither validation nor test
+is opened during supervision preparation.
+
+No production DBLP target, paid label, GPU action, validation/test prediction,
+direct-LLM output, normalized test artifact, or test evaluation was created.
+The researcher approved Phase 3 on 2026-09-03. Phase 4 remains pending and
+requires its own implementation/review boundary.
 
 ## Review outcome
 

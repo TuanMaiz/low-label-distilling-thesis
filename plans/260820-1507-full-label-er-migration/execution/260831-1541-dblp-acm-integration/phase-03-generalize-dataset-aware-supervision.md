@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Generalize Dataset-Aware Supervision"
-status: pending
+status: completed
 priority: P1
 effort: "1-2d"
 dependencies: [1, 2]
@@ -144,20 +144,43 @@ module remain historical, hash-stable entrypoints.
 
 ## Success Criteria
 
-- [ ] DBLP train preparation produces the frozen number of deterministic blinded rows with
+- [x] DBLP train preparation produces the frozen number of deterministic blinded rows with
   only `pair_id,input_text` and no gold/evaluation truth.
-- [ ] New DBLP protocol uses publication instructions and strict JSON Schema;
+- [x] New DBLP protocol uses publication instructions and strict JSON Schema;
   no DBLP gold rescreen occurs and legacy prompt/settings code is untouched.
-- [ ] Actual outbound messages contain only instruction plus `input_text`—never
+- [x] Actual outbound messages contain only instruction plus `input_text`—never
   `pair_id`, source IDs, truth, metadata, validation, or test content.
-- [ ] Exact-origin, safe-path, composite-cache, and inflight-crash tests fail
+- [x] Exact-origin, safe-path, composite-cache, and inflight-crash tests fail
   closed before secret/network/mutation where applicable.
-- [ ] Dry-run and full synthetic integration use zero network/API calls; the
+- [x] Dry-run and full synthetic integration use zero network/API calls; the
   actual runner artifacts pass the untouched publisher and independent validator.
-- [ ] Output inventory maps exactly to every publisher argument and preserves
+- [x] Output inventory maps exactly to every publisher argument and preserves
   gold/LLM-hard pair order and input-text parity.
-- [ ] No paid label, production DBLP target, validation/test prediction, or
+- [x] No paid label, production DBLP target, validation/test prediction, or
   direct-LLM artifact is created.
+
+## Implementation Checkpoint — 2026-09-02
+
+Implementation and local verification are complete; the researcher approved
+the phase on 2026-09-03. The full offline runner processed all
+7,417 normalized training pairs with a deterministic fake client, recorded
+7,417 attempts and 22,251 inflight/response-received/resolved journal rows, and reported zero API
+calls and USD 0 cost. No current paid estimate is asserted: pricing inputs and
+the spend ceiling remain unset pending a separate current-pricing review.
+
+The actual fake-run artifacts pass the unchanged target publisher and the
+independent target validator in a connected temporary integration test. No
+production DBLP target directory, validation/test prediction, test artifact,
+GPU action, or paid call was created. After the final safety fixes,
+verification passes 167/167 repository tests, 15/15 focused Phase-3
+tests, and 12/12 labeler-screening tests. Independent debugger and reviewer
+rechecks report no remaining blockers. Train-source rederivation reads only the
+two record tables and train split; a guard test proves validation and locked
+test are not opened.
+
+Researcher review outcome: **approved 2026-09-03**. Phase 4 remains a separate
+pending phase; this approval does not authorize paid labeling, GPU execution,
+or validation/test prediction.
 
 ## Risk Assessment
 

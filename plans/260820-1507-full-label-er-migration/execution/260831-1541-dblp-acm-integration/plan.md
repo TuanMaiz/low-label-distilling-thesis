@@ -95,8 +95,8 @@ and normalization rules approved and frozen by the researcher on 2026-09-02.
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | [Freeze DBLP-ACM Contract](./phase-01-freeze-dblp-acm-contract.md) | Completed — locally observed and researcher-approved 2026-09-02 |
-| 2 | [Implement Adapter and Preparation](./phase-02-implement-adapter-and-preparation.md) | Implementation complete — awaiting researcher review |
-| 3 | [Generalize Dataset-Aware Supervision](./phase-03-generalize-dataset-aware-supervision.md) | Pending |
+| 2 | [Implement Adapter and Preparation](./phase-02-implement-adapter-and-preparation.md) | Completed — researcher-approved 2026-09-02 |
+| 3 | [Generalize Dataset-Aware Supervision](./phase-03-generalize-dataset-aware-supervision.md) | Completed — researcher-approved 2026-09-03 |
 | 4 | [Generalize Qwen Preflight and Runner](./phase-04-generalize-qwen-preflight-and-runner.md) | Pending |
 | 5 | [Verify Compatibility and Handoff](./phase-05-verify-compatibility-and-handoff.md) | Pending |
 
@@ -108,8 +108,8 @@ and normalization rules approved and frozen by the researcher on 2026-09-02.
   completed WDC-Qwen slice and does not complete any parent exact-three gate.
 - Fresh source acquisition, local inspection, and human approval of the
   observation, normalization, identity, and attribution wording are complete.
-- Phase 2 prepared only the ignored train/validation cache; the researcher must
-  review it before Phase 3 changes the supervision workflow.
+- Phase 2 prepared only the ignored train/validation cache and was approved by
+  the researcher before Phase 3 changed the supervision workflow.
 - Paid DBLP labeling and GPU execution remain downstream of separate explicit
   authorization; they are not phases in this plan.
 
@@ -135,9 +135,9 @@ exist.
 
 ## Whole-plan test commands
 
-The first two commands below are current Phase-2 tests. The following
-supervision and Qwen-preflight modules are future Phase-3/4 commands and do not
-exist until those phases are implemented.
+The first three commands below cover implemented Phase-2/3 behavior. The
+Qwen-preflight module is a future Phase-4 command and does not exist until that
+phase is implemented.
 
 Use the repository-managed environment only:
 
@@ -242,8 +242,20 @@ Unresolved internal contradictions: **zero**.
   independent inspector runs exactly match the 5,139-byte committed manifest.
   Test inspection is limited to hash, size, header, and row count.
 - **2026-09-02 — Phase 2 implementation checkpoint:** Phase 1 is complete and
-  Phase 2 implementation is awaiting researcher review; Phases 3-5 remain
-  pending. Repository tests pass 152/152, labeler-screening passes 12/12, real
+  Phase 2 was subsequently researcher-approved; Phases 3-5 were pending at
+  this checkpoint. Repository tests pass 152/152, labeler-screening passes 12/12, real
   DBLP `--verify-only` passes, and fresh WDC serialization is byte-identical.
   No paid call, GPU action, validation prediction, normalized test artifact, or
   test evaluation occurred.
+- **2026-09-02 — Phase 3 implementation checkpoint:** the dataset-aware
+  JSON-Schema protocol, exact-origin transport, blinded-input builder, durable
+  offline runner, and connected publisher/validator integration are
+  implemented and awaiting researcher review. The real offline fake run covers
+  all 7,417 train rows with zero API calls and USD 0 cost; current paid pricing
+  remains deliberately unestimated. Repository tests pass 167/167, focused
+  Phase-3 tests pass 15/15, and
+  labeler-screening passes 12/12. No production DBLP target, paid label, GPU
+  action, validation/test prediction, or test artifact was created.
+- **2026-09-03 — Phase 3 researcher review:** approved. Phase 4 remains pending;
+  no paid labeling, GPU execution, or evaluation access was authorized by this
+  approval.

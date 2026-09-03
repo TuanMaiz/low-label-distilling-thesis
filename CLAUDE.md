@@ -55,7 +55,7 @@ executable entry point is `scripts/run_wdc_qwen_vertical_slice.sh`; it makes no
 LLM calls and never reads the test split.
 
 CPU-side implementation verification passes 21/21 focused WDC–Qwen tests; the
-current repository suite passes 152/152 and labeler-screening passes 12/12. The recovery path
+current repository suite passes 167/167 and labeler-screening passes 12/12. The recovery path
 rejects partial evaluation files instead of overwriting them, verifies that the
 training summary embeds the persisted checkpoint manifest, rechecks recorded
 contract hashes, and compares archive members with live verified results. The
@@ -81,8 +81,15 @@ byte-identical by `scripts/inspect_dblp_acm_source.py`. The executable candidate
 profile and observation manifest are under `configs/datasets/`. Phase 2's
 adapter atomically prepared only ignored train/validation artifacts (7,417 and
 2,473 pairs) and independently verifies their expected bytes. Test remains
-locked and non-materialized. Do not begin Phase 3, make paid labels, run models,
-or expose test rows until the researcher reviews the Phase 2 implementation.
+locked and non-materialized. Phase 2 is researcher-approved. Phase 3's neutral
+JSON-Schema supervision path has completed a 7,417-row deterministic offline
+fake run with zero API calls and USD 0 cost; its connected fixture passes the
+unchanged target publisher and independent validator. It created no production
+DBLP target or test artifact. Train-source verification does not open validation
+or test, response reconciliation is durable, and only the exact fake client may
+dispatch. Phase 3 was researcher-approved on 2026-09-03; focused tests pass
+15/15 and independent review reports no blockers. Phase 4 remains pending, with
+no paid labeling, GPU work, or evaluation access authorized by this approval.
 
 ## Commands
 
@@ -103,6 +110,13 @@ source .venv/bin/activate
   --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
   --output-root data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f \
   --verify-only
+.venv/bin/python -m supervision.run_full_labeling \
+  --pairs data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/serialized/train.jsonl \
+  --dataset-profile configs/datasets/dblp_acm.json \
+  --labeler-config configs/labelers/dblp_acm_sol_high.json \
+  --output-dir data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/teacher_labels/fake_sol_high_phase3 \
+  --expected-count 7417 \
+  --fake
 ```
 
 On the rented RTX 3090 with CUDA-compatible PyTorch already installed:
