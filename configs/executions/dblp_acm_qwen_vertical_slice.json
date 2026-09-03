@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "status": "fixture_ready_official_targets_pending",
+  "experiment_id": "dblp-acm-qwen-vertical-slice",
+  "dataset_id": "dblp_acm",
+  "dataset_version": "deepmatcher-structured-dblp-acm-2018-06-29-a15b752f",
+  "dataset_profile": "configs/datasets/dblp_acm.json",
+  "student_config": "configs/students/qwen3_reranker_0_6b_dblp_acm.json",
+  "wdc_reference_student_config": "configs/students/qwen3_reranker_0_6b.json",
+  "train_pairs": "data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/serialized/train.jsonl",
+  "validation_pairs": "data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/serialized/validation.jsonl",
+  "target_directory": "data/cache/dblp_acm/deepmatcher-structured-dblp-acm-2018-06-29-a15b752f/full_label_targets",
+  "output_root": "outputs/full_label/dblp-acm-qwen-vertical-slice/dblp_acm/qwen3-reranker-0-6b",
+  "expected": {
+    "train_rows": 7417,
+    "train_match": 1332,
+    "train_non_match": 6085,
+    "validation_rows": 2473,
+    "validation_match": 444,
+    "validation_non_match": 2029
+  },
+  "training": {
+    "batch_size": 1,
+    "validation_batch_size": 1,
+    "gradient_accumulation_steps": 16,
+    "epochs": 10,
+    "learning_rate": 0.0002,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "early_stopping_patience": 3,
+    "precision": "auto",
+    "optimizer": "adamw",
+    "scheduler": "linear",
+    "optimizer_steps_per_epoch": 464,
+    "planned_optimizer_steps": 4640,
+    "warmup_steps": 464
+  },
+  "lifecycle": [
+    "gold",
+    "gold_verified",
+    "gold_packaged",
+    "gold_checksum_verified",
+    "llm_hard",
+    "llm_hard_verified",
+    "llm_hard_packaged",
+    "llm_hard_checksum_verified"
+  ],
+  "guards": {
+    "test_locked": true,
+    "llm_access": false,
+    "paid_labeling_authorized": false,
+    "gpu_execution_authorized": false,
+    "official_targets_ready": false
+  }
+}

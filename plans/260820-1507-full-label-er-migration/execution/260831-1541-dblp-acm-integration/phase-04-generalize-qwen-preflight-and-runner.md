@@ -1,10 +1,12 @@
 ---
 phase: 4
-title: "Generalize Qwen Preflight and Runner"
-status: pending
+title: Generalize Qwen Preflight and Runner
+status: completed
 priority: P1
-effort: "1.5-2.5d"
-dependencies: [2, 3]
+effort: 1.5-2.5d
+dependencies:
+  - 2
+  - 3
 ---
 
 # Phase 4: Generalize Qwen Preflight and Runner
@@ -126,21 +128,21 @@ recorded separately. Runner lifecycle is fixed:
 
 ## Success Criteria
 
-- [ ] DBLP preflight validates locally frozen train/validation counts and class
+- [x] DBLP preflight validates locally frozen train/validation counts and class
   behavior without assuming their relationship or materializing the test split.
-- [ ] Canonical-source overlap test rejects a repeated raw pair even when its
+- [x] Canonical-source overlap test rejects a repeated raw pair even when its
   split-qualified target IDs differ.
-- [ ] Runner dry-run/listing resolves deterministic DBLP paths and both arms,
+- [x] Runner dry-run/listing resolves deterministic DBLP paths and both arms,
   while all GPU/training actions remain explicit and unexecuted.
-- [ ] Student-model and execution-runtime equivalence are separate; execution
+- [x] Student-model and execution-runtime equivalence are separate; execution
   profile freezes optimizer and warmup steps derived from the observed count.
-- [ ] Lifecycle and relocation tests enforce gold-first verified packaging,
+- [x] Lifecycle and relocation tests enforce gold-first verified packaging,
   checksums, stable portable identities, and safe resolved runtime paths.
-- [ ] Confirmation, resume, corruption, contract-hash, checkpoint, and packaging
+- [x] Confirmation, resume, corruption, contract-hash, checkpoint, and packaging
   fixture tests fail closed.
-- [ ] Existing WDC preflight/runner/config are unedited by Git/blob hash and all
+- [x] Existing WDC preflight/runner/config are unedited by Git/blob hash and all
   21 focused tests plus the full suite pass.
-- [ ] No CUDA requirement, model weight download, training checkpoint,
+- [x] No CUDA requirement, model weight download, training checkpoint,
   validation prediction, test access, or LLM call occurs.
 
 ## Risk Assessment
@@ -150,3 +152,25 @@ hard prohibition. Limited new-file duplication is accepted until verifier
 versioning/global runner migration is designed. A dataset-specific instruction
 or derived schedule could be misreported as the WDC config; mitigate with two
 separate equivalence checks, distinct hashes, and explicit execution identity.
+
+## Implementation Checkpoint — 2026-09-03
+
+Phase 4 was implemented and researcher-approved when Phase 5 was started. The new DBLP execution
+profile freezes the independently observed 7,417/2,473 train/validation counts,
+the 464/4,640/464 derived optimizer schedule, gold-first lifecycle, portable
+paths, and locked test/LLM/GPU guards. The DBLP Qwen config differs from the
+frozen WDC config only in its approved scholarly-publication instruction.
+
+The CPU-only preflight fixtures validate source-qualified canonical identities,
+the upstream `valid` source name, target manifests, aligned arms, class balance,
+train/validation separation, tokenizer-audit bindings, result/checkpoint
+relationships, deterministic packages, checksums, and relocation. The runner
+renders both future trainer/evaluator command sets but refuses every official
+GPU action while `official_targets_ready` and `gpu_execution_authorized` remain
+false. This checkpoint created no paid label, production DBLP target, model
+download, CUDA import, training output, validation prediction, or test artifact.
+
+Verification passes 12/12 focused DBLP Phase-4 tests, 181/181 repository tests,
+21/21 focused WDC tests, and 12/12 labeler-screening tests. The three protected
+WDC SHA-256 values remain unchanged. Phase 5 subsequently completed the offline
+compatibility handoff.
