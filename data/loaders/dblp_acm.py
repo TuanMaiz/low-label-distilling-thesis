@@ -184,6 +184,32 @@ def _audit_locked_test(path: Path, contract: SplitContract) -> dict[str, Any]:
     return {"sha256": contract.sha256, "size_bytes": contract.size_bytes, "header": header, "row_count": row_count}
 
 
+def audit_and_load_dblp_acm_train(
+    profile: DatasetProfile,
+    source_root: Path | str,
+) -> list[GenericERPair]:
+    """Independently audit and load train without opening validation or locked test."""
+    source_root = Path(source_root)
+    left, _ = _audit_table(
+        source_root / profile.record_tables["dblp"].filename,
+        profile.record_tables["dblp"],
+    )
+    right, _ = _audit_table(
+        source_root / profile.record_tables["acm"].filename,
+        profile.record_tables["acm"],
+    )
+    contract = profile.splits["train"]
+    pairs, _, _, _, _ = _audit_split(
+        source_root / contract.filename,
+        "train",
+        contract,
+        left,
+        right,
+        profile,
+    )
+    return pairs
+
+
 def audit_and_load_dblp_acm(profile: DatasetProfile, source_root: Path | str) -> DblpAcmLoadResult:
     """Audit the frozen source and load only train/validation generic pairs."""
     source_root = Path(source_root)
