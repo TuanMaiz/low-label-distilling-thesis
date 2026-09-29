@@ -100,6 +100,14 @@ metrics, and test artifacts do not exist.
 
 ## Commands
 
+The refinement extension plan is under
+`plans/260928-0938-uncertainty-aware-llm-label-refinement-fundamental/`.
+`labeller-screening/run_full_wdc.py --no-reuse-existing` supports separate
+teacher passes without importing screening labels. Pass 2 completed with
+2,500/2,500 valid fresh labels, zero reuse, zero retries, and USD 2.709705
+cost. Pass 3 remains pending pricing review and separate approval; the
+completed original run is pass 1.
+
 ```bash
 cd /mnt/d/study/cao-hoc/luan-van/code
 source .venv/bin/activate

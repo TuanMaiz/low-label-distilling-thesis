@@ -66,6 +66,14 @@ favor completing the frozen plan.
 
 ## Current Status
 
+- The refinement extension is recorded in
+  `plans/260928-0938-uncertainty-aware-llm-label-refinement-fundamental/`.
+  WDC `run_full_wdc.py --no-reuse-existing` now skips screening reuse for
+  separate teacher passes. Pass 2 completed with 2,500/2,500 valid fresh
+  labels, zero reuse, zero retries, and USD 2.709705 cost. Existing pass 1
+  remains in `full_sol_high`; paid pass 3 still requires pricing review and
+  separate approval.
+
 - Branch: `refactor/full-label-er-migration`.
 - Low-label sampler, active selector, old Phase-03/04 orchestration, old
   Phase-05 runner, and superseded execution-plan directory are removed.
@@ -91,7 +99,7 @@ favor completing the frozen plan.
 - `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
   both confirmed full-training actions, result verification, and packaging.
   CPU-side orchestration and recovery verification passes 21/21 focused tests;
-  the current full repository suite passes 181/181 and labeler-screening passes 12/12.
+  the current full repository suite passes 181/181 and labeler-screening passes 13/13.
   Recovery fails closed on partial evaluation files, binds the training summary
   to the persisted checkpoint manifest, revalidates artifact-contract hashes,
   and checks packaged members against current verified results. The combined

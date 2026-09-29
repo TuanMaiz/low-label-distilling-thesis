@@ -68,6 +68,25 @@ def _git_provenance() -> dict[str, str | bool]:
     }
 
 
+def _resolve_reuse(
+    rows: list[dict],
+    config: dict,
+    reuse_inputs: Path,
+    reuse_attempts: Path,
+    *,
+    no_reuse_existing: bool,
+    expected_reuse_count: int = 300,
+) -> tuple[int, Path | None, Path | None]:
+    if no_reuse_existing:
+        return 0, None, None
+
+    validate_blinded_inputs(reuse_inputs, expected_count=expected_reuse_count)
+    reuse_predictions, _, _ = validate_reuse_artifacts(
+        rows, config, "sol_high", reuse_attempts, reuse_inputs
+    )
+    return len(reuse_predictions), reuse_attempts, reuse_inputs
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Label the complete official WDC training split with the screened Sol-high setting."
@@ -78,6 +97,11 @@ def main() -> None:
     parser.add_argument("--settings", type=Path, default=HERE / "settings.json")
     parser.add_argument("--reuse-inputs", type=Path, default=DEFAULT_REUSE_INPUTS)
     parser.add_argument("--reuse-attempts", type=Path, default=DEFAULT_REUSE_ATTEMPTS)
+    parser.add_argument(
+        "--no-reuse-existing",
+        action="store_true",
+        help="Start an independent pass without importing the completed 300-row screening run.",
+    )
     parser.add_argument("--confirm-paid-labeling", action="store_true")
     parser.add_argument("--spend-ceiling-usd", type=float)
     args = parser.parse_args()
@@ -95,11 +119,13 @@ def main() -> None:
     if frozen_manifest.get("inputs_sha256") != sha256_file(inputs_path):
         raise SystemExit("Full blinded input hash does not match its frozen manifest")
 
-    validate_blinded_inputs(args.reuse_inputs, expected_count=300)
-    reuse_predictions, _, _ = validate_reuse_artifacts(
-        rows, config, "sol_high", args.reuse_attempts, args.reuse_inputs
+    reuse_count, reuse_attempts_path, reuse_inputs_path = _resolve_reuse(
+        rows,
+        config,
+        args.reuse_inputs,
+        args.reuse_attempts,
+        no_reuse_existing=args.no_reuse_existing,
     )
-    reuse_count = len(reuse_predictions)
     full_manifest_path = manifest_path
     run_provenance = {
         "dataset_id": "wdc_products_80cc_small_100un",
@@ -158,8 +184,8 @@ def main() -> None:
         client=client,
         spend_ceiling_usd=args.spend_ceiling_usd,
         expected_count=EXPECTED_WDC_TRAIN_COUNT,
-        reuse_attempts_path=args.reuse_attempts,
-        reuse_inputs_path=args.reuse_inputs,
+        reuse_attempts_path=reuse_attempts_path,
+        reuse_inputs_path=reuse_inputs_path,
         run_provenance=run_provenance,
     )
     print(json.dumps({**dry_run, "dry_run": False, "complete_result": str(output)}, indent=2))

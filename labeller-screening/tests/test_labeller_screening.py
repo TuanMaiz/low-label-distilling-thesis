@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import importlib.util
 import json
 import sys
 import tempfile
@@ -23,6 +24,14 @@ from screening_lib import (  # noqa: E402
     run_setting,
 )
 from supervision.llm_providers import OpenRouterHTTPError  # noqa: E402
+
+
+RUN_FULL_WDC_SPEC = importlib.util.spec_from_file_location(
+    "run_full_wdc", HERE / "run_full_wdc.py"
+)
+assert RUN_FULL_WDC_SPEC is not None and RUN_FULL_WDC_SPEC.loader is not None
+run_full_wdc = importlib.util.module_from_spec(RUN_FULL_WDC_SPEC)
+RUN_FULL_WDC_SPEC.loader.exec_module(run_full_wdc)
 
 
 def write_source(path: Path, count: int = 400) -> None:
@@ -132,6 +141,61 @@ class WrongModelClient(FakeClient):
 
 
 class LabellerScreeningTests(unittest.TestCase):
+    def test_full_wdc_reuse_switch_preserves_default_and_supports_fresh_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reuse_inputs = root / "reuse.inputs.jsonl"
+            full_inputs = root / "full.inputs.jsonl"
+            reuse_rows = [
+                {"pair_id": f"p{index}", "input_text": f"pair {index}"}
+                for index in range(2)
+            ]
+            full_rows = [
+                {"pair_id": f"p{index}", "input_text": f"pair {index}"}
+                for index in range(4)
+            ]
+            for path, rows in ((reuse_inputs, reuse_rows), (full_inputs, full_rows)):
+                with path.open("w", encoding="utf-8") as handle:
+                    for row in rows:
+                        handle.write(json.dumps(row) + "\n")
+
+            reuse_dir = root / "reuse_predictions"
+            run_setting(
+                reuse_inputs,
+                reuse_dir,
+                config(),
+                "sol_high",
+                FakeClient(),
+                10.0,
+                sleep=lambda _: None,
+                expected_count=2,
+            )
+
+            default = run_full_wdc._resolve_reuse(
+                full_rows,
+                config(),
+                reuse_inputs,
+                reuse_dir / "sol_high.attempts.jsonl",
+                no_reuse_existing=False,
+                expected_reuse_count=2,
+            )
+            self.assertEqual(
+                default,
+                (2, reuse_dir / "sol_high.attempts.jsonl", reuse_inputs),
+            )
+
+            missing_inputs = root / "missing.inputs.jsonl"
+            missing_attempts = root / "missing.attempts.jsonl"
+            fresh = run_full_wdc._resolve_reuse(
+                full_rows,
+                config(),
+                missing_inputs,
+                missing_attempts,
+                no_reuse_existing=True,
+                expected_reuse_count=2,
+            )
+            self.assertEqual(fresh, (0, None, None))
+
     def test_full_training_inputs_are_complete_and_gold_free(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
