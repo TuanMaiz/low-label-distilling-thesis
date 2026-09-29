@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Run Three Separate Teacher Passes"
-status: todo
+status: complete
 priority: P1
 ---
 
@@ -275,14 +275,14 @@ Do not solve that future need by complicating the immediate WDC phase.
 
 ## Todo
 
-- [ ] Approve reuse of the completed WDC result as `pass_01`.
+- [x] Approve reuse of the completed WDC result as `pass_01`.
 - [x] Implement and test the minimal `--no-reuse-existing` flag.
 - [x] Dry-run and review pass 2.
 - [x] Approve and complete paid pass 2.
 - [x] Verify pass 2 before pass 3.
-- [ ] Dry-run and review pass 3.
-- [ ] Approve and complete paid pass 3.
-- [ ] Verify all three pass inventories and aligned pair IDs.
+- [x] Dry-run and review pass 3.
+- [x] Approve and complete paid pass 3.
+- [x] Verify all three pass inventories and aligned pair IDs.
 
 ## Success Criteria
 
@@ -314,6 +314,12 @@ attempt, audit, and run artifacts passed exact input-ID alignment, frozen-model,
 provider, request-hash, cost-ceiling, and response-ID checks. The focused suite
 passes 13/13 and the repository suite passes 181/181.
 
-After researcher review of the three-pass inventory, add a small phase that
-computes majority labels and `3/3` versus `2/3` consistency offline. That phase
-must not make API calls and must keep hidden gold separate until evaluation.
+Pass-3 completion evidence (2026-09-29): 2,500/2,500 valid unique labels,
+zero reused responses, one transient failed attempt followed by a successful
+retry, and USD 2.693205 measured valid-response cost. All three prediction
+files match the same 2,500 frozen pair IDs in the same order. The offline
+consensus phase subsequently consumed them without moving or modifying any
+paid-run artifact.
+
+The next phase is three-fold OOF student prediction using the frozen majority
+labels. It must keep hidden gold separate from training and ranking.

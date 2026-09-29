@@ -55,7 +55,7 @@ executable entry point is `scripts/run_wdc_qwen_vertical_slice.sh`; it makes no
 LLM calls and never reads the test split.
 
 CPU-side implementation verification passes 21/21 focused WDC–Qwen tests; the
-current repository suite passes 181/181 and labeler-screening passes 12/12. The recovery path
+current repository suite passes 186/186 and labeler-screening passes 13/13. The recovery path
 rejects partial evaluation files instead of overwriting them, verifies that the
 training summary embeds the persisted checkpoint manifest, rechecks recorded
 contract hashes, and compares archive members with live verified results. The
@@ -105,8 +105,14 @@ The refinement extension plan is under
 `labeller-screening/run_full_wdc.py --no-reuse-existing` supports separate
 teacher passes without importing screening labels. Pass 2 completed with
 2,500/2,500 valid fresh labels, zero reuse, zero retries, and USD 2.709705
-cost. Pass 3 remains pending pricing review and separate approval; the
-completed original run is pass 1.
+cost. Pass 3 completed with 2,500/2,500 valid fresh labels, zero reuse, one
+transient failed attempt followed by a successful retry, and USD 2.693205
+measured valid-response cost; the completed original run is pass 1. The three
+aligned passes were combined offline by `supervision.build_teacher_consensus`
+into 2,500 majority labels: 495 `match`, 2,005 `non_match`, 2,487 at `3/3`
+consistency, and 13 at `2/3`. These are separate artifacts under
+`data/cache/wdc_products/majority_labels/`; the original pair JSONL remains
+unchanged.
 
 ```bash
 cd /mnt/d/study/cao-hoc/luan-van/code
@@ -115,6 +121,19 @@ source .venv/bin/activate
 .venv/bin/python -m unittest discover -s labeller-screening/tests -v
 .venv/bin/python -m supervision.validate_full_label_targets \
   --target-dir data/cache/wdc_products/full_label_targets
+.venv/bin/python -m supervision.build_teacher_consensus \
+  --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
+  --pass-01 data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv \
+  --pass-02 data/cache/wdc_products/teacher_labels/full_sol_high_pass_02/predictions/sol_high.csv \
+  --pass-03 data/cache/wdc_products/teacher_labels/full_sol_high_pass_03/predictions/sol_high.csv \
+  --output-dir data/cache/wdc_products/majority_labels \
+  --expected-count 2500
+.venv/bin/python -m tests.test_teacher_consensus real-files \
+  --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
+  --pass-01 data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv \
+  --pass-02 data/cache/wdc_products/teacher_labels/full_sol_high_pass_02/predictions/sol_high.csv \
+  --pass-03 data/cache/wdc_products/teacher_labels/full_sol_high_pass_03/predictions/sol_high.csv \
+  --expected-count 2500
 .venv/bin/python scripts/inspect_dblp_acm_source.py \
   --archive data/raw/dblp_acm/dblp_acm_exp_data.zip \
   --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \

@@ -70,9 +70,16 @@ favor completing the frozen plan.
   `plans/260928-0938-uncertainty-aware-llm-label-refinement-fundamental/`.
   WDC `run_full_wdc.py --no-reuse-existing` now skips screening reuse for
   separate teacher passes. Pass 2 completed with 2,500/2,500 valid fresh
-  labels, zero reuse, zero retries, and USD 2.709705 cost. Existing pass 1
-  remains in `full_sol_high`; paid pass 3 still requires pricing review and
-  separate approval.
+  labels, zero reuse, zero retries, and USD 2.709705 cost. Pass 3 completed
+  with 2,500/2,500 valid fresh labels, zero reuse, one transient failed attempt
+  followed by a successful retry, and USD 2.693205 measured valid-response
+  cost. Existing pass 1 remains in `full_sol_high`.
+  `supervision/build_teacher_consensus.py` then combined the three aligned
+  passes offline into ignored artifacts under
+  `data/cache/wdc_products/majority_labels/`: 2,500 majority labels (495
+  `match`, 2,005 `non_match`) with 2,487 `3/3` and 13 `2/3` consistency rows.
+  The next same-level task is planning three-fold OOF student predictions; do
+  not mutate the original pair JSONL to attach these labels or scores.
 
 - Branch: `refactor/full-label-er-migration`.
 - Low-label sampler, active selector, old Phase-03/04 orchestration, old
@@ -99,7 +106,7 @@ favor completing the frozen plan.
 - `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
   both confirmed full-training actions, result verification, and packaging.
   CPU-side orchestration and recovery verification passes 21/21 focused tests;
-  the current full repository suite passes 181/181 and labeler-screening passes 13/13.
+  the current full repository suite passes 186/186 and labeler-screening passes 13/13.
   Recovery fails closed on partial evaluation files, binds the training summary
   to the persisted checkpoint manifest, revalidates artifact-contract hashes,
   and checks packaged members against current verified results. The combined
@@ -154,6 +161,19 @@ source .venv/bin/activate
 .venv/bin/python -m unittest discover -s labeller-screening/tests -v
 .venv/bin/python -m supervision.validate_full_label_targets \
   --target-dir data/cache/wdc_products/full_label_targets
+.venv/bin/python -m supervision.build_teacher_consensus \
+  --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
+  --pass-01 data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv \
+  --pass-02 data/cache/wdc_products/teacher_labels/full_sol_high_pass_02/predictions/sol_high.csv \
+  --pass-03 data/cache/wdc_products/teacher_labels/full_sol_high_pass_03/predictions/sol_high.csv \
+  --output-dir data/cache/wdc_products/majority_labels \
+  --expected-count 2500
+.venv/bin/python -m tests.test_teacher_consensus real-files \
+  --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
+  --pass-01 data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv \
+  --pass-02 data/cache/wdc_products/teacher_labels/full_sol_high_pass_02/predictions/sol_high.csv \
+  --pass-03 data/cache/wdc_products/teacher_labels/full_sol_high_pass_03/predictions/sol_high.csv \
+  --expected-count 2500
 .venv/bin/python scripts/inspect_dblp_acm_source.py \
   --archive data/raw/dblp_acm/dblp_acm_exp_data.zip \
   --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
@@ -218,6 +238,7 @@ coverage. Compact-model inference never calls the LLM labeler.
   `supervision/openrouter_json_schema_client.py`,
   `supervision/prepare_full_label_inputs.py`,
   `supervision/run_full_labeling.py`,
+  `supervision/build_teacher_consensus.py`,
   `supervision/build_full_label_targets.py`,
   `supervision/validate_full_label_targets.py`.
 - Compact ER models (legacy code paths retain `student` naming during migration):

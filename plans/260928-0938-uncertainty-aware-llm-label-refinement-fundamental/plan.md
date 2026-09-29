@@ -97,13 +97,20 @@ outputs. Test remains locked until every method and validation choice is frozen.
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | [Freeze the Foundational Scientific and Execution Contract](./phase-01-start.md) | Pending |
-| 2 | [Run Three Separate Teacher Passes](./phase-02-run-three-separate-teacher-passes.md) | Pending |
+| 2 | [Run Three Separate Teacher Passes](./phase-02-run-three-separate-teacher-passes.md) | Complete |
+| 3 | [Build WDC Teacher Majority and Consistency Artifacts](./phase-03-build-wdc-teacher-majority-and-consistency-artifacts.md) | Complete |
 
 Phase 2 deliberately reuses the current labeler and executes separate named
 runs rather than introducing a multipass orchestration framework. Later phases
 must be added through the plan CLI after the relevant Phase 1 decisions freeze.
 Expected extensions are OOF and detection, treatments and controls, tiered
 execution, evaluation/error analysis, cost aggregation, and final verification.
+
+Phase 3 is the small offline bridge from the three WDC teacher passes to the
+future OOF phase. It produces the majority label and `3/3` or `2/3`
+consistency for every training pair without reading gold or calling a model.
+It completed with 2,500 majority labels: 2,487 pairs have `3/3` consistency
+and 13 have `2/3` consistency.
 
 ## Success Criteria
 
