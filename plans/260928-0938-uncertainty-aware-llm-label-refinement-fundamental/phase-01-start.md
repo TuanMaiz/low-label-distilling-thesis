@@ -33,12 +33,14 @@ implementation phases; it does not execute the main experiment.
 - Preserve validation-based method development and one final test release.
 - Treat negative and dataset-dependent results as valid findings.
 
-## Recommended Starting Design — Not Yet Frozen
+## Current Starting Design — Partially Frozen
 
 - Base LLM label: majority vote over three teacher passes.
 - Consistency: `3/3` versus `2/3` for binary labels.
-- Designated detector student: one compact cross-encoder generates the main
-  three-fold OOF evidence; refined targets are then reused across all students.
+- Designated detector student: Qwen3-Reranker-0.6B generates the main
+  three-fold OOF evidence across datasets; refined targets are then reused
+  across all three downstream students. A second detector is optional only as
+  a WDC robustness ablation if supervisor review requires it.
 - Signal roles: Confident Learning estimates error count/direction,
   teacher-student disagreement ranks candidates within each direction, and LLM
   consistency stratifies or prioritizes candidates.
@@ -107,10 +109,16 @@ fold 3: train on folds 1+2 -> predict fold 3
 ```
 
 - Freeze deterministic, class-aware fold construction.
+- Use dataset-defined `pair_id` as the OOF example identity and reserve a
+  deterministic class-aware 20% of each fold's non-held-out pool for inner
+  validation/checkpoint selection.
 - Reuse the accepted model training configuration unless the contract records a
   necessary change.
-- Save OOF match probability, assigned-label probability, fold identity,
-  optional margin/entropy, and disagreement evidence.
+- Save canonical row identity, fold identity, majority given-label ID, and OOF
+  probabilities in frozen class order `0 = non_match`, `1 = match`. Later CL
+  code consumes the given-label vector and the two-column probability matrix;
+  margin, entropy, disagreement, and issue rankings are derived later rather
+  than replacing the raw probabilities.
 - Require every training pair to be predicted exactly once by a model that did
   not train on it.
 - Define checkpoint recovery and artifact-completeness checks.
@@ -295,17 +303,18 @@ Before expensive work, fixture tests must verify:
 
 1. Exact Dataset 3.
 2. Exact students 2 and 3.
-3. Designated detector student.
-4. Whether majority vote becomes the official base LLM label.
-5. Whether exact-repeat Sol-high calls produce enough variation.
-6. Exact CL count/candidate outputs and disagreement formula.
-7. Integration role of the `2/3` flag: stratification, tie-break, or priority.
-8. Treatment-size rule and sensitivity percentages.
-9. Evidence-check relabel acceptance rule.
-10. Whether random relabel is worth its paid-call cost.
-11. Which controls remain designated-student-only.
-12. Maximum manual error-analysis sample.
-13. API, GPU, storage, and calendar ceilings plus a reduced-scope fallback.
+3. Whether majority vote becomes the official base LLM label beyond the WDC
+   pilot.
+4. Whether exact-repeat Sol-high calls produce enough variation.
+5. Exact CL count/candidate outputs and disagreement formula.
+6. Integration role of the `2/3` flag: stratification, tie-break, or priority.
+7. Treatment-size rule and sensitivity percentages.
+8. Evidence-check relabel acceptance rule.
+9. Whether random relabel is worth its paid-call cost.
+10. Which controls remain designated-student-only beyond the approved primary
+    Qwen detector.
+11. Maximum manual error-analysis sample.
+12. API, GPU, storage, and calendar ceilings plus a reduced-scope fallback.
 
 ## Risks and Mitigations
 
