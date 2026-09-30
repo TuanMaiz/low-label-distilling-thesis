@@ -1,6 +1,10 @@
 data/cache/*
 !data/cache/wdc_products/
 data/cache/wdc_products/*
+!data/cache/wdc_products/oof/
+data/cache/wdc_products/oof/*
+!data/cache/wdc_products/oof/majority-3fold/
+!data/cache/wdc_products/oof/majority-3fold/**
 data/raw/wdc_products/*.zip
 data/raw/dblp_acm/
 outputs/
