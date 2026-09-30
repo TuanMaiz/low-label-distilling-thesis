@@ -55,7 +55,7 @@ executable entry point is `scripts/run_wdc_qwen_vertical_slice.sh`; it makes no
 LLM calls and never reads the test split.
 
 CPU-side implementation verification passes 21/21 focused WDC–Qwen tests; the
-current repository suite passes 186/186 and labeler-screening passes 13/13. The recovery path
+current repository suite passes 193/193 and labeler-screening passes 13/13. The recovery path
 rejects partial evaluation files instead of overwriting them, verifies that the
 training summary embeds the persisted checkpoint manifest, rechecks recorded
 contract hashes, and compares archive members with live verified results. The
@@ -112,7 +112,11 @@ aligned passes were combined offline by `supervision.build_teacher_consensus`
 into 2,500 majority labels: 495 `match`, 2,005 `non_match`, 2,487 at `3/3`
 consistency, and 13 at `2/3`. These are separate artifacts under
 `data/cache/wdc_products/majority_labels/`; the original pair JSONL remains
-unchanged.
+unchanged. Phase 4 committed deterministic three-fold WDC-Qwen inputs under
+`data/cache/wdc_products/oof/majority-3fold/` and the CPU verification,
+execution, recovery, and CL-ready merge tooling. An isolated committed-tree
+`verify-data` run passed. No real OOF model training or probabilities exist;
+those remain Phase 5 on a separately authorized CUDA machine.
 
 ```bash
 cd /mnt/d/study/cao-hoc/luan-van/code
@@ -128,6 +132,15 @@ source .venv/bin/activate
   --pass-03 data/cache/wdc_products/teacher_labels/full_sol_high_pass_03/predictions/sol_high.csv \
   --output-dir data/cache/wdc_products/majority_labels \
   --expected-count 2500
+.venv/bin/python -m supervision.prepare_oof_folds verify \
+  --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
+  --majority-labels data/cache/wdc_products/majority_labels/llm_unrefined.csv \
+  --output-dir data/cache/wdc_products/oof/majority-3fold \
+  --dataset-id wdc_products_80cc_small_100un \
+  --expected-count 2500 \
+  --validation-percent 20
+PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh verify-data
+PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh plan
 .venv/bin/python -m tests.test_teacher_consensus real-files \
   --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
   --pass-01 data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv \

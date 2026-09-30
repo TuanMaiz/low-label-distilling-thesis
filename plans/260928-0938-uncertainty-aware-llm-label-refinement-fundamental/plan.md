@@ -99,7 +99,7 @@ outputs. Test remains locked until every method and validation choice is frozen.
 | 1 | [Freeze the Foundational Scientific and Execution Contract](./phase-01-start.md) | Pending |
 | 2 | [Run Three Separate Teacher Passes](./phase-02-run-three-separate-teacher-passes.md) | Complete |
 | 3 | [Build WDC Teacher Majority and Consistency Artifacts](./phase-03-build-wdc-teacher-majority-and-consistency-artifacts.md) | Complete |
-| 4 | [Prepare WDC Qwen OOF Artifacts and Runner](./phase-04-prepare-and-run-wdc-qwen-oof.md) | Todo |
+| 4 | [Prepare WDC Qwen OOF Artifacts and Runner](./phase-04-prepare-and-run-wdc-qwen-oof.md) | Complete |
 | 5 | [Execute and Merge WDC Qwen OOF](./phase-05-execute-and-merge-wdc-qwen-oof.md) | Todo |
 
 Phase 2 deliberately reuses the current labeler and executes separate named
@@ -114,19 +114,21 @@ consistency for every training pair without reading gold or calling a model.
 It completed with 2,500 majority labels: 2,487 pairs have `3/3` consistency
 and 13 have `2/3` consistency.
 
-Phase 4 freezes and verifies deterministic WDC-Qwen OOF folds on CPU. Phase 5
-is the separately authorized rented-GPU execution and exact-once probability
-merge. This separation ensures planning or preparing the folds cannot
-accidentally start CUDA work. Both phases reuse the generic trainer/evaluator's
-dynamic path interfaces; the missing work is fold preparation, leakage checks,
-orchestration, result verification, and merging rather than model changes.
+Phase 4 completed the deterministic WDC-Qwen OOF folds, leakage checks, CPU
+verification, command rendering, result-verification contract, and exact-once
+merge implementation. Phase 5 is the separately authorized rented-GPU
+execution and real probability merge. This separation ensures preparing and
+verifying the folds cannot accidentally start CUDA work. Both phases reuse the
+generic trainer/evaluator's dynamic path interfaces; no model architecture
+change was required.
 The WDC pilot decisions were approved on 2026-09-30: `pair_id` is the OOF unit,
 20% of each non-held-out pool is inner validation, Qwen is the primary detector,
 all three students remain downstream evaluation models, and the merged output
 keeps CL-ready given-label IDs plus raw two-class OOF probabilities.
-The verified fold input JSONL and manifests will be committed so the rented GPU
-only needs a clean clone/pull plus the training/evaluation runner; checkpoints
-and prediction/result artifacts remain outside Git.
+The verified fold input JSONL and manifests are committed in `ee18f96`, and an
+isolated committed-tree verification passed. The rented GPU therefore needs
+only a clean clone/pull plus the training/evaluation runner; checkpoints and
+prediction/result artifacts remain outside Git.
 
 ## Success Criteria
 

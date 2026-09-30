@@ -51,3 +51,19 @@ configured base model; the prior full-WDC checkpoint and other folds' states
 cannot be reused. The merged artifact freezes `0 = non_match`, `1 = match` and
 stores canonical row order, the given majority-label ID, and both OOF class
 probabilities so it can later be passed directly to Confident Learning.
+
+## Implementation result
+
+Phase 4 was implemented and CPU-verified on 2026-09-30. Commit `ee18f96`
+contains the fold preparer/verifier, Qwen OOF command and result contracts,
+GPU dispatcher, tests, and the complete frozen fold bundle.
+
+The bundle contains 2,500 unique pairs with the original majority-label class
+totals of 495 `match` and 2,005 `non_match`. Fold 1 contains 1,333 train, 333
+validation, and 834 held-out rows; folds 2 and 3 each contain 1,334 train, 333
+validation, and 833 held-out rows. Every pair is held out exactly once.
+
+Verification passed 7/7 focused OOF tests, 193/193 repository tests, and 13/13
+labeler-screening tests. A Git archive of the committed tree also passed the
+workflow's `verify-data` action without regenerating any fold. No CUDA action,
+model training, or real OOF prediction occurred; those remain Phase 5.

@@ -78,8 +78,13 @@ favor completing the frozen plan.
   passes offline into ignored artifacts under
   `data/cache/wdc_products/majority_labels/`: 2,500 majority labels (495
   `match`, 2,005 `non_match`) with 2,487 `3/3` and 13 `2/3` consistency rows.
-  The next same-level task is planning three-fold OOF student predictions; do
-  not mutate the original pair JSONL to attach these labels or scores.
+  Phase 4 then committed deterministic three-fold WDC-Qwen OOF inputs under
+  `data/cache/wdc_products/oof/majority-3fold/` plus preparation, verification,
+  execution, recovery, and CL-ready merge tooling. Fold 1 has 1,333/333/834
+  train/validation/held-out rows; folds 2 and 3 each have 1,334/333/833. An
+  isolated committed-tree `verify-data` run passed. Phase 5 rented-GPU
+  execution has not started; no real OOF probabilities exist yet. Do not
+  mutate the original pair JSONL to attach labels or scores.
 
 - Branch: `refactor/full-label-er-migration`.
 - Low-label sampler, active selector, old Phase-03/04 orchestration, old
@@ -106,7 +111,7 @@ favor completing the frozen plan.
 - `scripts/run_wdc_qwen_vertical_slice.sh` implements setup, preflight, smoke,
   both confirmed full-training actions, result verification, and packaging.
   CPU-side orchestration and recovery verification passes 21/21 focused tests;
-  the current full repository suite passes 186/186 and labeler-screening passes 13/13.
+  the current full repository suite passes 193/193 and labeler-screening passes 13/13.
   Recovery fails closed on partial evaluation files, binds the training summary
   to the persisted checkpoint manifest, revalidates artifact-contract hashes,
   and checks packaged members against current verified results. The combined
@@ -174,6 +179,15 @@ source .venv/bin/activate
   --pass-02 data/cache/wdc_products/teacher_labels/full_sol_high_pass_02/predictions/sol_high.csv \
   --pass-03 data/cache/wdc_products/teacher_labels/full_sol_high_pass_03/predictions/sol_high.csv \
   --expected-count 2500
+.venv/bin/python -m supervision.prepare_oof_folds verify \
+  --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
+  --majority-labels data/cache/wdc_products/majority_labels/llm_unrefined.csv \
+  --output-dir data/cache/wdc_products/oof/majority-3fold \
+  --dataset-id wdc_products_80cc_small_100un \
+  --expected-count 2500 \
+  --validation-percent 20
+PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh verify-data
+PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh plan
 .venv/bin/python scripts/inspect_dblp_acm_source.py \
   --archive data/raw/dblp_acm/dblp_acm_exp_data.zip \
   --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \

@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Prepare WDC Qwen OOF Artifacts and Runner"
-status: todo
+status: complete
 priority: P1
 effort: "1-2d implementation and CPU verification"
 dependencies: [3]
@@ -208,13 +208,31 @@ pred_probs = rows[["non_match_probability", "match_probability"]]
 
 - [x] Approve the WDC-Qwen detector; the inner-validation ratio is frozen at
       20% of each fold's non-held-out pool.
-- [ ] Implement the fold preparer and independent verifier.
-- [ ] Implement CPU preflight, result verification, and merge contract.
-- [ ] Implement the thin shell dispatcher with explicit GPU confirmation.
-- [ ] Add focused tests and run the complete CPU suite.
-- [ ] Materialize and inspect all three real WDC fold directories.
-- [ ] Commit the verified fold inputs and prove clean-clone verification.
-- [ ] Update durable workflow documentation with verified counts/commands.
+- [x] Implement the fold preparer and independent verifier.
+- [x] Implement CPU preflight, result verification, and merge contract.
+- [x] Implement the thin shell dispatcher with explicit GPU confirmation.
+- [x] Add focused tests and run the complete CPU suite.
+- [x] Materialize and inspect all three real WDC fold directories.
+- [x] Commit the verified fold inputs and prove clean-clone verification.
+- [x] Update durable workflow documentation with verified counts/commands.
+
+## Completion Evidence
+
+Completed on 2026-09-30 in commit `ee18f96`.
+
+- The committed fold bundle contains 2,500 unique majority-labeled WDC pairs:
+  495 `match` and 2,005 `non_match`.
+- Fold 1 contains 1,333 train, 333 validation, and 834 held-out rows.
+  Folds 2 and 3 each contain 1,334 train, 333 validation, and 833 held-out
+  rows.
+- Focused OOF tests pass 7/7, the repository suite passes 193/193, and
+  labeler-screening passes 13/13.
+- Shell syntax and Python compilation checks pass.
+- An isolated archive of the committed tree passed `verify-data` without
+  regenerating folds or reading human training labels, official validation,
+  or official test data.
+- No GPU training or real OOF prediction was run. Those actions remain Phase
+  5 and require the explicit `--confirm-oof-training` flag on a CUDA machine.
 
 ## Success Criteria
 
