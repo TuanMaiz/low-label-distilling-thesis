@@ -1,0 +1,138 @@
+{
+  "policy": "quick-tier-v1",
+  "decision_origin": "assistant_review_of_existing_evidence",
+  "validated_diagnoses_sha256": "7f87eb8581e2a2e2198caa466a00bf79f04fffe04bb98fe66d12b3b63e95db38",
+  "source_count": 2500,
+  "selected_count": 158,
+  "valid_diagnoses": 155,
+  "invalid_diagnoses": 3,
+  "retained_count": 2493,
+  "actions": {
+    "keep": 2492,
+    "prune": 7,
+    "relabel": 1
+  },
+  "reviewed_count": 65,
+  "class_counts": {
+    "match": 489,
+    "non-match": 2004
+  },
+  "changed_pairs": [
+    {
+      "pair_id": "97634734#29553137",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "intra_record_contradiction;cross_record_conflict;one_sided_information;ambiguous_variant_bundle;ambiguous_role_scope;noisy_or_malformed_data;representation_difference",
+      "reviewed": false,
+      "action": "prune",
+      "original_label": "non_match",
+      "final_label": "",
+      "included_in_train": false,
+      "reason": "Quick pilot: hard-prune case 5 and stop; lower tiers not processed."
+    },
+    {
+      "pair_id": "88031640#6256141",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "cross_record_conflict;ambiguous_variant_bundle;noisy_or_malformed_data;representation_difference",
+      "reviewed": true,
+      "action": "relabel",
+      "original_label": "match",
+      "final_label": "non_match",
+      "included_in_train": true,
+      "reason": "Listed router configuration explicitly supplies 8 GB RAM versus 16GB RAM; not a price or compatible-device comparison."
+    },
+    {
+      "pair_id": "23211539#18327954",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "intra_record_contradiction;cross_record_conflict;one_sided_information;ambiguous_variant_bundle;noisy_or_malformed_data;representation_difference",
+      "reviewed": false,
+      "action": "prune",
+      "original_label": "non_match",
+      "final_label": "",
+      "included_in_train": false,
+      "reason": "Quick pilot: hard-prune case 5 and stop; lower tiers not processed."
+    },
+    {
+      "pair_id": "19411291#21668308",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "intra_record_contradiction;one_sided_information;ambiguous_variant_bundle;ambiguous_role_scope;noisy_or_malformed_data",
+      "reviewed": false,
+      "action": "prune",
+      "original_label": "match",
+      "final_label": "",
+      "included_in_train": false,
+      "reason": "Quick pilot: hard-prune case 5 and stop; lower tiers not processed."
+    },
+    {
+      "pair_id": "2491460#75249284",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "intra_record_contradiction;one_sided_information;ambiguous_variant_bundle;noisy_or_malformed_data;representation_difference",
+      "reviewed": false,
+      "action": "prune",
+      "original_label": "match",
+      "final_label": "",
+      "included_in_train": false,
+      "reason": "Quick pilot: hard-prune case 5 and stop; lower tiers not processed."
+    },
+    {
+      "pair_id": "56459937#51400506",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "intra_record_contradiction;one_sided_information;ambiguous_variant_bundle;noisy_or_malformed_data;representation_difference",
+      "reviewed": false,
+      "action": "prune",
+      "original_label": "match",
+      "final_label": "",
+      "included_in_train": false,
+      "reason": "Quick pilot: hard-prune case 5 and stop; lower tiers not processed."
+    },
+    {
+      "pair_id": "23211539#30526558",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "intra_record_contradiction",
+      "reviewed": false,
+      "action": "prune",
+      "original_label": "match",
+      "final_label": "",
+      "included_in_train": false,
+      "reason": "Quick pilot: hard-prune case 5 and stop; lower tiers not processed."
+    },
+    {
+      "pair_id": "10496#41234714",
+      "selected": true,
+      "diagnosis_valid": true,
+      "ordered_cases": "intra_record_contradiction;one_sided_information;ambiguous_variant_bundle;ambiguous_role_scope;noisy_or_malformed_data;representation_difference",
+      "reviewed": false,
+      "action": "prune",
+      "original_label": "match",
+      "final_label": "",
+      "included_in_train": false,
+      "reason": "Quick pilot: hard-prune case 5 and stop; lower tiers not processed."
+    }
+  ],
+  "api_calls": 0,
+  "gold_accessed": false,
+  "training_started": false,
+  "limitations": [
+    "Hard-prune trusts valid case-5 diagnoses, including possible classification errors.",
+    "Unresolved/unanalysed pairs retain majority labels; no full-dataset diagnosis.",
+    "Semantic ledger is assistant-reviewed, not automatic or verified human truth."
+  ],
+  "source_sha256": {
+    "/mnt/d/study/cao-hoc/luan-van/code/data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl": "e443fc38fe1206ce961c6f71dce28e50b4e148d720dda3b2bdc688abf196e1ea",
+    "/mnt/d/study/cao-hoc/luan-van/code/data/cache/wdc_products/majority_labels/llm_unrefined.csv": "b4dc5050e125e930c6b4b99b40004acfafedc9e9ba3fd22c608c5c3d0128f4c1",
+    "plans/261006-0927-wdc-quick-evidence-refinement/review-decisions.json": "711a2bce95111334a5139ba17ec6659d08c92c43c3aa38a07dd988196ab34a93",
+    "/mnt/d/study/cao-hoc/luan-van/code/outputs/uncertainty_refinement/wdc-evidence-check/contract.json": "abdd4e0f27e17a0e7e07048de049ab1473664e06f1ceb44a9d2892a16af5dcc5",
+    "/mnt/d/study/cao-hoc/luan-van/code/outputs/uncertainty_refinement/wdc-evidence-check/selected_pairs.json": "a11f1e37e89671d2fef24551086789cc879a9a4583d23f95fbaba6ff743a4800"
+  },
+  "output_sha256": {
+    "train.jsonl": "0563677ad7eaac5d8165507b18edcbe10d542c5a12c36867fe90685cb9f4e8e6",
+    "labels.csv": "53538ab5325f22c4afed5496c8dc9b7c18bd487cadb9b07ea3961134996fa130",
+    "decisions.csv": "e8032539da265b5b09b77bb66dff4b0565f5cb396c476c46a5a9abe4ff44cbd5"
+  }
+}
