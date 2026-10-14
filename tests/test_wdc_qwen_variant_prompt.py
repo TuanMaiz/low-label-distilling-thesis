@@ -28,10 +28,10 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
             out = Path(tmp) / "unused outputs"
             result = self.run_script("plan", output_root=out)
             self.assertEqual(result.returncode, 0, result.stderr)
-            train, evaluate = map(shlex.split, result.stdout.splitlines())
+            train, evaluate, test = map(shlex.split, result.stdout.splitlines())
             self.assertIn("experiments.train_student", train)
             self.assertIn("experiments.evaluate_student", evaluate)
-            for command in (train, evaluate):
+            for command in (train, evaluate, test):
                 self.assertEqual(command[command.index("--student-config") + 1], CONFIG)
                 self.assertEqual(command[command.index("--precision") + 1], "fp16")
             self.assertEqual(train[train.index("--train-targets") + 1],
@@ -44,11 +44,14 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
                 self.assertEqual(train[train.index(flag) + 1], value)
             self.assertEqual(evaluate[evaluate.index("--split") + 1], "validation")
             self.assertEqual(evaluate[evaluate.index("--checkpoint") + 1], str(out / "run/best_model"))
+            self.assertEqual(test[test.index("--split") + 1], "test")
+            self.assertEqual(test[test.index("--input") + 1], "data/cache/wdc_products/serialized/test.jsonl")
+            self.assertEqual(test[test.index("--checkpoint") + 1], str(out / "run/best_model"))
             self.assertFalse(out.exists())
 
     def test_gpu_actions_require_their_own_confirmation(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for args in (("train",), ("evaluate",), ("train", "--confirm-validation"),
+            for args in (("train",), ("evaluate",), ("evaluate-test",), ("evaluate-test", "--confirm-validation"), ("train", "--confirm-validation"),
                          ("evaluate", "--confirm-full-training")):
                 result = self.run_script(*args, output_root=Path(tmp) / "unused")
                 self.assertNotEqual(result.returncode, 0)
@@ -142,7 +145,7 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
         for directory in ("best_model", "best_adapter"):
             (run / directory).mkdir(parents=True)
             (run / directory / "model.safetensors").write_bytes(b"fixture model weights")
-        (run / "best_model/decision_threshold.json").write_text('{"threshold": 0.5}')
+        (run / "best_model/decision_threshold.json").write_text('{"decision_threshold": 0.5}')
         manifest = write_checkpoint_manifest(run)
         config = json.loads((ROOT / CONFIG).read_text())
         (run / "training_summary.json").write_text(json.dumps({
@@ -222,6 +225,84 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("artifact-contract.json", result.stderr)
             self.assertFalse((Path(tmp) / "run").exists())
+
+    def add_test_results(self, fixture, output):
+        path = fixture / "data/cache/wdc_products/serialized/test.jsonl"
+        rows = [{"pair_id": f"test-{i}", "label": int(i < 500)} for i in range(4500)]
+        path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+        predictions = [{**r, "prediction": r["label"], "is_valid": True,
+                        "match_probability": 0.9 if r["label"] else 0.1} for r in rows]
+        (output / "test-predictions.jsonl").write_text("".join(json.dumps(r) + "\n" for r in predictions))
+        metrics = json.loads((output / "validation-metrics.json").read_text())
+        metrics.update(split="test", tn=4000, total=4500, valid=4500)
+        (output / "test-metrics.json").write_text(json.dumps(metrics))
+        files = {"test": "data/cache/wdc_products/serialized/test.jsonl",
+                 "student_config": CONFIG, "summary": str(output / "run/training_summary.json"),
+                 "threshold": str(output / "run/best_model/decision_threshold.json"),
+                 "evaluator": "experiments/evaluate_student.py", "runner": "scripts/run_wdc_qwen_variant_prompt.sh"}
+        # build_contract resolves relative paths from the fixture checkout.
+        args = [sys.executable, "-m", "utils.artifact_contract", "write", "--path",
+                str(output / "test-contract.json"), "--field", "split=test", "--field", "rows=4500"]
+        for key, value in files.items():
+            args += ["--file", f"{key}={value}"]
+        subprocess.run(args, cwd=fixture, check=True, capture_output=True)
+
+    def test_package_includes_verified_test_and_rejects_wrong_threshold(self):
+        for wrong in (False, True):
+            with self.subTest(wrong_threshold=wrong), tempfile.TemporaryDirectory() as tmp:
+                fixture = Path(tmp)
+                output = self.make_package_fixture(fixture)
+                self.add_test_results(fixture, output)
+                if wrong:
+                    path = output / "test-metrics.json"
+                    metrics = json.loads(path.read_text())
+                    metrics["decision_threshold"] = 0.8
+                    path.write_text(json.dumps(metrics))
+                result = self.fixture_action(fixture, output, "package-results")
+                self.assertEqual(result.returncode == 0, not wrong, result.stderr)
+                if not wrong:
+                    with zipfile.ZipFile(str(output) + ".zip") as z:
+                        self.assertIn("experiment/test-predictions.jsonl", z.namelist())
+                        self.assertIn("experiment/test-metrics.json", z.namelist())
+                        self.assertIn("experiment/test-contract.json", z.namelist())
+
+    def test_package_rejects_partial_test_or_changed_test_input(self):
+        for changed in (False, True):
+            with self.subTest(changed_input=changed), tempfile.TemporaryDirectory() as tmp:
+                fixture = Path(tmp)
+                output = self.make_package_fixture(fixture)
+                self.add_test_results(fixture, output)
+                if changed:
+                    with (fixture / "data/cache/wdc_products/serialized/test.jsonl").open("a") as f:
+                        f.write("\n")
+                else:
+                    (output / "test-metrics.json").unlink()
+                result = self.fixture_action(fixture, output, "package-results")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(Path(str(output) + ".zip").exists())
+
+    def test_results_allow_only_known_legacy_runner_hash(self):
+        for digest in ("ad93f6c0360747740593202fc2f213e36cb15ae765e5f4c541de36824948a168", "0" * 64):
+            with self.subTest(digest=digest), tempfile.TemporaryDirectory() as tmp:
+                fixture = Path(tmp)
+                output = self.make_package_fixture(fixture)
+                path = output / "preflight/artifact-contract.json"
+                contract = json.loads(path.read_text())
+                contract["files"]["runner"]["sha256"] = digest
+                path.write_text(json.dumps(contract))
+                original = path.read_bytes()
+                result = self.fixture_action(fixture, output, "package-results")
+                self.assertEqual(result.returncode == 0, digest != "0" * 64, result.stderr)
+                self.assertEqual(path.read_bytes(), original)
+
+    def test_test_evaluation_preserves_existing_results(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            (output / "test-predictions.jsonl").write_text("preserve")
+            result = self.run_script("evaluate-test", "--confirm-test", output_root=output)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("overwrite existing test", result.stderr)
+            self.assertEqual((output / "test-predictions.jsonl").read_text(), "preserve")
 
     def test_variant_differs_only_in_instruction(self):
         baseline = json.loads((ROOT / "configs/students/qwen3_reranker_0_6b.json").read_text())

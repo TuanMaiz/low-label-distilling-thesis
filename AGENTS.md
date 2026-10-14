@@ -17,6 +17,13 @@ profiles remain pinned to their original instruction. The same runner provides
 `setup`, `preflight`, and `package-results`; preflight binds the input/config
 and code hashes before training, and packaging verifies validation outputs and
 includes merged weights, the adapter, provenance, and logs in a checksummed ZIP.
+The researcher also authorized `evaluate-test --confirm-test` on the 4,500-row
+WDC test split for this experiment. It uses the saved validation-selected
+threshold and writes separate test predictions, metrics, log, and input/code
+contract. Packaging verifies and includes test artifacts when present, rejecting
+partial results. Result actions accept the exact previous published runner hash
+from b16ce0e while checking every other preflight binding and preserving the
+original contract; training still requires an exact current preflight.
 See `documents/261014-student-variant-instruction.md` for the hypothesis and
 comparison constraints. This change starts no training, paid labeling, or
 new validation/test prediction and makes no claim of improved F1.

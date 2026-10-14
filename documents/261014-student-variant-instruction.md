@@ -25,7 +25,7 @@ experimental hypothesis, not an established improvement.
 
 ## Run entry point
 
-The dedicated dispatcher selects variant v1 for both training and validation:
+The dedicated dispatcher selects variant v1 for training, validation, and test:
 
 ```bash
 PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_variant_prompt.sh plan
@@ -46,13 +46,27 @@ bash scripts/run_wdc_qwen_variant_prompt.sh setup
 bash scripts/run_wdc_qwen_variant_prompt.sh preflight
 bash scripts/run_wdc_qwen_variant_prompt.sh train --confirm-full-training
 bash scripts/run_wdc_qwen_variant_prompt.sh evaluate --confirm-validation
+bash scripts/run_wdc_qwen_variant_prompt.sh evaluate-test --confirm-test
 bash scripts/run_wdc_qwen_variant_prompt.sh package-results
 ```
 
 The dispatcher refuses existing training directories and existing evaluation
 outputs. Before evaluating, it verifies that the training summary records the
 variant instruction, expected model and 2,493 training rows, and matches the
-verified checkpoint manifest. No official test action is provided.
+verified checkpoint manifest. The researcher authorized test evaluation for this
+experiment. `evaluate-test --confirm-test` reads the tracked 4,500-pair test
+input and uses the checkpoint's saved validation-selected threshold without
+retuning. It saves test-predictions.jsonl, test-metrics.json, logs/test.log and
+a test-contract.json binding the input, config, summary, threshold and code.
+Packaging verifies test outputs when present and rejects partial test results.
+
+For an already-trained run created with b16ce0e, pull this branch update and
+skip completed stages. Validation, test and packaging accept that exact prior
+runner hash while checking every other original preflight binding; the original
+contract is preserved and current result code bindings are recorded separately.
+Training still checks the current runner hash exactly. Do not rerun preflight
+on an existing trained run. Existing archives are never overwritten; package
+only after both evaluations finish.
 
 ### Fresh rental machine
 
@@ -65,22 +79,21 @@ cd low-label-distilling-thesis
 tmux new -s wdc-prompt-v1
 ```
 
-Inside tmux, create the environment without replacing the image's PyTorch:
+Inside tmux, use the template interpreter that already imports CUDA PyTorch:
 
 ```bash
-python -m venv --system-site-packages .venv
-source .venv/bin/activate
-export PYTHON="$PWD/.venv/bin/python"
+# Set this to your verified template interpreter path.
+export PYTHON=/path/to/template/python
 export PYTHONUNBUFFERED=1
 export WANDB_MODE=disabled
 ```
 
-Then run the five dispatcher actions above in order, stopping on any failure.
-The refined targets and validation input are tracked on this branch. `setup`
+Then run the six dispatcher actions above in order, stopping on any failure.
+The refined targets, validation input and test input are tracked on this branch. `setup`
 checks CUDA, installs requirements-colab.txt, and checks LoRA. `preflight`
 checks counts/IDs, audits complete tokenized inputs, and freezes an artifact
 contract. Training requires that contract and saves its log automatically.
-`package-results` rederives validation counts/F1, checks checkpoint integrity,
+`package-results` rederives validation and available test counts/F1, checks checkpoint integrity,
 and creates OUTPUT_ROOT.zip and OUTPUT_ROOT.zip.sha256, including both weight
 formats, predictions, metrics, preflight records, and logs. Zip packaging uses
 Python's standard library; no system zip installation is needed.

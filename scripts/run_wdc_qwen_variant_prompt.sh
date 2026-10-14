@@ -9,6 +9,7 @@ OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/uncertainty_refinement/wdc-qwen-quick-refine
 STUDENT_CONFIG="configs/students/qwen3_reranker_0_6b_variant_identity_v1.json"
 TRAIN_TARGETS="data/cache/wdc_products/refinement/quick-tier-v1/train.jsonl"
 VALIDATION="data/cache/wdc_products/serialized/validation.jsonl"
+TEST="data/cache/wdc_products/serialized/test.jsonl"
 RUN_DIR="${OUTPUT_ROOT}/run"
 PREDICTIONS="${OUTPUT_ROOT}/validation-predictions.jsonl"
 METRICS="${OUTPUT_ROOT}/validation-metrics.json"
@@ -28,6 +29,29 @@ check_preflight() {
   require_file "${CONTRACT}"
   "${PYTHON}" -m utils.artifact_contract check --path "${CONTRACT}" "${contract_args[@]}"
 }
+# Result-only compatibility with the published validation-only runner. All
+# other frozen bindings remain exact; never rewrite the training contract.
+check_results_preflight() {
+  require_file "${CONTRACT}"
+  "${PYTHON}" - "${CONTRACT}" "${contract_args[@]}" <<'RESULT_CONTRACT'
+import argparse, json, sys
+from pathlib import Path
+from utils.artifact_contract import build_contract, contract_differences, write_contract
+parser = argparse.ArgumentParser()
+parser.add_argument("path", type=Path)
+parser.add_argument("--field", action="append", default=[])
+parser.add_argument("--file", action="append", default=[])
+a = parser.parse_args()
+recorded = json.loads(a.path.read_text())
+current = build_contract(a.field, a.file)
+differences = contract_differences(current, recorded)
+legacy = {"path": "scripts/run_wdc_qwen_variant_prompt.sh",
+          "sha256": "ad93f6c0360747740593202fc2f213e36cb15ae765e5f4c541de36824948a168"}
+if differences and not (differences == ["files.runner"] and recorded["files"]["runner"] == legacy):
+    raise SystemExit("Artifact contract mismatch: " + ", ".join(differences))
+write_contract(a.path.parent / "results-code-contract.json", current)
+RESULT_CONTRACT
+}
 verify_checkpoint() {
   require_file "${RUN_DIR}/training_summary.json"
   "${PYTHON}" - "${STUDENT_CONFIG}" "${RUN_DIR}" <<'CHECKPOINT'
@@ -41,6 +65,9 @@ if summary.get("reranker_instruction") != config["reranker_instruction"]:
     raise SystemExit("Checkpoint instruction mismatch: train with the variant config first")
 if summary.get("model_name") != config["model_name"] or summary.get("train_rows") != 2493:
     raise SystemExit("Checkpoint does not describe the 2493-row refined Qwen experiment")
+threshold = json.loads((run_dir / "best_model/decision_threshold.json").read_text())["decision_threshold"]
+if not 0 <= threshold <= 1 or threshold != summary.get("decision_threshold"):
+    raise SystemExit("Checkpoint threshold differs from the training summary")
 manifest = validate_checkpoint_manifest(run_dir)
 if summary.get("checkpoint_manifest") != manifest:
     raise SystemExit("Training summary does not match the verified checkpoint manifest")
@@ -59,6 +86,13 @@ evaluate_cmd=("${PYTHON}" -m experiments.evaluate_student
   --student-config "${STUDENT_CONFIG}" --checkpoint "${RUN_DIR}/best_model"
   --input "${VALIDATION}" --predictions "${PREDICTIONS}" --metrics "${METRICS}"
   --variant quick_refined_variant_identity_v1 --split validation
+  --batch-size 1 --max-input-length 4096 --precision fp16 --device cuda)
+
+evaluate_test_cmd=("${PYTHON}" -m experiments.evaluate_student
+  --student-config "${STUDENT_CONFIG}" --checkpoint "${RUN_DIR}/best_model"
+  --input "${TEST}" --predictions "${OUTPUT_ROOT}/test-predictions.jsonl"
+  --metrics "${OUTPUT_ROOT}/test-metrics.json"
+  --variant quick_refined_variant_identity_v1 --split test
   --batch-size 1 --max-input-length 4096 --precision fp16 --device cuda)
 
 show_cmd() { printf '%q ' "$@"; printf '\n'; }
@@ -128,6 +162,7 @@ PREFLIGHT_PY
     [[ "$#" == 1 ]] || { echo "plan takes no arguments" >&2; exit 1; }
     show_cmd "${train_cmd[@]}"
     show_cmd "${evaluate_cmd[@]}"
+    show_cmd "${evaluate_test_cmd[@]}"
     ;;
   train)
     shift; confirmation=--confirm-full-training; require_confirmation "$@"
@@ -147,40 +182,79 @@ PREFLIGHT_PY
     fi
     require_file "${STUDENT_CONFIG}"; require_file "${VALIDATION}"
     verify_checkpoint
-    check_preflight
+    check_results_preflight
     mkdir -p "${LOGS}"
     show_cmd "${evaluate_cmd[@]}"
     "${evaluate_cmd[@]}" 2>&1 | tee "${LOGS}/validation.log"
     ;;
+  evaluate-test)
+    shift; confirmation=--confirm-test; require_confirmation "$@"
+    if [[ -e "${OUTPUT_ROOT}/test-predictions.jsonl" || -e "${OUTPUT_ROOT}/test-metrics.json" || -e "${OUTPUT_ROOT}/test-contract.json" ]]; then
+      echo "Refusing to overwrite existing test results or dispatch contract" >&2; exit 1
+    fi
+    require_file "${TEST}"
+    verify_checkpoint
+    check_results_preflight
+    "${PYTHON}" - "${TEST}" "${TRAIN_TARGETS}" "${VALIDATION}" <<'TEST_INPUT'
+import json, sys
+from collections import Counter
+from pathlib import Path
+rows = [json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
+ids = {r["pair_id"] for r in rows}
+assert len(rows) == len(ids) == 4500
+assert Counter(r["label"] for r in rows) == {0: 4000, 1: 500}
+assert all("\n\nRecord A:\n" in r["input_text"] and "\n\nRecord B:\n" in r["input_text"] for r in rows)
+for path in sys.argv[2:]:
+    assert not ids & {json.loads(line)["pair_id"] for line in Path(path).read_text().splitlines()}
+TEST_INPUT
+    "${PYTHON}" -m utils.artifact_contract write --path "${OUTPUT_ROOT}/test-contract.json" \
+      --field split=test --field rows=4500 \
+      --file "test=${TEST}" --file "student_config=${STUDENT_CONFIG}" \
+      --file "summary=${RUN_DIR}/training_summary.json" \
+      --file "threshold=${RUN_DIR}/best_model/decision_threshold.json" \
+      --file evaluator=experiments/evaluate_student.py \
+      --file runner=scripts/run_wdc_qwen_variant_prompt.sh
+    mkdir -p "${LOGS}"
+    show_cmd "${evaluate_test_cmd[@]}"
+    "${evaluate_test_cmd[@]}" 2>&1 | tee "${LOGS}/test.log"
+    ;;
   package-results)
     [[ "$#" == 1 ]] || exit 1
     require_file "${PREDICTIONS}"; require_file "${METRICS}"
-    check_preflight
+    check_results_preflight
     verify_checkpoint
-    "${PYTHON}" - "${OUTPUT_ROOT}" "${VALIDATION}" <<'PACKAGE_PY'
+    "${PYTHON}" - "${OUTPUT_ROOT}" "${VALIDATION}" "${TEST}" <<'PACKAGE_PY'
 import json, math, sys, zipfile
 from pathlib import Path
 from utils.artifact_contract import sha256_file
-out, val_path = map(Path, sys.argv[1:])
-expected = {r["pair_id"]: r for r in map(json.loads, val_path.read_text().splitlines())}
-rows = list(map(json.loads, (out / "validation-predictions.jsonl").read_text().splitlines()))
-metrics = json.loads((out / "validation-metrics.json").read_text())
-summary = json.loads((out / "run/training_summary.json").read_text())
-assert len(rows) == len({r["pair_id"] for r in rows}) == len(expected) == 2500
-assert set(expected) == {r["pair_id"] for r in rows}
-for r in rows:
-    assert r["is_valid"] and r["label"] == expected[r["pair_id"]]["label"]
-    score = r["match_probability"]
-    assert math.isfinite(score) and 0 <= score <= 1
-    assert r["prediction"] == int(score >= summary["decision_threshold"])
-tp = sum(r["label"] == 1 and r["prediction"] == 1 for r in rows)
-fp = sum(r["label"] == 0 and r["prediction"] == 1 for r in rows)
-fn = sum(r["label"] == 1 and r["prediction"] == 0 for r in rows)
-tn = len(rows) - tp - fp - fn
-assert all(metrics[k] == v for k, v in {"tp": tp, "fp": fp, "tn": tn, "fn": fn, "total": 2500, "valid": 2500, "invalid": 0}.items())
-assert math.isclose(metrics["same_f1"], 2 * tp / (2 * tp + fp + fn), abs_tol=1e-12)
-assert metrics["split"] == "validation" and metrics["variant"] == "quick_refined_variant_identity_v1"
-assert metrics["decision_threshold"] == summary["decision_threshold"]
+out, val_path, test_path = map(Path, sys.argv[1:])
+splits = [("validation", val_path, 2500)]
+if any((out / name).exists() for name in ("test-predictions.jsonl", "test-metrics.json", "test-contract.json")):
+    from utils.artifact_contract import validate_recorded_contract
+    contract = validate_recorded_contract(out / "test-contract.json")
+    assert contract["fields"] == {"split": "test", "rows": "4500"}
+    assert contract["files"]["test"] == {"path": str(test_path), "sha256": sha256_file(test_path)}
+    splits.append(("test", test_path, 4500))
+for split, input_path, count in splits:
+    expected = {r["pair_id"]: r for r in map(json.loads, input_path.read_text().splitlines())}
+    rows = list(map(json.loads, (out / f"{split}-predictions.jsonl").read_text().splitlines()))
+    metrics = json.loads((out / f"{split}-metrics.json").read_text())
+    summary = json.loads((out / "run/training_summary.json").read_text())
+    assert len(rows) == len({r["pair_id"] for r in rows}) == len(expected) == count
+    assert set(expected) == {r["pair_id"] for r in rows}
+    for r in rows:
+        assert r["is_valid"] and r["label"] == expected[r["pair_id"]]["label"]
+        score = r["match_probability"]
+        assert math.isfinite(score) and 0 <= score <= 1
+        assert r["prediction"] == int(score >= summary["decision_threshold"])
+    tp = sum(r["label"] == 1 and r["prediction"] == 1 for r in rows)
+    fp = sum(r["label"] == 0 and r["prediction"] == 1 for r in rows)
+    fn = sum(r["label"] == 1 and r["prediction"] == 0 for r in rows)
+    tn = len(rows) - tp - fp - fn
+    assert all(metrics[k] == v for k, v in {"tp": tp, "fp": fp, "tn": tn, "fn": fn, "total": count, "valid": count, "invalid": 0}.items())
+    assert math.isclose(metrics["same_f1"], 2 * tp / (2 * tp + fp + fn), abs_tol=1e-12)
+    assert metrics["split"] == split and metrics["variant"] == "quick_refined_variant_identity_v1"
+    assert metrics["decision_threshold"] == summary["decision_threshold"]
 archive = Path(str(out) + ".zip")
 temporary = Path(str(archive) + ".tmp")
 if archive.exists() or temporary.exists():
@@ -200,7 +274,7 @@ print("Checksum:", Path(str(archive) + ".sha256").resolve())
 PACKAGE_PY
     ;;
   *)
-    echo "Usage: bash $0 setup | preflight | plan | train --confirm-full-training | evaluate --confirm-validation | package-results" >&2
+    echo "Usage: bash $0 setup | preflight | plan | train --confirm-full-training | evaluate --confirm-validation | evaluate-test --confirm-test | package-results" >&2
     echo "PYTHON selects the runtime; OUTPUT_ROOT selects a fresh experiment directory." >&2
     exit 1
     ;;
