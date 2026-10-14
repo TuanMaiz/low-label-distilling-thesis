@@ -23,6 +23,34 @@ experimental hypothesis, not an established improvement.
   A separately reviewed execution profile is needed before using a frozen
   dispatcher for this experiment.
 
+## Run entry point
+
+The dedicated dispatcher selects variant v1 for both training and validation:
+
+```bash
+PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_variant_prompt.sh plan
+```
+
+`plan` only prints the exact commands; it starts no model work and needs no
+GPU. The train command uses the existing quick-refined targets and the saved
+baseline schedule (batch 1, accumulation 16, 10 maximum epochs, learning rate
+0.0002, warmup ratio 0.1, seed 42, fp16). Validation uses the same config and
+the new run's `best_model`, with saved predictions and metrics in a dedicated
+output root. `OUTPUT_ROOT` can select another fresh directory; `PYTHON` selects
+the runtime (use the GPU environment's Python on the rental machine).
+
+After separate authorization for GPU execution, the actions are:
+
+```bash
+bash scripts/run_wdc_qwen_variant_prompt.sh train --confirm-full-training
+bash scripts/run_wdc_qwen_variant_prompt.sh evaluate --confirm-validation
+```
+
+The dispatcher refuses existing training directories and existing evaluation
+outputs. Before evaluating, it verifies that the training summary records the
+variant instruction, expected model and 2,493 training rows, and matches the
+verified checkpoint manifest. No official test action is provided.
+
 ## Approved instruction
 
 ```text
