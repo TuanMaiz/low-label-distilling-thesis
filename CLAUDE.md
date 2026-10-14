@@ -1,5 +1,20 @@
 # CLAUDE.md
 
+## WDC student instruction experiment (2026-10-14)
+
+The researcher approved the variant-aware Qwen student instruction and its
+commit/push on `codex/wdc-student-variant-prompt`. The experiment config is
+`configs/students/qwen3_reranker_0_6b_variant_identity_v1.json`; only
+`reranker_instruction` differs from the original Qwen config. It defines
+specific product-variant identity, explicit attribute conflicts, equivalent
+wording/units, missing attributes, and accessory-versus-product distinctions.
+Select this config explicitly for both training and evaluation and use a fresh
+output directory. The existing WDC vertical-slice/OOF profiles remain pinned
+to the original instruction and do not execute this experimental config.
+See `documents/261014-student-variant-instruction.md` for the hypothesis and
+comparison constraints. This change starts no training, paid labeling, or
+new validation/test prediction and makes no claim of improved F1.
+
 Read `../AGENTS.md` and `AGENTS.md` before changing the experiment workflow.
 `AGENTS.md` is the canonical repository guidance.
 
