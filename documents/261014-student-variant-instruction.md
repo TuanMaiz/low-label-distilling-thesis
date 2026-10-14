@@ -42,14 +42,50 @@ the runtime (use the GPU environment's Python on the rental machine).
 After separate authorization for GPU execution, the actions are:
 
 ```bash
+bash scripts/run_wdc_qwen_variant_prompt.sh setup
+bash scripts/run_wdc_qwen_variant_prompt.sh preflight
 bash scripts/run_wdc_qwen_variant_prompt.sh train --confirm-full-training
 bash scripts/run_wdc_qwen_variant_prompt.sh evaluate --confirm-validation
+bash scripts/run_wdc_qwen_variant_prompt.sh package-results
 ```
 
 The dispatcher refuses existing training directories and existing evaluation
 outputs. Before evaluating, it verifies that the training summary records the
 variant instruction, expected model and 2,493 training rows, and matches the
 verified checkpoint manifest. No official test action is provided.
+
+### Fresh rental machine
+
+The image must already supply CUDA-compatible PyTorch. Clone the branch, then
+start tmux:
+
+```bash
+git clone --branch codex/wdc-student-variant-prompt https://github.com/TuanMaiz/low-label-distilling-thesis.git
+cd low-label-distilling-thesis
+tmux new -s wdc-prompt-v1
+```
+
+Inside tmux, create the environment without replacing the image's PyTorch:
+
+```bash
+python -m venv --system-site-packages .venv
+source .venv/bin/activate
+export PYTHON="$PWD/.venv/bin/python"
+export PYTHONUNBUFFERED=1
+export WANDB_MODE=disabled
+```
+
+Then run the five dispatcher actions above in order, stopping on any failure.
+The refined targets and validation input are tracked on this branch. `setup`
+checks CUDA, installs requirements-colab.txt, and checks LoRA. `preflight`
+checks counts/IDs, audits complete tokenized inputs, and freezes an artifact
+contract. Training requires that contract and saves its log automatically.
+`package-results` rederives validation counts/F1, checks checkpoint integrity,
+and creates OUTPUT_ROOT.zip and OUTPUT_ROOT.zip.sha256, including both weight
+formats, predictions, metrics, preflight records, and logs. Zip packaging uses
+Python's standard library; no system zip installation is needed.
+
+Detach with Ctrl+B then D; reconnect using `tmux attach -t wdc-prompt-v1`.
 
 ## Approved instruction
 

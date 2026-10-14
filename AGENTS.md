@@ -13,7 +13,10 @@ and validation on the 2,493-row quick-refined dataset. Its `plan` action renders
 commands offline; training and validation require their explicit confirmation
 flags and a fresh output directory. Evaluation verifies the checkpoint's saved
 instruction and manifest before dispatch. The original WDC vertical-slice/OOF
-profiles remain pinned to their original instruction.
+profiles remain pinned to their original instruction. The same runner provides
+`setup`, `preflight`, and `package-results`; preflight binds the input/config
+and code hashes before training, and packaging verifies validation outputs and
+includes merged weights, the adapter, provenance, and logs in a checksummed ZIP.
 See `documents/261014-student-variant-instruction.md` for the hypothesis and
 comparison constraints. This change starts no training, paid labeling, or
 new validation/test prediction and makes no claim of improved F1.
