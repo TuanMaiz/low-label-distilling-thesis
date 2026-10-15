@@ -1,32 +1,24 @@
 # CLAUDE.md
 
-## WDC student instruction experiment (2026-10-14)
+## WDC student instruction rollback (2026-10-15)
 
-The researcher approved the variant-aware Qwen student instruction and its
-commit/push on `codex/wdc-student-variant-prompt`. The experiment config is
-`configs/students/qwen3_reranker_0_6b_variant_identity_v1.json`; only
-`reranker_instruction` differs from the original Qwen config. It defines
-specific product-variant identity, explicit attribute conflicts, equivalent
-wording/units, missing attributes, and accessory-versus-product distinctions.
-`scripts/run_wdc_qwen_variant_prompt.sh` selects this config for both training
-and validation on the 2,493-row quick-refined dataset. Its `plan` action renders
-commands offline; training and validation require their explicit confirmation
-flags and a fresh output directory. Evaluation verifies the checkpoint's saved
-instruction and manifest before dispatch. The original WDC vertical-slice/OOF
-profiles remain pinned to their original instruction. The same runner provides
-`setup`, `preflight`, and `package-results`; preflight binds the input/config
-and code hashes before training, and packaging verifies validation outputs and
-includes merged weights, the adapter, provenance, and logs in a checksummed ZIP.
-The researcher also authorized `evaluate-test --confirm-test` on the 4,500-row
-WDC test split for this experiment. It uses the saved validation-selected
-threshold and writes separate test predictions, metrics, log, and input/code
-contract. Packaging verifies and includes test artifacts when present, rejecting
-partial results. Result actions accept the exact previous published runner hash
-from b16ce0e while checking every other preflight binding and preserving the
-original contract; training still requires an exact current preflight.
-See `documents/261014-student-variant-instruction.md` for the hypothesis and
-comparison constraints. This change starts no training, paid labeling, or
-new validation/test prediction and makes no claim of improved F1.
+The researcher retired the variant-aware prompt and restored the original
+student instruction for subsequent work. The existing legacy-named runner
+`scripts/run_wdc_qwen_variant_prompt.sh` now selects
+`configs/students/qwen3_reranker_0_6b.json` for training and evaluation, with
+result identity `quick_refined_original_prompt` and a separate default output
+root `outputs/uncertainty_refinement/wdc-qwen-quick-refined-original-prompt`.
+The original instruction is: "Determine whether Record A and Record B describe
+the same real-world product. Answer yes only when they refer to the same product."
+The versioned variant config remains historical evidence; do not select it for
+new runs unless specifically requested. Existing variant checkpoints, scores,
+thresholds, and downloaded results remain unchanged. A variant-trained checkpoint
+must retain its own instruction when reproducing its results.
+The rollback changes neither supervision nor threshold selection and launches
+no training or inference. Original test match F1 was 0.7581227437 versus
+0.7465986395 for the variant; this does not establish why the variant declined
+or prove that shorter prompts generally improve generalization.
+See `documents/261014-student-variant-instruction.md` for the retired experiment.
 
 Read `../AGENTS.md` and `AGENTS.md` before changing the experiment workflow.
 `AGENTS.md` is the canonical repository guidance.

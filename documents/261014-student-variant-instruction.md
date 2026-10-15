@@ -1,8 +1,18 @@
 # WDC Qwen student: variant-aware instruction experiment
 
-Status: researcher-approved instruction/config change, 2026-10-14. Commit and
-push are authorized. No GPU training, paid labeling or new official evaluation
-is started by this change.
+Status: retired by researcher request on 2026-10-15. The current legacy-named
+runner selects the original config `configs/students/qwen3_reranker_0_6b.json`,
+uses result identity `quick_refined_original_prompt`, and defaults to the separate
+output root `outputs/uncertainty_refinement/wdc-qwen-quick-refined-original-prompt`.
+The variant config is retained unchanged to reproduce completed variant runs.
+Historical commands below describe the variant experiment before rollback; use
+Git revision 7c8f923 when reproducing that run, with its recorded runtime.
+No training or inference is started by the rollback.
+
+Verified result: original/variant validation match F1 was 0.8113744076/0.8091743119;
+test match F1 was 0.7581227437/0.7465986395. Test FP increased 188 to 237 while
+FN decreased 80 to 61. These results do not establish a causal explanation or
+show that shorter instructions generally improve generalization.
 
 ## Hypothesis
 

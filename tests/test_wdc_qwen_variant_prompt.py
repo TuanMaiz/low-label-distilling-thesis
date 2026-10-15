@@ -14,7 +14,8 @@ from utils.checkpoint_manifest import write_checkpoint_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts/run_wdc_qwen_variant_prompt.sh"
-CONFIG = "configs/students/qwen3_reranker_0_6b_variant_identity_v1.json"
+CONFIG = "configs/students/qwen3_reranker_0_6b.json"
+ARCHIVED_CONFIG = "configs/students/qwen3_reranker_0_6b_variant_identity_v1.json"
 
 
 class WDCQwenVariantPromptTests(unittest.TestCase):
@@ -23,7 +24,7 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
         return subprocess.run(["bash", str(RUNNER), *args], cwd=ROOT,
                               env=env, capture_output=True, text=True)
 
-    def test_plan_wires_variant_config_to_training_and_validation(self):
+    def test_plan_wires_original_config_to_training_and_validation(self):
         with tempfile.TemporaryDirectory(prefix="prompt plan ") as tmp:
             out = Path(tmp) / "unused outputs"
             result = self.run_script("plan", output_root=out)
@@ -74,7 +75,7 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
             self.assertIn("overwrite existing validation", result.stderr)
             self.assertEqual(output.read_text(), "preserve this partial result")
 
-    def test_evaluation_rejects_a_checkpoint_with_the_old_instruction(self):
+    def test_evaluation_rejects_a_checkpoint_with_the_variant_instruction(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = Path(tmp)
             runner = fixture / "scripts/run_wdc_qwen_variant_prompt.sh"
@@ -92,7 +93,7 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
             output = fixture / "outputs/experiment"
             run = output / "run"
             run.mkdir(parents=True)
-            baseline = json.loads((ROOT / "configs/students/qwen3_reranker_0_6b.json").read_text())
+            baseline = json.loads((ROOT / ARCHIVED_CONFIG).read_text())
             (run / "training_summary.json").write_text(json.dumps({
                 "reranker_instruction": baseline["reranker_instruction"],
                 "model_name": baseline["model_name"], "train_rows": 2493,
@@ -136,7 +137,7 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
                  "config_loader": source_files[5]}
         args = [sys.executable, "-m", "utils.artifact_contract", "write", "--path",
                 str(preflight / "artifact-contract.json"),
-                "--field", "stage=wdc_variant_identity_v1", "--field", "train_rows=2493",
+                "--field", "stage=wdc_original_prompt", "--field", "train_rows=2493",
                 "--field", "validation_rows=2500"]
         for key, value in files.items():
             args += ["--file", f"{key}={value}"]
@@ -159,7 +160,7 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
         (output / "validation-metrics.json").write_text(json.dumps({
             "tp": 500, "fp": 0, "tn": 2000, "fn": 0, "same_f1": 1.0,
             "total": 2500, "valid": 2500, "invalid": 0, "decision_threshold": 0.5,
-            "split": "validation", "variant": "quick_refined_variant_identity_v1",
+            "split": "validation", "variant": "quick_refined_original_prompt",
         }))
         (output / "logs").mkdir()
         (output / "logs/train.log").write_text("fixture log")
@@ -306,7 +307,7 @@ class WDCQwenVariantPromptTests(unittest.TestCase):
 
     def test_variant_differs_only_in_instruction(self):
         baseline = json.loads((ROOT / "configs/students/qwen3_reranker_0_6b.json").read_text())
-        variant = json.loads((ROOT / CONFIG).read_text())
+        variant = json.loads((ROOT / ARCHIVED_CONFIG).read_text())
         self.assertEqual([key for key in baseline if baseline[key] != variant[key]],
                          ["reranker_instruction"])
 

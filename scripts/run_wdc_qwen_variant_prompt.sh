@@ -5,8 +5,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "${repo_root}"
 PYTHON="${PYTHON:-.venv/bin/python}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/uncertainty_refinement/wdc-qwen-quick-refined-variant-identity-v1}"
-STUDENT_CONFIG="configs/students/qwen3_reranker_0_6b_variant_identity_v1.json"
+OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/uncertainty_refinement/wdc-qwen-quick-refined-original-prompt}"
+STUDENT_CONFIG="configs/students/qwen3_reranker_0_6b.json"
 TRAIN_TARGETS="data/cache/wdc_products/refinement/quick-tier-v1/train.jsonl"
 VALIDATION="data/cache/wdc_products/serialized/validation.jsonl"
 TEST="data/cache/wdc_products/serialized/test.jsonl"
@@ -17,7 +17,7 @@ PREFLIGHT="${OUTPUT_ROOT}/preflight"
 LOGS="${OUTPUT_ROOT}/logs"
 CONTRACT="${PREFLIGHT}/artifact-contract.json"
 contract_args=(
-  --field stage=wdc_variant_identity_v1 --field train_rows=2493 --field validation_rows=2500
+  --field stage=wdc_original_prompt --field train_rows=2493 --field validation_rows=2500
   --file "student_config=${STUDENT_CONFIG}" --file "train=${TRAIN_TARGETS}"
   --file "validation=${VALIDATION}" --file "runtime=${PREFLIGHT}/runtime.json"
   --file "audit=${PREFLIGHT}/input-length-audit.json"
@@ -62,7 +62,7 @@ config_path, run_dir = map(Path, sys.argv[1:])
 config = json.loads(config_path.read_text())
 summary = json.loads((run_dir / "training_summary.json").read_text())
 if summary.get("reranker_instruction") != config["reranker_instruction"]:
-    raise SystemExit("Checkpoint instruction mismatch: train with the variant config first")
+    raise SystemExit("Checkpoint instruction mismatch: use a checkpoint trained with the selected original config")
 if summary.get("model_name") != config["model_name"] or summary.get("train_rows") != 2493:
     raise SystemExit("Checkpoint does not describe the 2493-row refined Qwen experiment")
 threshold = json.loads((run_dir / "best_model/decision_threshold.json").read_text())["decision_threshold"]
@@ -85,14 +85,14 @@ train_cmd=("${PYTHON}" -m experiments.train_student
 evaluate_cmd=("${PYTHON}" -m experiments.evaluate_student
   --student-config "${STUDENT_CONFIG}" --checkpoint "${RUN_DIR}/best_model"
   --input "${VALIDATION}" --predictions "${PREDICTIONS}" --metrics "${METRICS}"
-  --variant quick_refined_variant_identity_v1 --split validation
+  --variant quick_refined_original_prompt --split validation
   --batch-size 1 --max-input-length 4096 --precision fp16 --device cuda)
 
 evaluate_test_cmd=("${PYTHON}" -m experiments.evaluate_student
   --student-config "${STUDENT_CONFIG}" --checkpoint "${RUN_DIR}/best_model"
   --input "${TEST}" --predictions "${OUTPUT_ROOT}/test-predictions.jsonl"
   --metrics "${OUTPUT_ROOT}/test-metrics.json"
-  --variant quick_refined_variant_identity_v1 --split test
+  --variant quick_refined_original_prompt --split test
   --batch-size 1 --max-input-length 4096 --precision fp16 --device cuda)
 
 show_cmd() { printf '%q ' "$@"; printf '\n'; }
@@ -130,8 +130,7 @@ config_path, train_path, val_path, out = map(Path, sys.argv[1:])
 assert torch.cuda.is_available(), "CUDA is unavailable"
 config = json.loads(config_path.read_text())
 baseline = json.loads(Path("configs/students/qwen3_reranker_0_6b.json").read_text())
-assert [k for k in baseline if baseline[k] != config[k]] == ["reranker_instruction"]
-assert "same specific product variant" in config["reranker_instruction"]
+assert config == baseline, "The original student instruction/config must be selected"
 train = [json.loads(l) for l in train_path.read_text().splitlines()]
 val = [json.loads(l) for l in val_path.read_text().splitlines()]
 assert len(train) == 2493 and Counter(r["label"] for r in train) == {0: 2004, 1: 489}
@@ -156,7 +155,7 @@ PREFLIGHT_PY
     else
       "${PYTHON}" -m utils.artifact_contract write --path "${CONTRACT}" "${contract_args[@]}"
     fi
-    echo "Variant-prompt GPU preflight passed."
+    echo "Original-prompt GPU preflight passed."
     ;;
   plan)
     [[ "$#" == 1 ]] || { echo "plan takes no arguments" >&2; exit 1; }
@@ -253,7 +252,7 @@ for split, input_path, count in splits:
     tn = len(rows) - tp - fp - fn
     assert all(metrics[k] == v for k, v in {"tp": tp, "fp": fp, "tn": tn, "fn": fn, "total": count, "valid": count, "invalid": 0}.items())
     assert math.isclose(metrics["same_f1"], 2 * tp / (2 * tp + fp + fn), abs_tol=1e-12)
-    assert metrics["split"] == split and metrics["variant"] == "quick_refined_variant_identity_v1"
+    assert metrics["split"] == split and metrics["variant"] == "quick_refined_original_prompt"
     assert metrics["decision_threshold"] == summary["decision_threshold"]
 archive = Path(str(out) + ".zip")
 temporary = Path(str(archive) + ".tmp")
