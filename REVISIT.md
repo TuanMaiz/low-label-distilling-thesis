@@ -79,3 +79,106 @@ Safe wording:
 Avoid:
 
 > We propose an optimized active-learning strategy.
+
+## Swapped-Order Teacher Pass (WDC train)
+
+Status: deferred
+Created: 2026-10-21
+Context: `plans/261021-2235-wdc-order-swap-and-hard-pair-upweighting/` Phase 5;
+record-order probe findings in `plans/journals/2026-10-20-record-order-swap-findings.md`.
+
+### Current Decision
+
+Not run. The plan uses only the student order-flip signal (OOF fold models
+scored in both orders).
+
+### Why Revisit
+
+Teacher consistency has little resolution: 2,487/2,500 pairs are 3/3. One
+Sol-high pass with Record A and Record B exchanged would perturb the input
+instead of repeating it, and could expose teacher uncertainty that repetition
+hides. It would also make the teacher-trust selection rule stricter (3/3 and no
+teacher order flip).
+
+### Revisit Options
+
+1. One pass on all 2,500 train pairs, same model, prompt, provider pinning and
+   settings; about USD 2.7; add `--swap-record-order` to
+   `labeller-screening/run_full_wdc.py` with tests and a dry run first.
+2. Skip, and report teacher order sensitivity as untested.
+
+### Guardrails
+
+- Needs explicit paid authorization and a spend ceiling; the standing rule
+  "Do not relabel WDC" applies until the researcher lifts it for this pass.
+- The swapped pass is a separate artifact; it never replaces the three passes.
+- Decide before Phase 6 freezes the selection rule; never after seeing test.
+
+## LLM-Labeled Validation (replacing human validation)
+
+Status: deferred
+Created: 2026-10-21
+Context: researcher point on 2026-10-21: if LLM labels can replace people for
+train, the same may hold for validation. Plan Phase 9.
+
+### Current Decision
+
+Validation gold stays the human development set for checkpoint and threshold
+selection. Phase 9 only checks how sensitive results are to a small (500-pair)
+human validation subset.
+
+### Why Revisit
+
+WDC validation (2,500) is as large as train, which weakens the defense that
+human validation is cheap. Showing that LLM-labeled validation selects nearly
+the same checkpoint and threshold would make the pipeline human-free except
+for test.
+
+### Revisit Options
+
+1. Sol-high labels the 2,500 validation pairs (one pass about USD 2.7, or three
+   passes plus majority about USD 8). Re-select epoch and threshold on LLM
+   labels from saved per-epoch predictions; report test F1 and teacher
+   accuracy on validation. No retraining needed.
+2. Keep the small-subset check only and state the limitation.
+
+### Guardrails
+
+- Needs explicit paid authorization and a contract change: AGENTS.md says LLM
+  machine labeling operates on training pairs only.
+- Analysis on frozen arms only; results must not feed back into method choices
+  for the same WDC runs.
+
+## Order-Swap and RHO-Style Hard-Pair Upweighting Plan
+
+Status: backlog
+Created: 2026-10-22
+Context: `plans/261021-2235-wdc-order-swap-and-hard-pair-upweighting/` (written
+2026-10-21, no phase started).
+
+### Current Decision
+
+Out of scope. The thesis question is now how to find uncertain training pairs
+and treat them. Detection keeps teacher–student (OOF) disagreement plus teacher
+2/3 pairs, all 158 already diagnosed. Treatment is chosen from the
+human-defined evidence categories, not from a loss-based score over all 2,500
+pairs.
+
+### Why Revisit
+
+- Swap training and order-flip detection: student order instability is real
+  (`plans/journals/2026-10-20-record-order-swap-findings.md`); see `ideas.md` I16.
+- RHO-style or teacher-trust selection (K = 250) is an alternative way to find
+  hard-but-useful pairs outside the flagged set, and a possible comparison.
+
+### Revisit Options
+
+1. Reopen only after the category-based treatment has a validation result.
+2. Reuse its gold boundary, k = 2 duplication, random control and paired tests
+   in the new plan (these parts are not deferred).
+
+### Guardrails
+
+- No GPU run or code from this plan while it is in backlog.
+- Swapped-Order Teacher Pass above depends on this plan and stays deferred.
+

@@ -22,12 +22,60 @@ See `documents/261014-student-variant-instruction.md` for the retired experiment
 
 Read `../AGENTS.md` and this file before changing the experiment workflow.
 
+## Research Discussion Records
+
+Before continuing research planning or interpreting earlier discussions, consult:
+
+- [Decisions](docs/research/decisions.md): recorded decisions, dates, rationale,
+  and rejected or deferred alternatives.
+- [Ideas](docs/research/ideas.md): hypotheses and their trial status; a proposal
+  or literature recommendation is not an approved experiment.
+- [Techniques](docs/research/techniques.md): concepts discussed and their
+  project-specific uses and limitations.
+- [Open questions](docs/research/open-questions.md): unresolved choices and
+  evidence still needed.
+
+These records preserve discussion history; active plans and experiment
+contracts govern execution. Distinguish researcher decisions from assistant
+suggestions, observed results from causal explanations, and historical runs
+from current scope. When updating the records, include only supported discussion
+content and retain `[CẦN XÁC NHẬN]` for uncertain dates, reasons, or status.
+Do not turn a brainstorm or an open question into execution authorization.
+
 ## Active Project
 
-**Master's thesis:** full-label LLM-based machine labeling for Entity
-Resolution across three benchmarks and three compact cross-encoder models.
+**Master's thesis:** detecting and treating uncertain pairs in LLM-labelled
+training data for Entity Resolution (researcher, recorded 2026-10-22; see
+`docs/research/decisions.md` D18–D21).
 
-Research question:
+Research question (wording `[CẦN XÁC NHẬN]`):
+
+> How can uncertain pairs in LLM-labelled training data be detected, and how
+> should they be treated, so that a compact ER student learns from LLM labels
+> without human training labels?
+
+Current direction (WDC first):
+
+- Detection: 149 OOF teacher–student disagreements plus 13 teacher `2/3`
+  pairs, 158 unique pairs, all with evidence-check diagnoses. Confident
+  Learning is a side analysis only.
+- Treatment: a researcher-written guideline applied by an LLM judge (records
+  only, no old label), then a fixed rule: not decidable → remove; agrees with
+  the teacher → upweight; disagrees → flip. Guideline, judge model and new
+  plan are not written yet. No paid judge run is authorized.
+- Backlog: `plans/261021-2235-wdc-order-swap-and-hard-pair-upweighting/`
+  (swap training, order-flip detector, RHO-style selection). Do not implement it.
+- Gold boundary: train gold only in the final analysis; validation gold for
+  checkpoint/threshold selection; test once for frozen arms. WDC test already
+  influenced earlier decisions (prompt rollback), so it is not a clean
+  confirmation set.
+- Weekly goals: `plans/weekly-goals/`. Reviewer preparation:
+  `reviewers-question-mock/`.
+
+### Previous main question (full-label design)
+
+Whether the full-label 3 × 3 design below remains the thesis backbone or only
+background is `[CẦN XÁC NHẬN]`.
 
 > Can LLM-generated hard labels provide a practical alternative to benchmark
 > gold training labels for compact cross-encoder Entity Resolution models while
@@ -68,7 +116,10 @@ the other two datasets are pending.
 
 ## Scope Guardrail
 
-The fixed high-level design is:
+For the current question: no new detectors, arms or datasets without a
+researcher decision; finish the guideline-judge treatment on WDC first.
+
+The fixed high-level design of the full-label comparison is:
 
 - 3 benchmark datasets.
 - 3 compact cross-encoder ER models.
@@ -86,6 +137,34 @@ favor completing the frozen plan.
 
 ## Current Status
 
+- On 2026-10-06 the researcher authorized an offline quick-refinement pilot in
+  `plans/261006-0927-wdc-quick-evidence-refinement/`. The builder
+  `supervision.build_quick_refined_dataset` uses three-pass majority labels and
+  existing valid diagnoses, with 65 explicit assistant-reviewed decisions.
+  It hard-prunes valid case-5 pairs first; reviewed clear identity conflicts
+  can become non-match and safe agreements match. Difficult/unanalysed/invalid
+  pairs retain majority labels. No semantic keyword classifier or paid call.
+  Published separate ignored `data/cache/wdc_products/refinement/quick-tier-v1/`:
+  `train.jsonl` and `labels.csv` contain 2,493 retained pairs; `decisions.csv`
+  accounts for all 2,500. Seven pruned; one match-to-non-match relabel
+  (`88031640#6256141`, listed RAM 8GB versus 16GB); 2,492 labels unchanged.
+  Retained classes: 489 match, 2,004 non-match. Real independent audit and
+  byte-identical rerun pass; repository suite 224/224. This is an
+  assistant-reviewed experimental dataset, not verified corrected truth or
+  measured F1 improvement. Originals and validation/test remain untouched;
+  no training, further paid calls, commit or push authorized by this step.
+
+- Evidence retry update (2026-10-06): the researcher explicitly authorized
+  retrying five invalid diagnoses and three old uncertain dispatches. All eight
+  new replies are saved under `retries/remaining-02/`; coverage is now 155/158
+  valid diagnoses with three remaining literal-quote failures. The prior
+  seven-invalid retry round is retained under `retries/invalid-01/`.
+  Known received-response cost across all rounds is USD 3.253112. Original
+  uncertain dispatch receipts remain unreconciled for billing only; their pairs
+  now have valid new diagnoses. Do not infer missing diagnosis coverage from
+  `unresolved_request_ids` alone. All original response bytes are preserved.
+  No further paid retry is authorized by this completed round.
+
 - The refinement extension is recorded in
   `plans/260928-0938-uncertainty-aware-llm-label-refinement-fundamental/`.
   WDC `run_full_wdc.py --no-reuse-existing` now skips screening reuse for
@@ -102,9 +181,43 @@ favor completing the frozen plan.
   `data/cache/wdc_products/oof/majority-3fold/` plus preparation, verification,
   execution, recovery, and CL-ready merge tooling. Fold 1 has 1,333/333/834
   train/validation/held-out rows; folds 2 and 3 each have 1,334/333/833. An
-  isolated committed-tree `verify-data` run passed. Phase 5 rented-GPU
-  execution has not started; no real OOF probabilities exist yet. Do not
+  isolated committed-tree `verify-data` run passed. Phase 5 then completed
+  three OOF runs on a Tesla V100-SXM2-32GB. The downloaded result package
+  passed checksum verification and independent merge rederivation: 2,500
+  unique OOF probabilities. Phase 6 uses pinned Cleanlab 2.9.0 through
+  `supervision.build_confident_learning`: 120 ranked candidates (4.8%) and
+  a calibrated error-count estimate of 124 (4.96%), using no human labels.
+  Raw/calibrated confident joints, estimated joint distribution, all-pair
+  scores, and candidate IDs are under the ignored
+  `outputs/uncertainty_refinement/wdc-qwen-cl/`. Counts are model estimates;
+  no gold comparison, fusion, prune, or relabel has been performed. Do not
   mutate the original pair JSONL to attach labels or scores.
+
+- The researcher authorized WDC teacher evidence-check classification under
+  `plans/261005-0916-wdc-teacher-evidence-case-classification/`. The union of
+  13 teacher `2/3` pairs and 149 stored OOF teacher–student disagreements has
+  158 unique pairs (4 overlap). `supervision.run_evidence_check` calls the
+  existing Sol-high/OpenAI-only OpenRouter client with the seven definitions
+  in `supervision/evidence_case_prompt.md`. Requests contain records only,
+  not previous labels, scores, or selection flags. Outputs are separate
+  multi-label diagnoses, exact source quotes, CSV/Markdown tables and costs
+  under ignored `outputs/uncertainty_refinement/wdc-evidence-check/`.
+  These are model-generated observations, not verified errors or whole-dataset
+  prevalence. This authorization does not permit relabel/prune, training,
+  human-label comparison or official validation/test access. Existing responses
+  are reused; unresolved dispatches must not be blindly repeated.
+  After the researcher raised the key limit to USD 20 and authorized
+  continuation, all 57 never-attempted pairs completed and the one explicitly
+  rejected HTTP 403 request was retried, retaining its request/error under
+  `retry_attempts/0100.json`. Current coverage: 155 saved responses, 148 valid
+  diagnoses, 7 invalid quotes and 3 old unresolved dispatches; no never-attempted
+  pairs remain. Known cumulative response cost is USD 2.8317829, including
+  USD 1.0764331 for this continuation; total accounting remains incomplete.
+  The original 97 responses and source hashes are unchanged; 1,119 literal
+  evidence quotes independently verified. No arbitrary/uncertain retry was
+  performed. Resolve the seven invalid outputs and reconcile the three old
+  dispatches before claiming complete valid coverage. Never change the key
+  limit yourself; `--skip-unresolved` only dispatches never-attempted pairs.
 
 - Branch: `refactor/full-label-er-migration`.
 - Low-label sampler, active selector, old Phase-03/04 orchestration, old
@@ -208,6 +321,11 @@ source .venv/bin/activate
   --validation-percent 20
 PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh verify-data
 PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh plan
+.venv/bin/python -m supervision.build_confident_learning \
+  --oof-csv outputs/uncertainty_refinement/wdc-qwen-oof/oof_predictions.csv \
+  --oof-summary outputs/uncertainty_refinement/wdc-qwen-oof/oof_summary.json \
+  --output-dir outputs/uncertainty_refinement/wdc-qwen-cl \
+  --expected-count 2500
 .venv/bin/python scripts/inspect_dblp_acm_source.py \
   --archive data/raw/dblp_acm/dblp_acm_exp_data.zip \
   --source-root data/raw/dblp_acm/archive-2026-09-01/exp_data \
@@ -273,6 +391,7 @@ coverage. Compact-model inference never calls the LLM labeler.
   `supervision/prepare_full_label_inputs.py`,
   `supervision/run_full_labeling.py`,
   `supervision/build_teacher_consensus.py`,
+  `supervision/build_confident_learning.py`,
   `supervision/build_full_label_targets.py`,
   `supervision/validate_full_label_targets.py`.
 - Compact ER models (legacy code paths retain `student` naming during migration):

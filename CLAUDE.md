@@ -23,7 +23,19 @@ See `documents/261014-student-variant-instruction.md` for the retired experiment
 Read `../AGENTS.md` and `AGENTS.md` before changing the experiment workflow.
 `AGENTS.md` is the canonical repository guidance.
 
+For research discussion history, follow the
+[Research Discussion Records](AGENTS.md#research-discussion-records) guidance.
+
 ## Active Project
+
+Current main question (2026-10-22): detecting and treating uncertain pairs in
+LLM-labelled training data. Detection uses teacher–student disagreement plus
+teacher `2/3` pairs (158); treatment uses a researcher-written guideline
+applied by an LLM judge. See `AGENTS.md` (Active Project) and
+`docs/research/decisions.md` D18–D21. Plan
+`plans/261021-2235-wdc-order-swap-and-hard-pair-upweighting/` is backlog.
+
+Previous framing:
 
 The project is migrating to a full-label Entity Resolution comparison:
 
@@ -120,6 +132,26 @@ metrics, and test artifacts do not exist.
 
 ## Commands
 
+The researcher authorized and completed an offline quick-refinement dataset
+pilot on 2026-10-06, under `plans/261006-0927-wdc-quick-evidence-refinement/`.
+`supervision.build_quick_refined_dataset` uses 65 explicit assistant-reviewed
+decisions, existing valid diagnoses and majority labels; case 5 hard-prunes
+first, difficult or invalid/unanalysed cases keep original labels. Output:
+`data/cache/wdc_products/refinement/quick-tier-v1/train.jsonl` has 2,493 pairs
+(489 match/2,004 non-match), with 7 prunes and 1 relabel. `labels.csv` contains
+retained pairs; `decisions.csv` covers all 2,500 and records reasons. Independent
+real-data audit and identical rebuild pass; 224/224 repository tests pass.
+This reviewed pilot does not demonstrate improved F1 or authorize GPU training,
+additional paid calls, gold access, commit or push. Source records stay unchanged.
+
+Evidence retry status on 2026-10-06: user-authorized retries of five invalid
+and three uncertain requests produced eight saved replies in
+`outputs/uncertainty_refinement/wdc-evidence-check/retries/remaining-02/`.
+Coverage is 155/158 valid; three literal-quote failures remain. Known cost
+including original and retry replies is USD 3.253112. The three historical
+uncertain dispatches remain billing-unreconciled, but their pairs now have
+valid diagnoses. Originals remain unchanged; no further paid round authorized.
+
 The refinement extension plan is under
 `plans/260928-0938-uncertainty-aware-llm-label-refinement-fundamental/`.
 `labeller-screening/run_full_wdc.py --no-reuse-existing` supports separate
@@ -135,8 +167,38 @@ consistency, and 13 at `2/3`. These are separate artifacts under
 unchanged. Phase 4 committed deterministic three-fold WDC-Qwen inputs under
 `data/cache/wdc_products/oof/majority-3fold/` and the CPU verification,
 execution, recovery, and CL-ready merge tooling. An isolated committed-tree
-`verify-data` run passed. No real OOF model training or probabilities exist;
-those remain Phase 5 on a separately authorized CUDA machine.
+`verify-data` run passed. Phase 5 completed all three OOF runs on a Tesla
+V100-SXM2-32GB; the downloaded package passed checksum verification and
+independent merge rederivation for all 2,500 probabilities. Phase 6 uses
+`supervision.build_confident_learning` with pinned Cleanlab 2.9.0 to produce
+120 ranked candidates (4.8%), a calibrated error-count estimate of 124 (4.96%),
+raw/calibrated confident joints, and the estimated joint distribution. The
+ignored outputs are under `outputs/uncertainty_refinement/wdc-qwen-cl/`.
+This step uses no human labels and has not applied fusion, prune, or relabel.
+
+The researcher authorized the separate WDC teacher evidence-check plan at
+`plans/261005-0916-wdc-teacher-evidence-case-classification/`: 13 teacher 2/3
+pairs OR 149 stored OOF teacher–student disagreements, 158 unique pairs with
+4 overlap. `supervision.run_evidence_check` uses Sol-high/OpenAI-only routing
+and seven definitions in `supervision/evidence_case_prompt.md`. Only record
+attributes enter the request, not prior labels, student scores or selection
+flags. Exact source quotes and multi-label diagnoses are stored separately
+under ignored `outputs/uncertainty_refinement/wdc-evidence-check/`, with readable
+CSV/Markdown and measured costs. Diagnoses are not verified label errors or
+whole-dataset prevalence; no labels change and no gold, official validation/test,
+training, prune or relabel is authorized. Reuse saved responses; do not blindly
+retry unresolved dispatches.
+The researcher raised the key limit to USD 20 and authorized continuation.
+All 57 never-attempted pairs completed; the one explicitly rejected HTTP 403
+request was retried with original request/error retained in
+`retry_attempts/0100.json`. Current coverage: 155 saved responses, 148 valid
+diagnoses, 7 invalid quotes, 3 old unresolved dispatches, no never-attempted
+pairs. Known cumulative cost USD 2.8317829 (continuation USD 1.0764331), overall
+accounting incomplete. The original 97 responses/source hashes are unchanged;
+1,119 exact source quotes independently checked. No uncertain dispatch was
+repeated. Resolve invalid responses and reconcile the three old calls before
+claiming 158 valid diagnoses. Never modify the key ceiling yourself;
+`--skip-unresolved` continues only never-attempted pairs.
 
 ```bash
 cd /mnt/d/study/cao-hoc/luan-van/code
@@ -161,6 +223,11 @@ source .venv/bin/activate
   --validation-percent 20
 PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh verify-data
 PYTHON=.venv/bin/python bash scripts/run_wdc_qwen_oof.sh plan
+.venv/bin/python -m supervision.build_confident_learning \
+  --oof-csv outputs/uncertainty_refinement/wdc-qwen-oof/oof_predictions.csv \
+  --oof-summary outputs/uncertainty_refinement/wdc-qwen-oof/oof_summary.json \
+  --output-dir outputs/uncertainty_refinement/wdc-qwen-cl \
+  --expected-count 2500
 .venv/bin/python -m tests.test_teacher_consensus real-files \
   --inputs data/cache/wdc_products/teacher_labels/full_sol_high/wdc_train_full.inputs.jsonl \
   --pass-01 data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv \
