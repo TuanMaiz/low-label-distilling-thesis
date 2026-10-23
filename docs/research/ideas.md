@@ -124,3 +124,10 @@ Ngày tổng hợp: 2026-10-19. Chỉ ghi các hướng đã xuất hiện trong
 - **Lý do hoãn:** Tăng scope (thêm detector, thêm run, thêm logic fusion) trước khi treatment chính có kết quả. Teacher đã rất ổn định (2.487/2.500 pair 3/3), nên phần thêm của swap cho detection còn chưa rõ.
 - **Nếu reviewer hỏi:** Bản rẻ là swap chỉ ở student lúc inference, không gọi API trả phí.
 - **Nguồn:** Trao đổi trực tiếp 2026-10-22; Phase 3–5 của [plan 261021](../../plans/261021-2235-wdc-order-swap-and-hard-pair-upweighting/plan.md).
+
+## I17 — Domain profiles và hướng dẫn viết profile
+
+- **Trạng thái:** chưa thử (researcher, 2026-10-23).
+- **Giả thuyết:** Core guideline của judge có thể đi kèm một profile ngắn cho từng domain (vai trò thuộc tính: identifier, identity, corroborating, ignored; quy tắc xác lập match; quy tắc chặn match). Một hướng dẫn để người khác tự viết profile cho domain mới có thể là một đóng góp.
+- **Lý do chưa làm:** Researcher muốn kiểm tra core guideline một mình trước. Bản nháp profile WDC và DBLP-ACM (2026-10-23) đã bỏ; các quy tắc WDC đã thống nhất (màu LED, giá) được viết lại dạng tổng quát trong core.
+- **Nguồn:** Trao đổi trực tiếp 2026-10-23; [judge guideline](../../supervision/judge_guideline.md).
