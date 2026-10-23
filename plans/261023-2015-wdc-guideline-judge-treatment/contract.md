@@ -96,4 +96,9 @@ C: 93 remove, 52 upweight (47 non-match, 5 match), 10 flip (match → non-match)
 
 ## Amendments
 
-None.
+### A1 — 2026-10-24, clarification before any dataset was published
+
+Section 2, step 2 reads "at least one evidence quote whose field is not price".
+The builder requires a non-price quote on **both** sides of the conflict, as the
+guideline does ("both records state values"). Checked on the saved diagnoses
+before building: 0 pairs differ between the two readings, so no count changes.

@@ -76,7 +76,7 @@ is not a clean confirmation set. DBLP-ACM is the cleaner confirmation later.
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | [Freeze contract](./phase-01-freeze-contract.md) | Completed |
-| 2 | [Category-rule dataset builder](./phase-02-category-rule-builder.md) | Pending |
+| 2 | [Category-rule dataset builder](./phase-02-category-rule-builder.md) | Completed |
 | 3 | [Train arms](./phase-03-train-arms.md) | Pending |
 | 4 | [Compare, test once, final analysis](./phase-04-evaluate.md) | Pending |
 
@@ -122,4 +122,4 @@ No paid API calls in this plan. Supervisor approval not required (researcher,
 
 ## Contract
 
-`contract.md`, frozen 2026-10-24, SHA-256 `1aedd0c573aa20cb5bd7c8f41086baf2d5579e98c428b5532e6fd1f0e8531ad8`.
+`contract.md`, frozen 2026-10-24, SHA-256 after amendment A1 `38f8a92565ec3c738b5ce304e1210b7732d886cc824668f6c28553b307586008`.

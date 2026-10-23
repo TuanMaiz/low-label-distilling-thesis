@@ -9,7 +9,7 @@
 
 ## Overview
 
-Priority P1. Pending. Apply the category rule and the action rule by code and
+Priority P1. Completed 2026-10-24. Apply the category rule and the action rule by code and
 build one training file per arm. No paid call, no gold.
 
 ## Requirements
@@ -45,10 +45,10 @@ build one training file per arm. No paid call, no gold.
 
 ## Todo List
 
-- [ ] Rule function and tests
-- [ ] Builder, verifier, tests
-- [ ] Arms built and verified
-- [ ] Trainer smoke with duplicates
+- [x] Rule function and tests
+- [x] Builder, verifier, tests
+- [x] Arms built and verified
+- [ ] Trainer smoke with duplicates — moved to Phase 3 preflight (needs torch). Code check: `load_target_rows` and the reranker dataset accept duplicate IDs and extra fields.
 
 ## Success Criteria
 
@@ -62,3 +62,20 @@ build one training file per arm. No paid call, no gold.
 ## Next Steps
 
 - Phase 3.
+
+## Result (2026-10-24)
+
+| Arm | Train rows | Match | Non-match | Actions |
+|---|---:|---:|---:|---|
+| A | 2,500 | 495 | 2,005 | keep 2,500 |
+| B | 2,342 | 423 | 1,919 | remove 158 |
+| C | 2,459 | 434 | 2,025 | remove 93, flip 10, upweight 52 (+52 duplicate rows), keep 2,345 |
+
+Arm C by step: step 1 remove 7 (5 match, 2 non-match); step 2 flip 10
+(match → non-match), upweight 47 non-match; step 3 remove 86 (51 match,
+35 non-match); step 6 upweight 5 match. Identical to the preview in `plan.md`.
+Bundles under ignored `data/cache/wdc_products/refinement/category-rule-{A,B,C}/`;
+`verify` passes for all three (byte-identical rebuild, duplicates equal their
+sources). Focused tests: 10/10 (`tests/test_category_treated_dataset.py`).
+The full suite was not run in this environment (no torch); run it with the
+project `.venv` before Phase 3.
