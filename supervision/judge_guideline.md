@@ -2,7 +2,7 @@
 
 Status: **draft, 2026-10-23. Not signed off.** The researcher signs off this
 file; after sign-off it is frozen (hash recorded in the plan contract) and any
-change is a dated amendment. Items marked `[RESEARCHER DECIDES]` must be
+change is a dated amendment. Items marked `[RESEARCHER CONFIRMS]` must be
 settled before sign-off.
 
 The judge receives this guideline and two records, nothing else. It never sees
@@ -69,11 +69,10 @@ Work through the steps in order. Stop at the first step that settles the pair.
    what an attribute refers to, and this blocks the decision → **not
    decidable**.
 4. **One-sided information.** One record states an identity attribute that
-   the other does not mention.
-   `[RESEARCHER DECIDES]` Option A: **not decidable**, because the silent
-   record cannot confirm the same entity. Option B: decide from the shared
-   evidence and ignore the one-sided attribute when the shared evidence
-   already establishes identity.
+   the other does not mention. This alone does not block the decision: decide
+   from the shared evidence and ignore the one-sided attribute when the shared
+   evidence already establishes identity (researcher, 2026-10-23). If the
+   shared evidence does not establish identity, continue to step 7.
 5. **Noise or malformed data.** Ignore noise that does not hide identity
    evidence. If noise hides the evidence needed → **not decidable**.
 6. **Match.** Decide **match** only if identity is positively established:
@@ -126,5 +125,4 @@ Example:
 
 ## 6. Open points for the researcher
 
-1. Step 4: Option A or B.
-2. Step 6: confirm the block-rule factor 2.
+1. Step 6: confirm the block-rule factor 2.

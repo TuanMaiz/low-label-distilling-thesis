@@ -1,54 +1,54 @@
-# Phase 1: Sign off guideline and freeze contract
+# Phase 1: Freeze contract
 
 ## Context Links
 
-- Guideline: `supervision/judge_guideline.md` (draft v2)
+- Guideline: `supervision/judge_guideline.md` (rule source for version 1)
 - Decisions: `docs/research/decisions.md` D18–D21
-- Reviewer prep: `reviewers-question-mock/q01–q04`
+- Diagnoses: `outputs/uncertainty_refinement/wdc-evidence-check/diagnoses.csv`
 
 ## Overview
 
-Priority P1. Pending. Settle every choice that could otherwise be tuned on
-results, then hash the guideline and the contract.
+Priority P1. Pending. Write down every choice before any dataset exists.
 
 ## Requirements
 
 `contract.md` beside this plan with:
 
-1. **Guideline:** final version, its SHA-256, status "signed off" with date.
-2. **Selection:** the 158 pairs exactly as in `outputs/uncertainty_refinement/wdc-evidence-check/selected_pairs.json` (hash).
-3. **Audit sample:** 100 pairs where teacher and OOF student agree, drawn uniformly with seed 20261023, stratified by teacher label in train proportion.
-4. **Judge:** model, reasoning setting, provider pinning (OpenAI only, no fallback), max tokens, 3 independent passes on the 158, 1 pass on the audit sample.
-5. **Aggregation:** per pair, majority verdict across 3 passes; no majority (three different verdicts) → 0. Invalid outputs after one predeclared retry → 0.
-6. **Action rule:** table in `plan.md`; upweight = one duplicate (`<pair_id>#dup1`).
-7. **Arms:** A, B, C, and D if chosen; D's random set seed 20261024, drawn from pairs not upweighted in C, matching C's upweight class mix.
-8. **Training recipe:** identical to `scripts/run_wdc_qwen_variant_prompt.sh` (Qwen3-Reranker-0.6B, original instruction, LoRA, 10 epochs, lr 2e-4, seed 42, early stopping patience 3, fp16) on one GPU type.
-9. **Metrics:** match F1 primary; precision, recall, macro F1, accuracy. Paired bootstrap ΔF1 (2,000 resamples, seed 0, 95% percentile CI) and exact McNemar on validation.
-10. **Gold boundary and test caveat:** as in `plan.md`.
-11. **Spend ceiling:** USD 15 for Phase 3.
+1. **Inputs and hashes:** `diagnoses.csv`, `selected_pairs.json`,
+   `majority_labels/llm_unrefined.csv`, the train inputs JSONL, the guideline.
+2. **Category rule:** the step table in `plan.md`, including the price-field
+   filter for step 2 and the 2× block rule.
+3. **Action rule:** table in `plan.md`; upweight = one duplicate (`<pair_id>#dup1`).
+4. **Arms:** A, B, C.
+5. **Training recipe:** identical to `scripts/run_wdc_qwen_variant_prompt.sh`
+   (Qwen3-Reranker-0.6B, original instruction, LoRA, 10 epochs, lr 2e-4,
+   seed 42, early stopping patience 3, fp16) on one GPU type.
+6. **Metrics:** match F1 primary; precision, recall, macro F1, accuracy. Paired
+   bootstrap ΔF1 (2,000 resamples, seed 0, 95% percentile CI) and exact
+   McNemar on validation.
+7. **Gold boundary and test caveat:** as in `plan.md`.
 
 ## Implementation Steps
 
-1. Researcher answers the open questions in `plan.md`.
-2. Update the guideline (step 4, factor), mark it signed off, record its hash.
-3. Draft `contract.md`; researcher reviews; record `sha256sum` in `plan.md`.
-4. Add a dated decision (D22) to `docs/research/decisions.md`.
+1. Researcher confirms the block-rule factor.
+2. Draft `contract.md`; researcher reviews; record `sha256sum` in `plan.md`.
+3. Add a dated decision (D22) to `docs/research/decisions.md`: version 1 uses
+   the category rule on saved diagnoses; judge panel deferred.
 
 ## Todo List
 
-- [ ] Open questions answered
-- [ ] Guideline signed off and hashed
+- [ ] Block-rule factor confirmed
 - [ ] Contract written and hashed
 - [ ] D22 recorded
 
 ## Success Criteria
 
-- Every later choice is predeclared here or made by a rule written here.
+- Every later choice is predeclared here.
 
 ## Risk Assessment
 
-- Guideline edited after outputs are seen. Mitigation: any change after Phase 3 starts is a dated amendment and requires a new judge run directory.
+- Rule edited after seeing validation. Mitigation: any change after Phase 3 starts is a dated amendment and a new arm name.
 
 ## Next Steps
 
-- Phase 2 (code may start in parallel; no paid call before this phase is done).
+- Phase 2.

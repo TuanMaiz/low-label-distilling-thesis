@@ -20,3 +20,4 @@ One file per question: `qNN-short-name.md`. Each file has:
 | [q02](q02-judge-is-fourth-vote.md) | Isn't the LLM judge just a fourth teacher vote? | draft |
 | [q03](q03-llm-randomness.md) | The LLM is stochastic, so how is the method reproducible? | draft |
 | [q04](q04-human-validation-test.md) | If the goal is no human labels, why use human validation and test? | draft |
+| [q05](q05-jury-for-teacher-labels.md) | Why not use the judge panel to label the training data itself? | draft |

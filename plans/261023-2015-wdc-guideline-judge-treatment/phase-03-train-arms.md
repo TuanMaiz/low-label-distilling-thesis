@@ -1,9 +1,9 @@
-# Phase 5: Train arms
+# Phase 3: Train arms
 
 ## Context Links
 
 - Recipe: `scripts/run_wdc_qwen_variant_prompt.sh`
-- Datasets: `data/cache/wdc_products/refinement/judge-<arm>/`
+- Datasets: `data/cache/wdc_products/refinement/category-rule-<arm>/`
 
 ## Overview
 
@@ -12,10 +12,10 @@ same GPU type, validation only.
 
 ## Requirements
 
-- New `scripts/run_wdc_qwen_judge_arms.sh <action> <arm>` with `plan`,
+- New `scripts/run_wdc_qwen_treatment_arms.sh <action> <arm>` with `plan`,
   `preflight`, `train`, `evaluate`, `package` (predictions and metrics only,
   no weights unless asked). Train targets and output root chosen by arm; the
-  recipe is copied from the variant-prompt runner and frozen in the contract.
+  recipe copied from the variant-prompt runner and frozen in the contract.
 - Expected `train_rows` per arm read from the arm's `manifest.json`.
 - Validation predictions saved per pair, with the threshold chosen by
   `select_decision_threshold`.
@@ -23,7 +23,7 @@ same GPU type, validation only.
 ## Implementation Steps
 
 1. Runner with `plan` output reviewed (CPU).
-2. Train A, B, C (and D) on the rented GPU; package; verify checksums locally.
+2. Train A, B, C on the rented GPU; package; verify checksums locally.
 
 ## Todo List
 
@@ -41,4 +41,4 @@ same GPU type, validation only.
 
 ## Next Steps
 
-- Phase 6.
+- Phase 4.
