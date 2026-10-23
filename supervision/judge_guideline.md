@@ -1,8 +1,8 @@
-# Identity judge guideline — DRAFT v3 (core, domain-independent)
+# Identity judge guideline — v3 (core, domain-independent)
 
-Status: **draft, 2026-10-24. Not signed off.** The researcher signs off this
-file; after sign-off it is frozen (hash recorded in the plan contract) and any
-change is a dated amendment.
+Status: **signed off by the researcher, 2026-10-24. Frozen.** Its SHA-256 is
+recorded in `plans/261023-2015-wdc-guideline-judge-treatment/contract.md`; any
+change is a dated amendment with a new version number.
 
 The judge receives this guideline and two records, nothing else. It never sees
 the teacher label, the student prediction, scores, why the pair was selected,

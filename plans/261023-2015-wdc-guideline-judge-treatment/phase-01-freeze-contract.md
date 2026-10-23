@@ -8,7 +8,7 @@
 
 ## Overview
 
-Priority P1. Pending. Write down every choice before any dataset exists.
+Priority P1. Completed 2026-10-24. Write down every choice before any dataset exists.
 
 ## Requirements
 
@@ -37,9 +37,9 @@ Priority P1. Pending. Write down every choice before any dataset exists.
 
 ## Todo List
 
-- [ ] Guideline signed off
-- [ ] Contract written and hashed
-- [ ] D22 recorded
+- [x] Guideline signed off
+- [x] Contract written and hashed
+- [x] D22 recorded
 
 ## Success Criteria
 

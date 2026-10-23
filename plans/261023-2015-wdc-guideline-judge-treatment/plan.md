@@ -1,7 +1,7 @@
 ---
 title: "wdc-guideline-judge-treatment"
 description: "Treat the 158 WDC uncertain training pairs by applying the guideline's decision steps to the existing evidence-check categories, then test whether the treated labels train a better Qwen student than unrefined and uniform-removal baselines."
-status: pending
+status: in-progress
 priority: P1
 effort: "~1–2 days code + ~5 GPU-h (RTX 3090 equivalent); no API cost"
 branch: feat/wdc-guideline-judge
@@ -75,7 +75,7 @@ is not a clean confirmation set. DBLP-ACM is the cleaner confirmation later.
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | [Freeze contract](./phase-01-freeze-contract.md) | Pending |
+| 1 | [Freeze contract](./phase-01-freeze-contract.md) | Completed |
 | 2 | [Category-rule dataset builder](./phase-02-category-rule-builder.md) | Pending |
 | 3 | [Train arms](./phase-03-train-arms.md) | Pending |
 | 4 | [Compare, test once, final analysis](./phase-04-evaluate.md) | Pending |
@@ -120,6 +120,6 @@ No paid API calls in this plan. Supervisor approval not required (researcher,
 `experiments/train_student.py`, `experiments/evaluate_student.py`,
 `utils/classification_threshold.py`.
 
-## Open questions (Phase 1)
+## Contract
 
-1. Guideline sign-off.
+`contract.md`, frozen 2026-10-24, SHA-256 `1aedd0c573aa20cb5bd7c8f41086baf2d5579e98c428b5532e6fd1f0e8531ad8`.

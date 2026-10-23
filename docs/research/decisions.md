@@ -1,6 +1,6 @@
 # Các quyết định đã bàn và đã chốt
 
-Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
+Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
 
 Các đề nghị của assistant chưa được researcher chốt được đặt trong [ideas.md](ideas.md). Vấn đề chưa giải quyết nằm trong [open-questions.md](open-questions.md). Không tự điền lý do hay phương án bị loại nếu lịch sử không ghi nhận.
 
@@ -187,3 +187,13 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 - **Lý do:** Ngoài phạm vi câu hỏi hiện tại. Cách chọn hard pair theo RHO-style/teacher-trust trên toàn bộ train (K = 250) được thay bằng xử lý theo guideline trên 158 uncertain pairs (D20).
 - **Giữ lại:** Gold boundary, duplication k = 2, random control cùng cỡ và cùng tỉ lệ lớp, paired bootstrap + McNemar, test chạy một lần cho arm đã đóng băng.
 - **Nguồn:** Trao đổi trực tiếp; `REVISIT.md`.
+
+## D22 — Version 1 xử lý bằng category rule trên diagnoses đã có; guideline v3 được duyệt
+
+- **Ngày:** 2026-10-23 đến 2026-10-24.
+- **Quyết định:** Guideline judge v3 (`supervision/judge_guideline.md`) được researcher duyệt và đóng băng ngày 2026-10-24: không phụ thuộc domain, không có domain profile, step 4 theo option B (thông tin một phía không chặn quyết định), không có ngưỡng giá cố định, đầu ra gồm verdict/step/reasoning/evidence. Version 1 không gọi judge mới: áp các bước của guideline lên category của 155 diagnoses hợp lệ đã có, rồi áp action rule (remove / upweight / flip). Arms A (nhãn teacher), B (bỏ cả 158 pair), C (category rule). Arm D bỏ ở version 1.
+- **Lý do:** Researcher tự trả chi phí nên muốn làm cẩn thận và rẻ; diagnoses đã có cho biết pair thuộc category nào nên có thể áp quy tắc trực tiếp; kết quả tất định và trích dẫn đã được kiểm nguyên văn.
+- **Phương án đã loại hoặc hoãn:** Paid judge run cho version 1. Judge panel gồm nhiều model khác nhau (ví dụ GPT, Claude, Kimi) để làm version 2, chỉ trên các pair ở step 3, sau khi có kết quả version 1. Domain profile và hướng dẫn viết profile ([I17](ideas.md)). Quy tắc chặn match theo tỉ lệ giá 2×.
+- **Giới hạn:** Step 3 loại mọi pair mơ hồ (86, trong đó 51 teacher match); step 6 nghĩa là "không thấy vấn đề", không phải "đã xác nhận cùng sản phẩm"; diagnoses do cùng họ model với teacher sinh ra (`reviewers-question-mock/q02`). Giảng viên không cần duyệt trước (researcher, 2026-10-23).
+- **Nguồn:** Trao đổi trực tiếp; [plan 261023](../../plans/261023-2015-wdc-guideline-judge-treatment/plan.md), [contract](../../plans/261023-2015-wdc-guideline-judge-treatment/contract.md).
+
