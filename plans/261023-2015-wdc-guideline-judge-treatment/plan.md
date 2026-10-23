@@ -32,11 +32,13 @@ and every quote was already verified literally.
 | 3 | has `ambiguous_variant_bundle` or `ambiguous_role_scope` | 0 |
 | 4 | one-sided information does not block (option B) | – |
 | 5 | noise ignored (categories cannot show it hides evidence) | – |
-| 6 | none of the above → match, unless the price block rule fires | 1, or 0 if blocked |
+| 6 | none of the above → match | 1 |
 | – | invalid diagnosis (3 pairs) | keep unchanged |
 
-Block rule: both records give a price in the same currency and the larger is at
-least 2× the smaller.
+The guideline has no fixed price threshold (researcher, 2026-10-24): supporting
+information such as price is weighed by judgement, which the category rule
+cannot do. A price-only conflict still never counts as a conflict at step 2,
+because supporting information alone never decides non-match.
 
 Action rule (code, outside the diagnosis):
 
@@ -46,7 +48,7 @@ Action rule (code, outside the diagnosis):
 | 1 or 2 | same as verdict | upweight (duplicate once, k = 2) |
 | 1 or 2 | different | flip to the verdict |
 
-Preview on the saved diagnoses (2026-10-23, before the block rule): 93 remove,
+Preview on the saved diagnoses (2026-10-23): 93 remove,
 52 upweight (47 non-match, 5 match), 10 flip (all match → non-match), 3 keep.
 
 Known limits of version 1: step 3 removes every ambiguous pair (86, of which 51
@@ -120,4 +122,4 @@ No paid API calls in this plan. Supervisor approval not required (researcher,
 
 ## Open questions (Phase 1)
 
-1. Block-rule factor 2: confirm.
+1. Guideline sign-off.

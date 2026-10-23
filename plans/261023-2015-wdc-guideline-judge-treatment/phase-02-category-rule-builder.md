@@ -16,8 +16,7 @@ build one training file per arm. No paid call, no gold.
 
 - New `supervision/build_category_treated_dataset.py` with `build` and `verify`.
 - Rule function: diagnosis row + parsed record fields → (verdict, step);
-  exactly the table in `plan.md`. Price block rule computed from the record
-  fields, not from the diagnosis.
+  exactly the table in `plan.md`.
 - `build --arm A|B|C` → `data/cache/wdc_products/refinement/category-rule-<arm>/`:
   `train.jsonl` (same row format as quick-tier-v1), `decisions.csv` (all 2,500
   pairs: verdict, step, action, original label, final label, included,
@@ -37,7 +36,7 @@ build one training file per arm. No paid call, no gold.
 ## Implementation Steps
 
 1. Rule function with synthetic tests (one per step, price-only conflict,
-   block rule, invalid diagnosis kept).
+   invalid diagnosis kept).
 2. Builder and verifier with tests (each action, duplicates, denylist refusal,
    determinism).
 3. Build A, B, C; verify; rebuild and compare hashes; report counts against the

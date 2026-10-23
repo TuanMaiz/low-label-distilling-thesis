@@ -17,7 +17,7 @@ Priority P1. Pending. Write down every choice before any dataset exists.
 1. **Inputs and hashes:** `diagnoses.csv`, `selected_pairs.json`,
    `majority_labels/llm_unrefined.csv`, the train inputs JSONL, the guideline.
 2. **Category rule:** the step table in `plan.md`, including the price-field
-   filter for step 2 and the 2× block rule.
+   filter for step 2.
 3. **Action rule:** table in `plan.md`; upweight = one duplicate (`<pair_id>#dup1`).
 4. **Arms:** A, B, C.
 5. **Training recipe:** identical to `scripts/run_wdc_qwen_variant_prompt.sh`
@@ -30,14 +30,14 @@ Priority P1. Pending. Write down every choice before any dataset exists.
 
 ## Implementation Steps
 
-1. Researcher confirms the block-rule factor.
+1. Researcher signs off the guideline.
 2. Draft `contract.md`; researcher reviews; record `sha256sum` in `plan.md`.
 3. Add a dated decision (D22) to `docs/research/decisions.md`: version 1 uses
    the category rule on saved diagnoses; judge panel deferred.
 
 ## Todo List
 
-- [ ] Block-rule factor confirmed
+- [ ] Guideline signed off
 - [ ] Contract written and hashed
 - [ ] D22 recorded
 

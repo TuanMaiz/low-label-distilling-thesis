@@ -1,9 +1,8 @@
-# Identity judge guideline — DRAFT v2 (core, domain-independent)
+# Identity judge guideline — DRAFT v3 (core, domain-independent)
 
-Status: **draft, 2026-10-23. Not signed off.** The researcher signs off this
+Status: **draft, 2026-10-24. Not signed off.** The researcher signs off this
 file; after sign-off it is frozen (hash recorded in the plan contract) and any
-change is a dated amendment. Items marked `[RESEARCHER CONFIRMS]` must be
-settled before sign-off.
+change is a dated amendment.
 
 The judge receives this guideline and two records, nothing else. It never sees
 the teacher label, the student prediction, scores, why the pair was selected,
@@ -26,11 +25,13 @@ Decide for each attribute which role it plays:
 - **Identity attribute** — a value that distinguishes the item from a close
   neighbour (for example capacity, size, colour, pack size, bundle contents,
   edition, version, year, author list).
-- **Corroborating attribute** — a value that does not define identity but can
-  cast doubt on a match (for example price). It can block a match; it never
-  creates a non-match on its own.
-- **Ignored** — everything else (formatting, marketing text, seller or source
-  details, how many fields are filled).
+- **Supporting information** — everything else in the record (for example
+  price, description text, seller or source details). It does not define
+  identity, but it can strengthen or weaken a decision. On its own it never
+  decides non-match.
+
+Read every field of both records. Only pure formatting (case, spacing,
+punctuation, how many fields are filled) carries no weight.
 
 ## 2. Using only the records
 
@@ -82,10 +83,10 @@ Work through the steps in order. Stop at the first step that settles the pair.
    - no identifier or identity attribute in conflict;
    - nothing in steps 1–5 blocks the decision.
    Equivalent representations support a match but never create one on their
-   own.
-   **Block rule:** if both records state a corroborating numeric value in the
-   same unit or currency and the larger is at least **2×** the smaller →
-   **not decidable** instead of match. `[RESEARCHER CONFIRMS]` the factor 2.
+   own. Weigh the supporting information too: if it casts serious doubt that
+   the records describe the same item (for example a very large unexplained
+   price gap in the same currency) → **not decidable** instead of match.
+   There is no fixed threshold; explain the doubt in `reasoning`.
 7. Anything else → **not decidable**. Do not guess.
 
 ## 4. Output
@@ -122,7 +123,3 @@ Example:
 | 0 (not decidable) | any | remove |
 | 1 or 2 | same as the verdict | upweight (k = 2) |
 | 1 or 2 | different from the verdict | flip to the verdict |
-
-## 6. Open points for the researcher
-
-1. Step 6: confirm the block-rule factor 2.
