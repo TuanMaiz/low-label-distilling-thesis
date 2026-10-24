@@ -102,3 +102,14 @@ Section 2, step 2 reads "at least one evidence quote whose field is not price".
 The builder requires a non-price quote on **both** sides of the conflict, as the
 guideline does ("both records state values"). Checked on the saved diagnoses
 before building: 0 pairs differ between the two readings, so no count changes.
+
+### A2 — 2026-10-24, recipe source restored to the committed runner
+
+Section 1 hashed an uncommitted working copy of
+`scripts/run_wdc_qwen_variant_prompt.sh` (`bf5fc0e2…`) that had dropped the
+setup, preflight, evaluate-test and package-results actions, which made 8 runner
+tests fail. The researcher had it restored to the committed version
+(`216ff31`), SHA-256
+`32db42a9e7e7e5b878a99d7a002174d200a39de6a0dee62fb95083d29f6afde9`. The
+training command flags in section 5 are identical in both versions (checked
+by diff), so the recipe does not change. No dataset or result depends on this.
