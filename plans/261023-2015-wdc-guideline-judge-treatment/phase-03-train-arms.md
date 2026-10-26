@@ -7,12 +7,12 @@
 
 ## Overview
 
-Priority P1. Pending. Blocked on GPU approval. One run per arm, same recipe,
+Priority P1. In progress: runner done 2026-10-26; GPU runs blocked on approval. One run per arm, same recipe,
 same GPU type, validation only.
 
 ## Requirements
 
-- New `scripts/run_wdc_qwen_treatment_arms.sh <action> <arm>` with `plan`,
+- `scripts/run_wdc_qwen_treatment_arms.sh <action> <arm>` (written 2026-10-26; defaults Tesla V100-SXM2-32GB + fp16, contract A3; `PACKAGE_WEIGHTS=adapter` by default, merged model excluded) with `plan`,
   `preflight`, `train`, `evaluate`, `package` (predictions and metrics only,
   no weights unless asked). Train targets and output root chosen by arm; the
   recipe copied from the variant-prompt runner and frozen in the contract.
@@ -27,7 +27,9 @@ same GPU type, validation only.
 
 ## Todo List
 
-- [ ] Runner and preflight
+- [x] Runner and offline tests (`tests/test_wdc_qwen_treatment_arms.py`, 9/9)
+- [ ] Copy `data/cache/wdc_products/refinement/category-rule-{A,B,C}/` and serialized validation/test to the GPU host (git-ignored)
+- [ ] GPU preflight per arm
 - [ ] Arm runs complete
 - [ ] Results packaged and verified
 

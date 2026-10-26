@@ -113,3 +113,13 @@ tests fail. The researcher had it restored to the committed version
 `32db42a9e7e7e5b878a99d7a002174d200a39de6a0dee62fb95083d29f6afde9`. The
 training command flags in section 5 are identical in both versions (checked
 by diff), so the recipe does not change. No dataset or result depends on this.
+
+### A3 — 2026-10-26, GPU type fixed; precision stays fp16
+
+All arms run on **Tesla V100-SXM2-32GB** (no native bf16) with **fp16**, as in
+section 5 (researcher, 2026-10-26: cheapest option). The runner
+`scripts/run_wdc_qwen_treatment_arms.sh` makes these the defaults; its
+preflight refuses any other GPU name unless `EXPECTED_GPU` is set, which needs
+a new amendment. The 2026-08-31 gold run (bf16, RTX 3090) is therefore not a
+comparable reference; a gold reference arm, if added, must use this setup.
+No training had started.

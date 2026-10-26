@@ -122,4 +122,4 @@ No paid API calls in this plan. Supervisor approval not required (researcher,
 
 ## Contract
 
-`contract.md`, frozen 2026-10-24, SHA-256 after amendments A1–A2 `e06e0aaa5ceb4e80d52c97230337e815402fccff87731eb08bcc30a0b4c92879`.
+`contract.md`, frozen 2026-10-24, SHA-256 after amendments A1–A3 `df95a9d9b82d3172017cbd060ac49d1ef19e0d40ab96218f6a2086a0f7e2d4a9`.
