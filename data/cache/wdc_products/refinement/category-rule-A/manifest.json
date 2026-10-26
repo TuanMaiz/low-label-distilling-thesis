@@ -1,0 +1,30 @@
+{
+  "actions": {
+    "keep": 2500
+  },
+  "actions_by_step_and_teacher_label": {},
+  "arm": "A",
+  "class_counts": {
+    "match": 495,
+    "non-match": 2005
+  },
+  "contract": "plans/261023-2015-wdc-guideline-judge-treatment/contract.md",
+  "dataset_id": "wdc_products_80cc_small_100un",
+  "decisions_sha256": "0527c601fc976d2edcdd4f8fe5c6eb3a34f10f7c8f6039b88c2c1ac8f2659941",
+  "detected_count": 158,
+  "duplicate_rows": 0,
+  "gold_accessed": false,
+  "invalid_diagnoses": 3,
+  "policy": "category-rule-v1",
+  "source_count": 2500,
+  "sources": {
+    "diagnoses": "2b94014ab4318e00bf7308925eb7a46faed518dc04c0a0c669effcfd19eb7dd5",
+    "guideline": "b2745dac96531a23bdf4c818e900acb322b5b3db2177936193ff44896e01504a",
+    "inputs": "e443fc38fe1206ce961c6f71dce28e50b4e148d720dda3b2bdc688abf196e1ea",
+    "majority_labels": "b4dc5050e125e930c6b4b99b40004acfafedc9e9ba3fd22c608c5c3d0128f4c1",
+    "selected_pairs": "a11f1e37e89671d2fef24551086789cc879a9a4583d23f95fbaba6ff743a4800"
+  },
+  "train_rows": 2500,
+  "train_sha256": "4045580697e6e30384d6e91fa31d7c18ac6d030092a0ea8b24df05edceb1e002",
+  "valid_diagnoses": 155
+}

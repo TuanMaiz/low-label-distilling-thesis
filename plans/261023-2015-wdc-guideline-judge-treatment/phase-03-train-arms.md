@@ -28,7 +28,7 @@ same GPU type, validation only.
 ## Todo List
 
 - [x] Runner and offline tests (`tests/test_wdc_qwen_treatment_arms.py`, 9/9)
-- [ ] Copy `data/cache/wdc_products/refinement/category-rule-{A,B,C}/` and serialized validation/test to the GPU host (git-ignored)
+- [x] Arm data in git (2026-10-26): `category-rule-{A,B,C}/` committed; serialized validation/test were already tracked
 - [ ] GPU preflight per arm
 - [ ] Arm runs complete
 - [ ] Results packaged and verified
