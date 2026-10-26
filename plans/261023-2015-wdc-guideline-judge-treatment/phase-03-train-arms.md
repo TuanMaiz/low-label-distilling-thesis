@@ -2,6 +2,8 @@
 
 ## Context Links
 
+- Runbook: `docs/runbooks/rented-v100-treatment-arms.md`
+
 - Recipe: `scripts/run_wdc_qwen_variant_prompt.sh`
 - Datasets: `data/cache/wdc_products/refinement/category-rule-<arm>/`
 
