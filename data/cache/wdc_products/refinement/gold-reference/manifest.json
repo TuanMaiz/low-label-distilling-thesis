@@ -1,0 +1,20 @@
+{
+  "arm": "G",
+  "class_counts": {
+    "match": 500,
+    "non-match": 2000
+  },
+  "contract": "plans/261023-2015-wdc-guideline-judge-treatment/contract.md",
+  "dataset_id": "wdc_products_80cc_small_100un",
+  "gold_accessed": true,
+  "label_source": "gold",
+  "policy": "gold-reference",
+  "purpose": "Reference arm only (contract A4): measures the gap between LLM-label and human-label students. Never used for a method decision.",
+  "source_manifest": {
+    "path": "data/cache/wdc_products/full_label_targets/gold.manifest.json",
+    "sha256": "9a4a5756aa94f5f1dd7b6930d161dc772ab8902d3f024c1660446b96aa46d56a"
+  },
+  "train_path": "data/cache/wdc_products/full_label_targets/gold.jsonl",
+  "train_rows": 2500,
+  "train_sha256": "f4e4120404ccd83295b788706bbf1afeb1b2a26757ab53b50568d2428159424c"
+}

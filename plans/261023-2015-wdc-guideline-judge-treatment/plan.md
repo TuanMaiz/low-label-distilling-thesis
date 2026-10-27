@@ -64,7 +64,7 @@ authorized; needs pricing and a separate decision.
 
 | Gold | Allowed use |
 |---|---|
-| Train gold | Phase 4 final analysis only. Never in a method decision |
+| Train gold | Phase 4 final analysis, and training reference arm G (A4). Never in a method decision |
 | Validation gold | Checkpoint and threshold selection; paired comparison of predeclared arms |
 | Test gold | Phase 4 only, once, for frozen arms, with explicit authorization |
 
@@ -90,6 +90,7 @@ no dataset is published before it is.
 | A | Teacher majority labels, unchanged | 2,500 |
 | B | A minus all 158 uncertain pairs (uniform removal) | 2,342 |
 | C | A with category-rule remove / flip / upweight | about 2,459 (preview) |
+| G (reference, A4) | Benchmark human labels, same inputs as A | 2,500 |
 
 B tests the claim "not all uncertain pairs are the same". A random-upweight
 control (former arm D) is skipped for now (researcher, 2026-10-23).
@@ -122,4 +123,4 @@ No paid API calls in this plan. Supervisor approval not required (researcher,
 
 ## Contract
 
-`contract.md`, frozen 2026-10-24, SHA-256 after amendments A1–A3 `df95a9d9b82d3172017cbd060ac49d1ef19e0d40ab96218f6a2086a0f7e2d4a9`.
+`contract.md`, frozen 2026-10-24, SHA-256 after amendments A1–A4 `a17ae343d0b8ce1392bc95a9201b52c451783b78ba1679866665b87f6db1a554`.

@@ -8,6 +8,7 @@ data/cache/wdc_products/oof/*
 !data/cache/wdc_products/refinement/
 data/cache/wdc_products/refinement/*
 !data/cache/wdc_products/refinement/category-rule-*/
+!data/cache/wdc_products/refinement/gold-reference/
 data/raw/wdc_products/*.zip
 data/raw/dblp_acm/
 outputs/

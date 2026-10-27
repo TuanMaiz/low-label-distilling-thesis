@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# WDC–Qwen training runner for plan 261023 arms A, B, C (contract.md section 5).
-# Defaults: Tesla V100-SXM2-32GB with fp16 (contract amendment A3).
+# WDC–Qwen training runner for plan 261023 arms A, B, C and gold reference G
+# (contract.md section 5, amendments A3–A4). Defaults: Tesla V100-SXM2-32GB,
+# fp16, seed 42.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,30 +9,40 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "${repo_root}"
 
 usage() {
-  echo "Usage: bash $0 <setup|preflight|plan|train|evaluate|evaluate-test|package-results> <A|B|C> [--confirm-...]" >&2
-  echo "Env: PYTHON, OUTPUT_ROOT, PRECISION (default fp16), EXPECTED_GPU (default 'Tesla V100-SXM2-32GB')," >&2
+  echo "Usage: bash $0 <setup|preflight|plan|train|evaluate|evaluate-test|package-results> <A|B|C|G> [--confirm-...]" >&2
+  echo "Env: PYTHON, OUTPUT_ROOT, SEED (default 42), PRECISION (default fp16), EXPECTED_GPU (default 'Tesla V100-SXM2-32GB')," >&2
   echo "     PACKAGE_WEIGHTS=none|adapter|all (default adapter)." >&2
   exit 1
 }
 ACTION="${1:-}"; ARM="${2:-}"
-[[ "${ARM}" =~ ^[ABC]$ ]] || usage
+[[ "${ARM}" =~ ^[ABCG]$ ]] || usage
 shift 2
 
 PYTHON="${PYTHON:-.venv/bin/python}"
 PRECISION="${PRECISION:-fp16}"
+SEED="${SEED:-42}"
+[[ "${SEED}" =~ ^[0-9]+$ ]] || { echo "SEED must be a non-negative integer" >&2; exit 1; }
 EXPECTED_GPU="${EXPECTED_GPU:-Tesla V100-SXM2-32GB}"
 PACKAGE_WEIGHTS="${PACKAGE_WEIGHTS:-adapter}"
 [[ "${PRECISION}" =~ ^(fp16|bf16)$ ]] || { echo "PRECISION must be fp16 or bf16" >&2; exit 1; }
 [[ "${PACKAGE_WEIGHTS}" =~ ^(none|adapter|all)$ ]] || { echo "PACKAGE_WEIGHTS must be none, adapter or all" >&2; exit 1; }
 RUNNER="scripts/run_wdc_qwen_treatment_arms.sh"
-OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/uncertainty_refinement/wdc-qwen-treatment/arm-${ARM}}"
+RUN_NAME="arm-${ARM}"; [[ "${SEED}" == 42 ]] || RUN_NAME="arm-${ARM}-seed${SEED}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/uncertainty_refinement/wdc-qwen-treatment/${RUN_NAME}}"
 STUDENT_CONFIG="configs/students/qwen3_reranker_0_6b.json"
-DATA_DIR="data/cache/wdc_products/refinement/category-rule-${ARM}"
-TRAIN_TARGETS="${DATA_DIR}/train.jsonl"
-MANIFEST="${DATA_DIR}/manifest.json"
+if [[ "${ARM}" == G ]]; then
+  # Gold reference arm (contract A4): benchmark human labels, same inputs as A.
+  TRAIN_TARGETS="data/cache/wdc_products/full_label_targets/gold.jsonl"
+  MANIFEST="data/cache/wdc_products/refinement/gold-reference/manifest.json"
+  VARIANT="gold_reference"
+else
+  TRAIN_TARGETS="data/cache/wdc_products/refinement/category-rule-${ARM}/train.jsonl"
+  MANIFEST="data/cache/wdc_products/refinement/category-rule-${ARM}/manifest.json"
+  VARIANT="category_rule_arm_${ARM}"
+fi
+[[ "${SEED}" == 42 ]] || VARIANT="${VARIANT}_seed${SEED}"
 VALIDATION="data/cache/wdc_products/serialized/validation.jsonl"
 TEST="data/cache/wdc_products/serialized/test.jsonl"
-VARIANT="category_rule_arm_${ARM}"
 RUN_DIR="${OUTPUT_ROOT}/run"
 PREDICTIONS="${OUTPUT_ROOT}/validation-predictions.jsonl"
 METRICS="${OUTPUT_ROOT}/validation-metrics.json"
@@ -53,7 +64,7 @@ manifest_rows() {
 contract_args() {
   local rows; rows="$(manifest_rows)"
   printf '%s\n' --field "stage=wdc_treatment_arm_${ARM}" --field "train_rows=${rows}" \
-    --field validation_rows=2500 --field "precision=${PRECISION}" --field "expected_gpu=${EXPECTED_GPU}" \
+    --field validation_rows=2500 --field "precision=${PRECISION}" --field "expected_gpu=${EXPECTED_GPU}" --field "seed=${SEED}" \
     --file "student_config=${STUDENT_CONFIG}" --file "train=${TRAIN_TARGETS}" --file "manifest=${MANIFEST}" \
     --file "validation=${VALIDATION}" --file "runtime=${PREFLIGHT}/runtime.json" \
     --file "audit=${PREFLIGHT}/input-length-audit.json" --file "runner=${RUNNER}" \
@@ -94,7 +105,7 @@ train_cmd=("${PYTHON}" -m experiments.train_student
   --output-dir "${RUN_DIR}" --batch-size 1 --validation-batch-size 1
   --gradient-accumulation-steps 16 --num-epochs 10 --learning-rate 0.0002
   --weight-decay 0.01 --warmup-steps 0 --warmup-ratio 0.1
-  --max-input-length 4096 --seed 42 --early-stopping-patience 3
+  --max-input-length 4096 --seed "${SEED}" --early-stopping-patience 3
   --precision "${PRECISION}" --device cuda)
 evaluate_cmd=("${PYTHON}" -m experiments.evaluate_student
   --student-config "${STUDENT_CONFIG}" --checkpoint "${RUN_DIR}/best_model"
@@ -123,14 +134,14 @@ case "${ACTION}" in
     require_file "${STUDENT_CONFIG}"; require_file "${TRAIN_TARGETS}"; require_file "${MANIFEST}"; require_file "${VALIDATION}"
     mkdir -p "${PREFLIGHT}" "${LOGS}"
     "${PYTHON}" - "${STUDENT_CONFIG}" "${TRAIN_TARGETS}" "${MANIFEST}" "${VALIDATION}" "${PREFLIGHT}" \
-      "${ARM}" "${PRECISION}" "${EXPECTED_GPU}" <<'PREFLIGHT_PY'
+      "${ARM}" "${PRECISION}" "${EXPECTED_GPU}" "${SEED}" <<'PREFLIGHT_PY'
 import hashlib, json, subprocess, sys
 from collections import Counter
 from importlib import metadata
 from pathlib import Path
 import torch
 config_path, train_path, manifest_path, val_path, out = map(Path, sys.argv[1:6])
-arm, precision, expected_gpu = sys.argv[6:9]
+arm, precision, expected_gpu, seed = sys.argv[6:10]
 assert torch.cuda.is_available(), "CUDA is unavailable"
 gpu = torch.cuda.get_device_name(0)
 assert gpu == expected_gpu, f"GPU {gpu!r} differs from the contract GPU {expected_gpu!r}; set EXPECTED_GPU only with a contract amendment"
@@ -139,7 +150,11 @@ if precision == "bf16":
 config = json.loads(config_path.read_text())
 assert config == json.loads(Path("configs/students/qwen3_reranker_0_6b.json").read_text()), "The original config must be selected"
 manifest = json.loads(manifest_path.read_text())
-assert manifest["arm"] == arm and manifest["gold_accessed"] is False
+assert manifest["arm"] == arm
+if arm == "G":
+    assert manifest["gold_accessed"] is True and manifest["label_source"] == "gold", "G must use the gold reference manifest"
+else:
+    assert manifest["gold_accessed"] is False, "treatment arms must be gold-free"
 assert hashlib.sha256(train_path.read_bytes()).hexdigest() == manifest["train_sha256"], "train.jsonl differs from its manifest"
 train = [json.loads(l) for l in train_path.read_text().splitlines()]
 val = [json.loads(l) for l in val_path.read_text().splitlines()]
@@ -152,7 +167,7 @@ assert len(a) == len(train) and len(b) == 2500
 assert not {r.get("duplicate_of", r["pair_id"]) for r in train} & b, "train and validation overlap"
 assert all("\n\nRecord A:\n" in r["input_text"] and "\n\nRecord B:\n" in r["input_text"] for r in train + val)
 identity = {"commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
-            "arm": arm, "gpu": gpu, "precision": precision, "torch": torch.__version__,
+            "arm": arm, "seed": seed, "gpu": gpu, "precision": precision, "torch": torch.__version__,
             "cuda": torch.version.cuda, "train_rows": len(train), "validation_rows": len(val),
             "packages": {k: metadata.version(k) for k in ("transformers", "peft", "accelerate")}}
 (out / "runtime.json").write_text(json.dumps(identity, indent=2) + "\n")
@@ -218,7 +233,7 @@ for path in sys.argv[2:]:
     assert not ids & {r.get("duplicate_of", r["pair_id"]) for r in other}
 TEST_INPUT
     "${PYTHON}" -m utils.artifact_contract write --path "${OUTPUT_ROOT}/test-contract.json" \
-      --field split=test --field rows=4500 --field "arm=${ARM}" --field "precision=${PRECISION}" \
+      --field split=test --field rows=4500 --field "arm=${ARM}" --field "precision=${PRECISION}" --field "seed=${SEED}" \
       --file "test=${TEST}" --file "student_config=${STUDENT_CONFIG}" \
       --file "summary=${RUN_DIR}/training_summary.json" \
       --file "threshold=${RUN_DIR}/best_model/decision_threshold.json" \

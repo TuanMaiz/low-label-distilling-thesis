@@ -52,6 +52,28 @@ class TreatmentArmRunnerTests(unittest.TestCase):
         self.assertEqual(shlex.split(result.stdout.splitlines()[0])[-3], "bf16")
         self.assertNotEqual(run(RUNNER, "plan", "A", PRECISION="fp32").returncode, 0)
 
+    def test_gold_reference_arm_uses_gold_labels(self):
+        result = run(RUNNER, "plan", "G")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        train, evaluate, test = map(shlex.split, result.stdout.splitlines())
+        self.assertEqual(train[train.index("--train-targets") + 1],
+                         "data/cache/wdc_products/full_label_targets/gold.jsonl")
+        self.assertEqual(evaluate[evaluate.index("--variant") + 1], "gold_reference")
+        self.assertEqual(train[train.index("--precision") + 1], "fp16")
+        manifest = json.loads((ROOT / "data/cache/wdc_products/refinement/gold-reference/manifest.json").read_text())
+        self.assertEqual((manifest["arm"], manifest["gold_accessed"], manifest["train_rows"]), ("G", True, 2500))
+
+    def test_seed_option_changes_seed_output_and_variant_only(self):
+        default = list(map(shlex.split, run(RUNNER, "plan", "A").stdout.splitlines()))
+        seeded = list(map(shlex.split, run(RUNNER, "plan", "A", SEED=43).stdout.splitlines()))
+        self.assertEqual(default[0][default[0].index("--seed") + 1], "42")
+        self.assertEqual(seeded[0][seeded[0].index("--seed") + 1], "43")
+        self.assertTrue(seeded[0][seeded[0].index("--output-dir") + 1].endswith("arm-A-seed43/run"))
+        self.assertEqual(seeded[1][seeded[1].index("--variant") + 1], "category_rule_arm_A_seed43")
+        strip = lambda c: [x for i, x in enumerate(c) if not (i and c[i - 1] in ("--seed", "--output-dir", "--variant", "--checkpoint", "--predictions", "--metrics"))]
+        self.assertEqual(strip(default[0]), strip(seeded[0]))
+        self.assertNotEqual(run(RUNNER, "plan", "A", SEED="x").returncode, 0)
+
     def test_unknown_arm_is_rejected(self):
         for args in (("plan",), ("plan", "D"), ("plan", "a")):
             result = run(RUNNER, *args)
@@ -107,7 +129,7 @@ class TreatmentArmRunnerTests(unittest.TestCase):
             (pre / name).write_text("{}")
         args = [sys.executable, "-m", "utils.artifact_contract", "write", "--path", str(pre / "artifact-contract.json"),
                 "--field", "stage=wdc_treatment_arm_C", "--field", "train_rows=3", "--field", "validation_rows=2500",
-                "--field", "precision=fp16", "--field", f"expected_gpu={GPU}"]
+                "--field", "precision=fp16", "--field", f"expected_gpu={GPU}", "--field", "seed=42"]
         files = {"student_config": CONFIG, "train": str((data / "train.jsonl").relative_to(fixture)),
                  "manifest": str((data / "manifest.json").relative_to(fixture)),
                  "validation": str(vpath.relative_to(fixture)), "runtime": str(pre / "runtime.json"),

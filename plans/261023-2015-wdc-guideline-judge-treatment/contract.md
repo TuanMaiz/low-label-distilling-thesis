@@ -123,3 +123,26 @@ preflight refuses any other GPU name unless `EXPECTED_GPU` is set, which needs
 a new amendment. The 2026-08-31 gold run (bf16, RTX 3090) is therefore not a
 comparable reference; a gold reference arm, if added, must use this setup.
 No training had started.
+
+### A4 — 2026-10-27, gold reference arm G; seed option
+
+Added after A, B and C were trained and evaluated (researcher, 2026-10-27), to
+measure how close the LLM-label student is to a human-label student.
+
+- **Arm G:** trains on the benchmark human labels
+  `data/cache/wdc_products/full_label_targets/gold.jsonl` (2,500 rows, 500
+  match / 2,000 non-match, SHA-256
+  `f4e4120404ccd83295b788706bbf1afeb1b2a26757ab53b50568d2428159424c`).
+  Same pair IDs, order and input text as arm A; 79 labels differ. Manifest:
+  `data/cache/wdc_products/refinement/gold-reference/manifest.json`.
+- **Gold boundary change:** train gold may now also be used to train arm G.
+  G is a reference point only; it never selects a rule, an arm or a setting.
+  Validation once, test once, like the other arms.
+- **Recipe:** identical to section 5 and A3 (V100-SXM2-32GB, fp16, seed 42).
+- **Seed option:** the runner takes `SEED` (default 42). Output directories and
+  metric variants get a `-seedN` / `_seedN` suffix when SEED ≠ 42. Which extra
+  seeds to run, and the non-inferiority margin, are decided in a later
+  amendment before those runs start. The researcher considers 3 seeds per arm
+  enough.
+- No code path used by the finished A, B, C runs changed their recipe; their
+  results stand.
