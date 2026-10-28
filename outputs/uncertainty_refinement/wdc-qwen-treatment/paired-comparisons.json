@@ -1,0 +1,178 @@
+[
+  {
+    "split": "validation",
+    "left": "C",
+    "right": "A",
+    "pairs": 2500,
+    "f1_left": 0.8014705882352942,
+    "f1_right": 0.8250460405156538,
+    "bootstrap": {
+      "delta_f1": -0.02357545228035962,
+      "ci_low": -0.04067072571125407,
+      "ci_high": -0.005839809938399578,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.0045
+    },
+    "mcnemar": {
+      "left_only_correct": 32,
+      "right_only_correct": 58,
+      "p_value": 0.008045928133225098
+    }
+  },
+  {
+    "split": "validation",
+    "left": "C",
+    "right": "B",
+    "pairs": 2500,
+    "f1_left": 0.8014705882352942,
+    "f1_right": 0.8098271155595996,
+    "bootstrap": {
+      "delta_f1": -0.008356527324305474,
+      "ci_low": -0.023553182042150463,
+      "ci_high": 0.006922168179387348,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.139
+    },
+    "mcnemar": {
+      "left_only_correct": 33,
+      "right_only_correct": 40,
+      "p_value": 0.4827885568440213
+    }
+  },
+  {
+    "split": "validation",
+    "left": "B",
+    "right": "A",
+    "pairs": 2500,
+    "f1_left": 0.8098271155595996,
+    "f1_right": 0.8250460405156538,
+    "bootstrap": {
+      "delta_f1": -0.015218924956054147,
+      "ci_low": -0.030827490460959114,
+      "ci_high": 0.0014537012411459074,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.0405
+    },
+    "mcnemar": {
+      "left_only_correct": 34,
+      "right_only_correct": 53,
+      "p_value": 0.05300311301096222
+    }
+  },
+  {
+    "split": "validation",
+    "left": "A",
+    "right": "G",
+    "pairs": 2500,
+    "f1_left": 0.8250460405156538,
+    "f1_right": 0.8274582560296846,
+    "bootstrap": {
+      "delta_f1": -0.0024122155140308132,
+      "ci_low": -0.019250144277838836,
+      "ci_high": 0.015292221393961166,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.389
+    },
+    "mcnemar": {
+      "left_only_correct": 40,
+      "right_only_correct": 44,
+      "p_value": 0.7436441861052041
+    }
+  },
+  {
+    "split": "test",
+    "left": "C",
+    "right": "A",
+    "pairs": 4500,
+    "f1_left": 0.7478849407783418,
+    "f1_right": 0.7653061224489796,
+    "bootstrap": {
+      "delta_f1": -0.017421181670637775,
+      "ci_low": -0.03570858071541696,
+      "ci_high": 0.002811459722156155,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.043
+    },
+    "mcnemar": {
+      "left_only_correct": 72,
+      "right_only_correct": 94,
+      "p_value": 0.10283252418776918
+    }
+  },
+  {
+    "split": "test",
+    "left": "C",
+    "right": "B",
+    "pairs": 4500,
+    "f1_left": 0.7478849407783418,
+    "f1_right": 0.7510407993338885,
+    "bootstrap": {
+      "delta_f1": -0.0031558585555466756,
+      "ci_low": -0.020342077756472756,
+      "ci_high": 0.013310570592671652,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.3535
+    },
+    "mcnemar": {
+      "left_only_correct": 61,
+      "right_only_correct": 60,
+      "p_value": 1.0
+    }
+  },
+  {
+    "split": "test",
+    "left": "B",
+    "right": "A",
+    "pairs": 4500,
+    "f1_left": 0.7510407993338885,
+    "f1_right": 0.7653061224489796,
+    "bootstrap": {
+      "delta_f1": -0.0142653231150911,
+      "ci_low": -0.03340452098212837,
+      "ci_high": 0.005431794216223773,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.0725
+    },
+    "mcnemar": {
+      "left_only_correct": 73,
+      "right_only_correct": 96,
+      "p_value": 0.09029051545852325
+    }
+  },
+  {
+    "split": "test",
+    "left": "A",
+    "right": "G",
+    "pairs": 4500,
+    "f1_left": 0.7653061224489796,
+    "f1_right": 0.7587382779198636,
+    "bootstrap": {
+      "delta_f1": 0.006567844529115963,
+      "ci_low": -0.011939720789054694,
+      "ci_high": 0.02651465427358115,
+      "ci_level": 0.95,
+      "resamples": 2000,
+      "seed": 0,
+      "share_delta_positive": 0.741
+    },
+    "mcnemar": {
+      "left_only_correct": 91,
+      "right_only_correct": 84,
+      "p_value": 0.6502722402634353
+    }
+  }
+]

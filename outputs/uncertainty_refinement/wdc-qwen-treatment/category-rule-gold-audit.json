@@ -1,0 +1,52 @@
+{
+  "by_step_and_action": {
+    "step-:keep": {
+      "pairs": 3,
+      "teacher_correct": 3,
+      "final_correct": 3,
+      "gold_match": 1
+    },
+    "step1:remove": {
+      "pairs": 7,
+      "teacher_correct": 6,
+      "final_correct": 0,
+      "gold_match": 4
+    },
+    "step2:flip": {
+      "pairs": 10,
+      "teacher_correct": 10,
+      "final_correct": 0,
+      "gold_match": 10
+    },
+    "step2:upweight": {
+      "pairs": 47,
+      "teacher_correct": 39,
+      "final_correct": 39,
+      "gold_match": 8
+    },
+    "step3:remove": {
+      "pairs": 86,
+      "teacher_correct": 67,
+      "final_correct": 0,
+      "gold_match": 58
+    },
+    "step6:upweight": {
+      "pairs": 5,
+      "teacher_correct": 5,
+      "final_correct": 5,
+      "gold_match": 5
+    }
+  },
+  "teacher_error_rate": {
+    "detected": {
+      "pairs": 158,
+      "teacher_wrong": 28,
+      "rate": 0.17721518987341772
+    },
+    "not_detected": {
+      "pairs": 2342,
+      "teacher_wrong": 51,
+      "rate": 0.021776259607173356
+    }
+  }
+}
