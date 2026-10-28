@@ -1,6 +1,6 @@
 # Các quyết định đã bàn và đã chốt
 
-Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
+Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
 
 Các đề nghị của assistant chưa được researcher chốt được đặt trong [ideas.md](ideas.md). Vấn đề chưa giải quyết nằm trong [open-questions.md](open-questions.md). Không tự điền lý do hay phương án bị loại nếu lịch sử không ghi nhận.
 
@@ -196,4 +196,12 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 - **Phương án đã loại hoặc hoãn:** Paid judge run cho version 1. Judge panel gồm nhiều model khác nhau (ví dụ GPT, Claude, Kimi) để làm version 2, chỉ trên các pair ở step 3, sau khi có kết quả version 1. Domain profile và hướng dẫn viết profile ([I17](ideas.md)). Quy tắc chặn match theo tỉ lệ giá 2×.
 - **Giới hạn:** Step 3 loại mọi pair mơ hồ (86, trong đó 51 teacher match); step 6 nghĩa là "không thấy vấn đề", không phải "đã xác nhận cùng sản phẩm"; diagnoses do cùng họ model với teacher sinh ra (`reviewers-question-mock/q02`). Giảng viên không cần duyệt trước (researcher, 2026-10-23).
 - **Nguồn:** Trao đổi trực tiếp; [plan 261023](../../plans/261023-2015-wdc-guideline-judge-treatment/plan.md), [contract](../../plans/261023-2015-wdc-guideline-judge-treatment/contract.md).
+
+## D23 — Dataset 3: MaDI-Bench Companies, chỉ subtask entity matching
+
+- **Ngày:** 2026-10-28.
+- **Quyết định:** Dataset 3 là MaDI-Bench Companies (base, commit `062058d`), chỉ bước entity matching với split chính thức, gold schema mapping của benchmark, giá trị raw chỉ làm sạch nhẹ, quy tắc threshold macro-F1 hiện hành (D14), một model cho cả hai source pair và báo cáo F1 theo từng source pair cùng trung bình. Giữ DBLP-ACM vì là dataset duy nhất không đến từ nhóm Mannheim.
+- **Lý do:** Nhãn matching được công bố sau knowledge cutoff của teacher (GPT-5.6 Sol, 16/02/2026), nên teacher không thể đã nhớ gold; thêm domain công ty mà bài Steiner & Bizer chưa kiểm tra.
+- **Giới hạn:** Benchmark là preprint (arXiv:2606.30371 v1), repo không có license; FullContact cấm phân phối lại, nên dữ liệu không được đưa lên git hay công bố, chỉ báo cáo kết quả tổng hợp. Train/val có lỗi nhãn đã thấy; quy tắc parent/subsidiary không nhất quán; test Forbes–DBpedia nhỏ (140 cặp). Bản ghi nguồn cũ (2012–2014) nên LLM có thể biết các công ty nổi tiếng.
+- **Nguồn:** [Hồ sơ quyết định](dataset3-madi-companies.md); [plan 261028](../../plans/261028-2230-madi-companies-dataset3/plan.md).
 

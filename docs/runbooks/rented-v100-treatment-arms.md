@@ -121,3 +121,49 @@ sha256sum -c arm-A.zip.sha256 arm-B.zip.sha256 arm-C.zip.sha256
 
 Archives hold predictions, metrics, logs, preflight records and the LoRA
 adapter; the merged 2.4 GB model is left out (`PACKAGE_WEIGHTS=adapter`).
+
+## Dataset 3 — MaDI-Bench Companies (arm G now, arm A after teacher labelling)
+
+Runner: `scripts/run_madi_companies_arms.sh <action> <G|A>`, same recipe,
+defaults and safeguards as the WDC runner. Plan:
+`plans/261028-2230-madi-companies-dataset3/plan.md`.
+
+**The data is not in git.** MaDI-Bench has no licence and FullContact forbids
+redistribution, so `data/raw/madi_companies/` and `data/cache/madi_companies/`
+are git-ignored. Copy them to the GPU host privately; never upload them anywhere
+public.
+
+On your computer (WSL), after `python -m data.prepare_madi_companies prepare`:
+
+```bash
+cd /mnt/d/study/cao-hoc/luan-van/code
+python -m data.prepare_madi_companies verify
+tar czf madi-companies-data.tar.gz data/raw/madi_companies data/cache/madi_companies
+sha256sum madi-companies-data.tar.gz > madi-companies-data.tar.gz.sha256
+scp -P "$PORT" madi-companies-data.tar.gz madi-companies-data.tar.gz.sha256 "$HOST:code/"
+```
+
+On the GPU host, after the usual clone, PYTHON export, version pins and `setup G`:
+
+```bash
+cd ~/code
+sha256sum -c madi-companies-data.tar.gz.sha256 && tar xzf madi-companies-data.tar.gz
+$PYTHON -m data.prepare_madi_companies verify
+bash scripts/run_madi_companies_arms.sh preflight G
+bash scripts/run_madi_companies_arms.sh train G --confirm-full-training
+bash scripts/run_madi_companies_arms.sh evaluate G --confirm-validation
+bash scripts/run_madi_companies_arms.sh evaluate-test G --confirm-test
+bash scripts/run_madi_companies_arms.sh package-results G
+rm -f madi-companies-data.tar.gz   # do not leave the data on the rented machine
+```
+
+- `evaluate-test` writes the locked test split once (`serialized-test/`) if it
+  is missing; it needs the raw files, which is why `data/raw/madi_companies/`
+  is copied too.
+- `package-results` also writes `validation-source-pair-metrics.json` and
+  `test-source-pair-metrics.json`: match F1 for Forbes–DBpedia and
+  Forbes–FullContact separately plus their mean. Always report these next to
+  the pooled F1.
+- Results land in `outputs/uncertainty_refinement/madi-companies-qwen/arm-<X>.zip`
+  (git-ignored as well).
+- Before ending the rental, delete the data and the code copy from the machine.

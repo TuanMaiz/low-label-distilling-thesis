@@ -71,6 +71,12 @@ Current direction (WDC first):
   confirmation set.
 - Weekly goals: `plans/weekly-goals/`. Reviewer preparation:
   `reviewers-question-mock/`.
+- Dataset 3 (D23, 2026-10-28): MaDI-Bench Companies, entity matching subtask.
+  Plan `plans/261028-2230-madi-companies-dataset3/`; preparation
+  `data/prepare_madi_companies.py`; runner `scripts/run_madi_companies_arms.sh`.
+  **Never commit or publish its data** (no licence; FullContact forbids
+  redistribution): `data/raw/madi_companies/` and `data/cache/madi_companies/`
+  stay git-ignored.
 
 ### Previous main question (full-label design)
 

@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "status": "frozen",
+  "dataset_id": "madi_companies",
+  "display_name": "MaDI-Bench Companies (base) - entity matching subtask",
+  "logical_version": "madi-bench-companies-base-062058d",
+  "decision_record": "Dataset 3 decision, 2026-10-28 (researcher): entity matching subtask only, official splits, gold schema mapping, raw values with light cleanup, macro-F1 threshold rule, one model on both source pairs.",
+  "source": {
+    "repository": "https://github.com/wbsg-uni-mannheim/MaDI-Bench",
+    "commit": "062058d09c8abd97026e6d4e9908b433753f58d3",
+    "commit_date": "2026-10-09",
+    "paper": "Steiner, Peeters & Bizer, MaDI-Bench, arXiv:2606.30371 v1 (preprint)",
+    "repo_subdirectory": "use cases/companies/base/input",
+    "license": "none found in the repository at this commit; FullContact data has no license and its terms forbid redistribution",
+    "redistribution_allowed": false,
+    "acquisition_authorized": true,
+    "local_root": "data/raw/madi_companies/062058d"
+  },
+  "record_tables": {
+    "forbes": {
+      "path": "data/forbes.csv", "sha256": "1b95f9a611e6500aac69bf7dea27c1e1aa2b067181cea069158119da0f6580f3",
+      "size_bytes": 333808, "row_count": 2000, "id_column": "forbes_url",
+      "columns": ["forbes_url", "company", "url", "region", "business_segment", "asset_value", "sales_figure"],
+      "drop_columns": ["url"],
+      "column_mapping": {"company": "name", "region": "country", "business_segment": "industry", "asset_value": "assets", "sales_figure": "revenue"}
+    },
+    "dbpedia": {
+      "path": "data/dbpedia.csv", "sha256": "c3e154fdd068d939b1724b57b4b2cd84b157a977a532646004a206cd2b418a37",
+      "size_bytes": 1171597, "row_count": 10085, "id_column": "entity_uri",
+      "columns": ["entity_uri", "org_name", "established", "nation", "headquarters", "sector", "keypeople_name", "total_assets_val", "annual_income"],
+      "drop_columns": [],
+      "column_mapping": {"org_name": "name", "established": "founded", "nation": "country", "headquarters": "city", "sector": "industry", "keypeople_name": "keypeople", "total_assets_val": "assets", "annual_income": "revenue"}
+    },
+    "fullcontact": {
+      "path": "data/fullcontact.csv", "sha256": "40947bea53f0ccbc8b0e159d6a0b4081678fb087c946ab8605f2d7ff621449a3",
+      "size_bytes": 115503, "row_count": 1931, "id_column": "Attribute_1",
+      "columns": ["Attribute_1", "Attribute_2", "Attribute_3", "Attribute_4", "Attribute_5", "Attribute_6"],
+      "drop_columns": [],
+      "column_mapping": {"Attribute_2": "name", "Attribute_3": "country", "Attribute_4": "city", "Attribute_5": "keypeople", "Attribute_6": "founded"},
+      "literal_null_columns": {"Attribute_4": 92}
+    }
+  },
+  "schema_mapping": {"path": "schemamatching/sm_mapping_gold.json", "sha256": "e43ee4bdc6bbcbd60edee930d3e8847477d8892fd51d78d90311a8eb4df7ca01"},
+  "source_pairs": ["dbpedia", "fullcontact"],
+  "splits": {
+    "train": {
+      "materialize": true,
+      "files": {
+        "dbpedia": {"path": "entitymatching/forbes_2_dbpedia_train.csv", "sha256": "9d8839dc8c1be1bca17e3d6f6f06752c0f53a646caba3db50cdfbda4d2f9d4b2", "size_bytes": 44761, "row_count": 458, "match_count": 226, "non_match_count": 232},
+        "fullcontact": {"path": "entitymatching/forbes_2_fullcontact_train.csv", "sha256": "85beaa268ccadb17e0f1f07917bc1d00d59b4bac6bff376853a7413efe7347c8", "size_bytes": 102091, "row_count": 1513, "match_count": 475, "non_match_count": 1038}
+      },
+      "dropped_unresolved_pairs": [
+        ["http://www.forbes.com/companies/workday/", "http://dbpedia.org/resource/Workday"],
+        ["http://www.forbes.com/companies/waste-management/", "http://dbpedia.org/resource/Waste_Management"],
+        ["http://www.forbes.com/companies/caesars-entertainment/", "http://dbpedia.org/resource/Caesars_Entertainment"]
+      ],
+      "pooled_row_count": 1968, "pooled_match_count": 698, "pooled_non_match_count": 1270
+    },
+    "validation": {
+      "materialize": true,
+      "files": {
+        "dbpedia": {"path": "entitymatching/forbes_2_dbpedia_val.csv", "sha256": "4eff6ebcac443864ae42ba230b3e2dd2f07c53ce72e31871b60a500a4696928b", "size_bytes": 20953, "row_count": 219, "match_count": 104, "non_match_count": 115},
+        "fullcontact": {"path": "entitymatching/forbes_2_fullcontact_val.csv", "sha256": "fbfa59bfab0f2fa813c5d4a06ce87ae2373dfd0127a41bd8d94feeabc341c53e", "size_bytes": 49147, "row_count": 729, "match_count": 231, "non_match_count": 498}
+      },
+      "dropped_unresolved_pairs": [],
+      "pooled_row_count": 948, "pooled_match_count": 335, "pooled_non_match_count": 613
+    },
+    "test": {
+      "materialize": false,
+      "locked": true,
+      "files": {
+        "dbpedia": {"path": "entitymatching/forbes_2_dbpedia_test.csv", "sha256": "cf7f2476c8002324f3f19676791f500e72a86de7020211188dc8627ae25d8874", "size_bytes": 13445, "row_count": 140, "match_count": 63, "non_match_count": 77},
+        "fullcontact": {"path": "entitymatching/forbes_2_fullcontact_test.csv", "sha256": "16097ceaa87df47644993f1e64226ac9af851c7c9c17b46cd46a09439d3fae12", "size_bytes": 30975, "row_count": 459, "match_count": 113, "non_match_count": 346}
+      },
+      "dropped_unresolved_pairs": [],
+      "pooled_row_count": 599, "pooled_match_count": 176, "pooled_non_match_count": 423
+    }
+  },
+  "pair_file_format": {"header": false, "columns": ["forbes_id", "right_id", "label"], "labels": {"true": true, "false": false}, "label_case_insensitive": true},
+  "identity": {
+    "pair_id_template": "madi_companies:{split}:{source_pair}:{forbes_slug}:{right_key}",
+    "forbes_slug_prefix": "http://www.forbes.com/companies/",
+    "dbpedia_key_prefix": "http://dbpedia.org/resource/"
+  },
+  "attribute_order": ["name", "founded", "country", "city", "industry", "assets", "revenue", "keypeople"],
+  "cleanup": {"strip_whitespace": true, "blank_to_missing": true, "literal_null_to_missing": "fullcontact only, see literal_null_columns", "values_otherwise_raw": true},
+  "missing_value_token": "<missing>",
+  "pooling": "train and validation append dbpedia then fullcontact pairs, each in source file order",
+  "cache": {"root": "data/cache/madi_companies/madi-bench-companies-base-062058d", "materialized_splits": ["train", "validation"]},
+  "authorization": {"paid_labeling": false, "gpu_execution": false, "test_materialization": false}
+}
