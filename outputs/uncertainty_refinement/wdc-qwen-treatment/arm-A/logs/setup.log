@@ -1,0 +1,159 @@
+Collecting transformers<5,>=4.57.0 (from -r requirements-colab.txt (line 3))
+  Downloading transformers-4.57.6-py3-none-any.whl.metadata (43 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.0/44.0 kB 2.9 MB/s eta 0:00:00
+Collecting peft<1,>=0.17.0 (from -r requirements-colab.txt (line 4))
+  Downloading peft-0.21.2-py3-none-any.whl.metadata (15 kB)
+Collecting accelerate<2,>=1.2.0 (from -r requirements-colab.txt (line 5))
+  Downloading accelerate-1.15.0-py3-none-any.whl.metadata (19 kB)
+Collecting sentencepiece>=0.2.0 (from -r requirements-colab.txt (line 6))
+  Downloading sentencepiece-0.2.2-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (33 kB)
+Requirement already satisfied: numpy>=1.24.0 in /opt/conda/lib/python3.10/site-packages (from -r requirements-colab.txt (line 7)) (1.26.3)
+Collecting pydantic>=2.0.0 (from -r requirements-colab.txt (line 8))
+  Downloading pydantic-2.14.1-py3-none-any.whl.metadata (133 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 133.0/133.0 kB 14.1 MB/s eta 0:00:00
+Requirement already satisfied: tqdm>=4.65.0 in /opt/conda/lib/python3.10/site-packages (from -r requirements-colab.txt (line 9)) (4.65.0)
+Collecting wandb>=0.15.0 (from -r requirements-colab.txt (line 10))
+  Downloading wandb-0.31.0-py3-none-manylinux_2_28_x86_64.whl.metadata (12 kB)
+Requirement already satisfied: filelock in /opt/conda/lib/python3.10/site-packages (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (3.13.1)
+Collecting huggingface-hub<1.0,>=0.34.0 (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3))
+  Downloading huggingface_hub-0.36.2-py3-none-any.whl.metadata (15 kB)
+Requirement already satisfied: packaging>=20.0 in /opt/conda/lib/python3.10/site-packages (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (23.1)
+Requirement already satisfied: pyyaml>=5.1 in /opt/conda/lib/python3.10/site-packages (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (6.0.1)
+Collecting regex!=2019.12.17 (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3))
+  Downloading regex-2026.9.29-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.6/40.6 kB 9.1 MB/s eta 0:00:00
+Requirement already satisfied: requests in /opt/conda/lib/python3.10/site-packages (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (2.31.0)
+Collecting tokenizers<=0.23.0,>=0.22.0 (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3))
+  Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)
+Collecting safetensors>=0.4.3 (from transformers<5,>=4.57.0->-r requirements-colab.txt (line 3))
+  Downloading safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.2 kB)
+Requirement already satisfied: psutil in /opt/conda/lib/python3.10/site-packages (from peft<1,>=0.17.0->-r requirements-colab.txt (line 4)) (5.9.0)
+Requirement already satisfied: torch>=1.13.0 in /opt/conda/lib/python3.10/site-packages (from peft<1,>=0.17.0->-r requirements-colab.txt (line 4)) (2.2.1)
+Collecting annotated-types>=0.6.0 (from pydantic>=2.0.0->-r requirements-colab.txt (line 8))
+  Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.50.1 (from pydantic>=2.0.0->-r requirements-colab.txt (line 8))
+  Downloading pydantic_core-2.50.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.5 kB)
+Collecting typing-extensions>=4.16.0 (from pydantic>=2.0.0->-r requirements-colab.txt (line 8))
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting typing-inspection>=0.4.4 (from pydantic>=2.0.0->-r requirements-colab.txt (line 8))
+  Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+Collecting click>=8.2.0 (from wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting cwevals==0.0.1b1 (from wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading cwevals-0.0.1b1-py3-none-any.whl.metadata (13 kB)
+Collecting opentelemetry-api>=1.43.0 (from wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_api-1.45.1-py3-none-any.whl.metadata (1.4 kB)
+Collecting opentelemetry-exporter-otlp-proto-http>=1.43.0 (from wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_exporter_otlp_proto_http-1.45.1-py3-none-any.whl.metadata (3.0 kB)
+Collecting opentelemetry-sdk>=1.43.0 (from wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_sdk-1.45.1-py3-none-any.whl.metadata (1.6 kB)
+Requirement already satisfied: platformdirs in /opt/conda/lib/python3.10/site-packages (from wandb>=0.15.0->-r requirements-colab.txt (line 10)) (3.10.0)
+Collecting protobuf!=5.28.0,!=5.29.0,<8,>=5 (from wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+Collecting xxhash>=3.0.0 (from wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading xxhash-4.0.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (17 kB)
+Collecting anyio<5,>=3.5.0 (from cwevals==0.0.1b1->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+Requirement already satisfied: distro<2,>=1.7.0 in /opt/conda/lib/python3.10/site-packages (from cwevals==0.0.1b1->wandb>=0.15.0->-r requirements-colab.txt (line 10)) (1.8.0)
+Collecting httpx<1,>=0.23.0 (from cwevals==0.0.1b1->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting sniffio (from cwevals==0.0.1b1->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Requirement already satisfied: fsspec>=2023.5.0 in /opt/conda/lib/python3.10/site-packages (from huggingface-hub<1.0,>=0.34.0->transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (2024.2.0)
+Collecting hf-xet<2.0.0,>=1.1.3 (from huggingface-hub<1.0,>=0.34.0->transformers<5,>=4.57.0->-r requirements-colab.txt (line 3))
+  Downloading hf_xet-1.7.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)
+Collecting googleapis-common-protos~=1.52 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading googleapis_common_protos-1.76.0-py3-none-any.whl.metadata (8.5 kB)
+Collecting opentelemetry-exporter-http-transport==0.66b1 (from opentelemetry-exporter-http-transport[requests]==0.66b1->opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_exporter_http_transport-0.66b1-py3-none-any.whl.metadata (2.3 kB)
+Collecting opentelemetry-exporter-otlp-common==0.66b1 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_exporter_otlp_common-0.66b1-py3-none-any.whl.metadata (1.9 kB)
+Collecting opentelemetry-exporter-otlp-proto-common==1.45.1 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_exporter_otlp_proto_common-1.45.1-py3-none-any.whl.metadata (1.8 kB)
+Collecting opentelemetry-proto==1.45.1 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_proto-1.45.1-py3-none-any.whl.metadata (2.3 kB)
+Collecting opentelemetry-semantic-conventions==0.66b1 (from opentelemetry-sdk>=1.43.0->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading opentelemetry_semantic_conventions-0.66b1-py3-none-any.whl.metadata (2.4 kB)
+Requirement already satisfied: charset-normalizer<4,>=2 in /opt/conda/lib/python3.10/site-packages (from requests->transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (2.0.4)
+Requirement already satisfied: idna<4,>=2.5 in /opt/conda/lib/python3.10/site-packages (from requests->transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (3.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/conda/lib/python3.10/site-packages (from requests->transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (2.1.0)
+Requirement already satisfied: certifi>=2017.4.17 in /opt/conda/lib/python3.10/site-packages (from requests->transformers<5,>=4.57.0->-r requirements-colab.txt (line 3)) (2024.2.2)
+Requirement already satisfied: sympy in /opt/conda/lib/python3.10/site-packages (from torch>=1.13.0->peft<1,>=0.17.0->-r requirements-colab.txt (line 4)) (1.12)
+Requirement already satisfied: networkx in /opt/conda/lib/python3.10/site-packages (from torch>=1.13.0->peft<1,>=0.17.0->-r requirements-colab.txt (line 4)) (3.1)
+Requirement already satisfied: jinja2 in /opt/conda/lib/python3.10/site-packages (from torch>=1.13.0->peft<1,>=0.17.0->-r requirements-colab.txt (line 4)) (3.1.3)
+Requirement already satisfied: exceptiongroup>=1.0.2 in /opt/conda/lib/python3.10/site-packages (from anyio<5,>=3.5.0->cwevals==0.0.1b1->wandb>=0.15.0->-r requirements-colab.txt (line 10)) (1.2.0)
+Collecting httpcore==1.* (from httpx<1,>=0.23.0->cwevals==0.0.1b1->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->cwevals==0.0.1b1->wandb>=0.15.0->-r requirements-colab.txt (line 10))
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Requirement already satisfied: MarkupSafe>=2.0 in /opt/conda/lib/python3.10/site-packages (from jinja2->torch>=1.13.0->peft<1,>=0.17.0->-r requirements-colab.txt (line 4)) (2.1.3)
+Requirement already satisfied: mpmath>=0.19 in /opt/conda/lib/python3.10/site-packages (from sympy->torch>=1.13.0->peft<1,>=0.17.0->-r requirements-colab.txt (line 4)) (1.3.0)
+Downloading transformers-4.57.6-py3-none-any.whl (12.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.0/12.0 MB 71.8 MB/s eta 0:00:00
+Downloading peft-0.21.2-py3-none-any.whl (835 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 835.4/835.4 kB 70.3 MB/s eta 0:00:00
+Downloading accelerate-1.15.0-py3-none-any.whl (394 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 394.3/394.3 kB 91.4 MB/s eta 0:00:00
+Downloading sentencepiece-0.2.2-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 85.1 MB/s eta 0:00:00
+Downloading pydantic-2.14.1-py3-none-any.whl (488 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 488.1/488.1 kB 68.4 MB/s eta 0:00:00
+Downloading pydantic_core-2.50.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 106.9 MB/s eta 0:00:00
+Downloading wandb-0.31.0-py3-none-manylinux_2_28_x86_64.whl (20.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 20.3/20.3 MB 128.0 MB/s eta 0:00:00
+Downloading cwevals-0.0.1b1-py3-none-any.whl (176 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 176.5/176.5 kB 37.0 MB/s eta 0:00:00
+Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Downloading click-8.5.0-py3-none-any.whl (125 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 125.3/125.3 kB 17.0 MB/s eta 0:00:00
+Downloading huggingface_hub-0.36.2-py3-none-any.whl (566 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 566.4/566.4 kB 51.0 MB/s eta 0:00:00
+Downloading opentelemetry_api-1.45.1-py3-none-any.whl (60 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.3/60.3 kB 9.8 MB/s eta 0:00:00
+Downloading opentelemetry_exporter_otlp_proto_http-1.45.1-py3-none-any.whl (22 kB)
+Downloading opentelemetry_exporter_http_transport-0.66b1-py3-none-any.whl (12 kB)
+Downloading opentelemetry_exporter_otlp_common-0.66b1-py3-none-any.whl (12 kB)
+Downloading opentelemetry_exporter_otlp_proto_common-1.45.1-py3-none-any.whl (15 kB)
+Downloading opentelemetry_proto-1.45.1-py3-none-any.whl (72 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.5/72.5 kB 18.2 MB/s eta 0:00:00
+Downloading opentelemetry_sdk-1.45.1-py3-none-any.whl (140 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 140.1/140.1 kB 31.4 MB/s eta 0:00:00
+Downloading opentelemetry_semantic_conventions-0.66b1-py3-none-any.whl (206 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 206.3/206.3 kB 32.7 MB/s eta 0:00:00
+Downloading protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl (343 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 343.2/343.2 kB 74.0 MB/s eta 0:00:00
+Downloading regex-2026.9.29-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (797 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 797.6/797.6 kB 67.9 MB/s eta 0:00:00
+Downloading safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (516 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 516.0/516.0 kB 63.4 MB/s eta 0:00:00
+Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 140.9 MB/s eta 0:00:00
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.6/45.6 kB 10.6 MB/s eta 0:00:00
+Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+Downloading xxhash-4.0.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (249 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 249.5/249.5 kB 38.5 MB/s eta 0:00:00
+Downloading anyio-4.15.1-py3-none-any.whl (132 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 132.1/132.1 kB 41.2 MB/s eta 0:00:00
+Downloading googleapis_common_protos-1.76.0-py3-none-any.whl (307 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 307.7/307.7 kB 53.8 MB/s eta 0:00:00
+Downloading hf_xet-1.7.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 164.3 MB/s eta 0:00:00
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 29.6 MB/s eta 0:00:00
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 24.1 MB/s eta 0:00:00
+Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Installing collected packages: xxhash, typing-extensions, sniffio, sentencepiece, safetensors, regex, protobuf, hf-xet, h11, click, annotated-types, typing-inspection, pydantic-core, opentelemetry-proto, opentelemetry-api, huggingface-hub, httpcore, googleapis-common-protos, anyio, tokenizers, pydantic, opentelemetry-semantic-conventions, opentelemetry-exporter-otlp-proto-common, opentelemetry-exporter-http-transport, httpx, accelerate, transformers, opentelemetry-sdk, cwevals, peft, opentelemetry-exporter-otlp-common, opentelemetry-exporter-otlp-proto-http, wandb
+  Attempting uninstall: typing-extensions
+    Found existing installation: typing_extensions 4.9.0
+    Uninstalling typing_extensions-4.9.0:
+      Successfully uninstalled typing_extensions-4.9.0
+  Attempting uninstall: click
+    Found existing installation: click 8.1.7
+    Uninstalling click-8.1.7:
+      Successfully uninstalled click-8.1.7
+Successfully installed accelerate-1.15.0 annotated-types-0.8.0 anyio-4.15.1 click-8.5.0 cwevals-0.0.1b1 googleapis-common-protos-1.76.0 h11-0.16.0 hf-xet-1.7.0 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-0.36.2 opentelemetry-api-1.45.1 opentelemetry-exporter-http-transport-0.66b1 opentelemetry-exporter-otlp-common-0.66b1 opentelemetry-exporter-otlp-proto-common-1.45.1 opentelemetry-exporter-otlp-proto-http-1.45.1 opentelemetry-proto-1.45.1 opentelemetry-sdk-1.45.1 opentelemetry-semantic-conventions-0.66b1 peft-0.21.2 protobuf-7.36.2 pydantic-2.14.1 pydantic-core-2.50.1 regex-2026.9.29 safetensors-0.8.0 sentencepiece-0.2.2 sniffio-1.3.1 tokenizers-0.22.2 transformers-4.57.6 typing-extensions-4.16.0 typing-inspection-0.4.4 wandb-0.31.0 xxhash-4.0.2
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv

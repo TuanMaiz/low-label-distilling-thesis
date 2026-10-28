@@ -1,0 +1,35 @@
+{
+  "fields": {
+    "arm": "B",
+    "precision": "fp16",
+    "rows": "4500",
+    "split": "test"
+  },
+  "files": {
+    "evaluator": {
+      "path": "experiments/evaluate_student.py",
+      "sha256": "0d02282941a91b087b23c51f99b23447feb4cd8bc3e138479bbe2a1c5a42e55f"
+    },
+    "runner": {
+      "path": "scripts/run_wdc_qwen_treatment_arms.sh",
+      "sha256": "4dda34ba1106c9e9ad12886dd8db3146eb6e5354df00dfe14cd3e9a04b8f0650"
+    },
+    "student_config": {
+      "path": "configs/students/qwen3_reranker_0_6b.json",
+      "sha256": "bc0a20186bafef993f6516d34bfde245c9798429ef5bcfc2a34ce0b0612bc02e"
+    },
+    "summary": {
+      "path": "outputs/uncertainty_refinement/wdc-qwen-treatment/arm-B/run/training_summary.json",
+      "sha256": "8eb0b9b89347bafd4a4baf0d78c562ee3a1ea393fef2dad363a52199f9761681"
+    },
+    "test": {
+      "path": "data/cache/wdc_products/serialized/test.jsonl",
+      "sha256": "1e74a7f5757d05caefb4dcaf48372a657b862f03584ec42adbbcadb2abca3055"
+    },
+    "threshold": {
+      "path": "outputs/uncertainty_refinement/wdc-qwen-treatment/arm-B/run/best_model/decision_threshold.json",
+      "sha256": "a58d88bcb9e91245b791099c9f620bd12b8cb3752c5b57e72193ce1d30fdf0eb"
+    }
+  },
+  "schema_version": 1
+}

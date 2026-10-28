@@ -1,0 +1,56 @@
+{
+  "fields": {
+    "expected_gpu": "Tesla V100-SXM2-32GB",
+    "precision": "fp16",
+    "stage": "wdc_treatment_arm_C",
+    "train_rows": "2459",
+    "validation_rows": "2500"
+  },
+  "files": {
+    "audit": {
+      "path": "outputs/uncertainty_refinement/wdc-qwen-treatment/arm-C/preflight/input-length-audit.json",
+      "sha256": "413b9bae3d91eed93123590a9ec702aa168c3de7b5a8f07922246327b2729880"
+    },
+    "backend": {
+      "path": "models/generative_reranker_student.py",
+      "sha256": "7ed51eb66f1b95ffcd0bd5724374203950304789fd917177e9a969459e7cf4ed"
+    },
+    "config_loader": {
+      "path": "models/student_config.py",
+      "sha256": "7825014b04f93026b7c0d488ed68c71acaca8266c0efbb06c8cfa8959f05237b"
+    },
+    "evaluator": {
+      "path": "experiments/evaluate_student.py",
+      "sha256": "0d02282941a91b087b23c51f99b23447feb4cd8bc3e138479bbe2a1c5a42e55f"
+    },
+    "manifest": {
+      "path": "data/cache/wdc_products/refinement/category-rule-C/manifest.json",
+      "sha256": "321f7a37c8643a4b4a95b31533dfc5281c849d296e1a5c202145f0f106ec4b6d"
+    },
+    "runner": {
+      "path": "scripts/run_wdc_qwen_treatment_arms.sh",
+      "sha256": "4dda34ba1106c9e9ad12886dd8db3146eb6e5354df00dfe14cd3e9a04b8f0650"
+    },
+    "runtime": {
+      "path": "outputs/uncertainty_refinement/wdc-qwen-treatment/arm-C/preflight/runtime.json",
+      "sha256": "b36ab76273e0dfe95e466851a5556b6bb4aed8512087307cfa30defd134216bc"
+    },
+    "student_config": {
+      "path": "configs/students/qwen3_reranker_0_6b.json",
+      "sha256": "bc0a20186bafef993f6516d34bfde245c9798429ef5bcfc2a34ce0b0612bc02e"
+    },
+    "train": {
+      "path": "data/cache/wdc_products/refinement/category-rule-C/train.jsonl",
+      "sha256": "c2bc569ed828cb2b22a39b7cc635cda49eb421eb1d005e888287852541d6a51c"
+    },
+    "trainer": {
+      "path": "experiments/train_student.py",
+      "sha256": "83d7c1badd626ba9eaf85876b606c0c23f47ef5d35efb9ffbbd2c89e84c8e865"
+    },
+    "validation": {
+      "path": "data/cache/wdc_products/serialized/validation.jsonl",
+      "sha256": "488db1a4623fd3b1fd55d62b7911494f66cfe5a47c70e22e2a194ace9ab62999"
+    }
+  },
+  "schema_version": 1
+}

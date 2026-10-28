@@ -1,0 +1,31 @@
+{
+  "student_id": "qwen3-reranker-0-6b",
+  "model_name": "Qwen/Qwen3-Reranker-0.6B",
+  "max_input_length": 4096,
+  "maximum_token_count": 3678,
+  "total_rows": 4842,
+  "input_truncation": false,
+  "padding": "dynamic_left",
+  "files": [
+    {
+      "path": "data/cache/wdc_products/refinement/category-rule-B/train.jsonl",
+      "rows": 2342,
+      "max_input_length": 4096,
+      "maximum_token_count": 3678,
+      "overflow_count": 0,
+      "overflow_examples": [],
+      "input_truncation": false,
+      "padding": "dynamic_left"
+    },
+    {
+      "path": "data/cache/wdc_products/serialized/validation.jsonl",
+      "rows": 2500,
+      "max_input_length": 4096,
+      "maximum_token_count": 2405,
+      "overflow_count": 0,
+      "overflow_examples": [],
+      "input_truncation": false,
+      "padding": "dynamic_left"
+    }
+  ]
+}

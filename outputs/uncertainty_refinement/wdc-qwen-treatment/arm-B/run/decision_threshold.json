@@ -1,0 +1,24 @@
+{
+  "val_loss": 0.8345022397384538,
+  "decision_threshold": 0.0001334200205747038,
+  "selection_metric": "validation_macro_f1",
+  "validation_metrics": {
+    "same_precision": 0.7445742904841403,
+    "same_recall": 0.892,
+    "same_f1": 0.8116469517743404,
+    "different_precision": 0.9715938979484482,
+    "different_recall": 0.9235,
+    "different_f1": 0.9469366829018201,
+    "macro_precision": 0.8580840942162942,
+    "macro_recall": 0.9077500000000001,
+    "macro_f1": 0.8792918173380803,
+    "accuracy": 0.9172,
+    "tp": 446,
+    "fp": 153,
+    "tn": 1847,
+    "fn": 54
+  },
+  "validation_rows": 2500,
+  "checkpoint_metric": "macro_f1",
+  "epoch": 6
+}

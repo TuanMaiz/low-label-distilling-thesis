@@ -77,7 +77,7 @@ is not a clean confirmation set. DBLP-ACM is the cleaner confirmation later.
 |---|-------|--------|
 | 1 | [Freeze contract](./phase-01-freeze-contract.md) | Completed |
 | 2 | [Category-rule dataset builder](./phase-02-category-rule-builder.md) | Completed |
-| 3 | [Train arms](./phase-03-train-arms.md) | Pending |
+| 3 | [Train arms](./phase-03-train-arms.md) | Completed |
 | 4 | [Compare, test once, final analysis](./phase-04-evaluate.md) | Pending |
 
 Dependencies: 1 → 2 → 3 → 4. Phase 2 code can start before Phase 1 is frozen;

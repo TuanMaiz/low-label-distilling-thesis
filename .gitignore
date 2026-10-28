@@ -21,6 +21,13 @@ outputs/distiller_wdc/direct_llm/*
 !outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.cost.json
 !outputs/distiller_wdc/direct_llm/validation.openrouter.openai-gpt-5-4-mini.answer_only_v1.predictions.jsonl
 outputs.zip
+!outputs/uncertainty_refinement/
+outputs/uncertainty_refinement/*
+!outputs/uncertainty_refinement/wdc-qwen-treatment/
+outputs/uncertainty_refinement/wdc-qwen-treatment/*.zip*
+outputs/uncertainty_refinement/wdc-qwen-treatment/*/run/best_adapter/
+outputs/uncertainty_refinement/wdc-qwen-treatment/*/run/best_model/
+outputs/uncertainty_refinement/wdc-qwen-treatment/*/logs/train.log
 .claude
 .venv
 legacy

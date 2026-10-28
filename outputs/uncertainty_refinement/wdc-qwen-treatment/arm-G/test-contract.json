@@ -1,0 +1,36 @@
+{
+  "fields": {
+    "arm": "G",
+    "precision": "fp16",
+    "rows": "4500",
+    "seed": "42",
+    "split": "test"
+  },
+  "files": {
+    "evaluator": {
+      "path": "experiments/evaluate_student.py",
+      "sha256": "0d02282941a91b087b23c51f99b23447feb4cd8bc3e138479bbe2a1c5a42e55f"
+    },
+    "runner": {
+      "path": "scripts/run_wdc_qwen_treatment_arms.sh",
+      "sha256": "f19fbdcc1e1368aa1427a9646a17d1db47ecb073b06a171e9d3ccfdbd1038bd1"
+    },
+    "student_config": {
+      "path": "configs/students/qwen3_reranker_0_6b.json",
+      "sha256": "bc0a20186bafef993f6516d34bfde245c9798429ef5bcfc2a34ce0b0612bc02e"
+    },
+    "summary": {
+      "path": "outputs/uncertainty_refinement/wdc-qwen-treatment/arm-G/run/training_summary.json",
+      "sha256": "e86f25b5c6488776b5790ef05bcb37f1c4ed0d07f6d094f8621b2f3279303205"
+    },
+    "test": {
+      "path": "data/cache/wdc_products/serialized/test.jsonl",
+      "sha256": "1e74a7f5757d05caefb4dcaf48372a657b862f03584ec42adbbcadb2abca3055"
+    },
+    "threshold": {
+      "path": "outputs/uncertainty_refinement/wdc-qwen-treatment/arm-G/run/best_model/decision_threshold.json",
+      "sha256": "c1e4623725f84b8e5502219f03559be015d8914c6a721bbf977c6009244efe29"
+    }
+  },
+  "schema_version": 1
+}
