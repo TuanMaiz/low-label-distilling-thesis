@@ -27,7 +27,7 @@ from supervision.llm_providers import OpenRouterHTTPError  # noqa: E402
 
 
 RUN_FULL_WDC_SPEC = importlib.util.spec_from_file_location(
-    "run_full_wdc", HERE / "run_full_wdc.py"
+    "run_full_wdc", ROOT / "supervision/run_full_labeling_wdc.py"
 )
 assert RUN_FULL_WDC_SPEC is not None and RUN_FULL_WDC_SPEC.loader is not None
 run_full_wdc = importlib.util.module_from_spec(RUN_FULL_WDC_SPEC)

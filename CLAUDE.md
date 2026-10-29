@@ -154,7 +154,7 @@ valid diagnoses. Originals remain unchanged; no further paid round authorized.
 
 The refinement extension plan is under
 `plans/260928-0938-uncertainty-aware-llm-label-refinement-fundamental/`.
-`labeller-screening/run_full_wdc.py --no-reuse-existing` supports separate
+`supervision/run_full_labeling_wdc.py` (formerly `labeller-screening/run_full_wdc.py`) `--no-reuse-existing` supports separate
 teacher passes without importing screening labels. Pass 2 completed with
 2,500/2,500 valid fresh labels, zero reuse, zero retries, and USD 2.709705
 cost. Pass 3 completed with 2,500/2,500 valid fresh labels, zero reuse, one
@@ -270,7 +270,8 @@ bash scripts/run_wdc_qwen_vertical_slice.sh package-results
 ```
 
 Use the uv-managed environment. The only authorized production labeling path was
-`labeller-screening/run_full_wdc.py` for the frozen WDC Sol-high vertical slice,
+`supervision/run_full_labeling_wdc.py` (formerly `labeller-screening/run_full_wdc.py`)
+for the frozen WDC Sol-high vertical slice,
 and its full training-label run is complete. Do not relabel WDC. The only
 authorized full compact-model cells are the two narrow WDC–Qwen validation arms
 described above; all other experiment cells remain blocked by the broader

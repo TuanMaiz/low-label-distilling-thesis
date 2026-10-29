@@ -34,6 +34,7 @@ The model-facing file contains only `pair_id` and `input_text`. Do not merge the
 gold CSV into it. Final result files contain exactly `pair_id,result`; audit and
 usage provenance are stored separately.
 
-`run_full_wdc.py` is resumable, but the authorized WDC labeling run is already
+The full WDC runner moved to `supervision/run_full_labeling_wdc.py` (it still
+uses `screening_lib.py` and `settings.json` from this folder). It is resumable, but the authorized WDC labeling run is already
 complete. Do not start a new paid WDC run or call validation/test data. The
 broader 3×3 experiment contract remains unfinished.

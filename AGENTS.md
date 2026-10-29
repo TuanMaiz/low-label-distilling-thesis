@@ -173,7 +173,7 @@ favor completing the frozen plan.
 
 - The refinement extension is recorded in
   `plans/260928-0938-uncertainty-aware-llm-label-refinement-fundamental/`.
-  WDC `run_full_wdc.py --no-reuse-existing` now skips screening reuse for
+  WDC `run_full_wdc.py` (now `supervision/run_full_labeling_wdc.py`) `--no-reuse-existing` now skips screening reuse for
   separate teacher passes. Pass 2 completed with 2,500/2,500 valid fresh
   labels, zero reuse, zero retries, and USD 2.709705 cost. Pass 3 completed
   with 2,500/2,500 valid fresh labels, zero reuse, one transient failed attempt
@@ -231,8 +231,11 @@ favor completing the frozen plan.
 - Historical experiment results and journals remain as research evidence.
 - The three paid labeler-screening runs are complete; Sol-high achieved 291/300
   correct at USD 0.327135 and was selected for cost/accuracy balance.
-- `labeller-screening/run_full_wdc.py` is the only active production labeling
-  runner. The authorized WDC run completed with zero invalid results and zero
+- Production labelling runners live together in `supervision/`:
+  `run_full_labeling_wdc.py` (moved from `labeller-screening/run_full_wdc.py`
+  on 2026-10-29; screening settings and artifacts stay in `labeller-screening/`)
+  and `run_full_labeling_companies.py` (MaDI Companies; dry run unless
+  `--confirm-paid-labeling --spend-ceiling-usd`). The authorized WDC run completed with zero invalid results and zero
   retries. Its final result is
   `data/cache/wdc_products/teacher_labels/full_sol_high/predictions/sol_high.csv`.
 - The WDC `gold` and `llm_hard` target artifacts are published at

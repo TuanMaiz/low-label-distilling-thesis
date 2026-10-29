@@ -1,3 +1,10 @@
+"""Label the official WDC training split with the screened Sol-high setting.
+
+Moved from ``labeller-screening/run_full_wdc.py`` on 2026-10-29 so that every
+labelling entry point lives in ``supervision/``. The frozen settings and
+screening artifacts stay in ``labeller-screening/`` because published WDC
+targets record their paths and hashes.
+"""
 from __future__ import annotations
 
 import argparse
@@ -9,9 +16,10 @@ import sys
 from pathlib import Path
 
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = Path(__file__).resolve().parents[1]
+SCREENING = ROOT / "labeller-screening"
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(SCREENING))
 
 from screening_lib import (  # noqa: E402
     load_settings,
@@ -30,8 +38,8 @@ from supervision.llm_providers import (  # noqa: E402
 DEFAULT_SOURCE = ROOT / "data/cache/wdc_products/serialized/train.jsonl"
 DEFAULT_INPUT_DIR = ROOT / "data/cache/wdc_products/teacher_labels/full_sol_high"
 DEFAULT_OUTPUT_DIR = DEFAULT_INPUT_DIR / "predictions"
-DEFAULT_REUSE_INPUTS = HERE / "artifacts/sample/wdc_300.inputs.jsonl"
-DEFAULT_REUSE_ATTEMPTS = HERE / "artifacts/predictions/sol_high.attempts.jsonl"
+DEFAULT_REUSE_INPUTS = SCREENING / "artifacts/sample/wdc_300.inputs.jsonl"
+DEFAULT_REUSE_ATTEMPTS = SCREENING / "artifacts/predictions/sol_high.attempts.jsonl"
 EXPECTED_WDC_TRAIN_COUNT = 2500
 VERTICAL_CONTRACT = (
     ROOT
@@ -94,7 +102,7 @@ def main() -> None:
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
-    parser.add_argument("--settings", type=Path, default=HERE / "settings.json")
+    parser.add_argument("--settings", type=Path, default=SCREENING / "settings.json")
     parser.add_argument("--reuse-inputs", type=Path, default=DEFAULT_REUSE_INPUTS)
     parser.add_argument("--reuse-attempts", type=Path, default=DEFAULT_REUSE_ATTEMPTS)
     parser.add_argument(
