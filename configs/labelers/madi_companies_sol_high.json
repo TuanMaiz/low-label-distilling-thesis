@@ -40,12 +40,14 @@
     }
   },
   "pricing_snapshot": {
-    "date": "2026-08-22",
+    "date": "2026-10-29",
     "input_usd_per_million_tokens": 2.0,
     "output_usd_per_million_tokens": 10.0,
-    "source": "https://openrouter.ai/openai/gpt-5.6-sol"
+    "source": "https://openrouter.ai/openai/gpt-5.6-sol",
+    "endpoint": "OpenAI Flex (standard OpenAI endpoint listed at 4.00/20.00)"
   },
   "max_attempts": 3,
   "max_output_tokens": 32768,
-  "request_timeout_seconds": 300
+  "request_timeout_seconds": 300,
+  "service_tier": "flex"
 }

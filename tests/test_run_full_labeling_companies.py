@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 import supervision.run_full_labeling_companies as runner
-from screening_lib import load_settings
+from screening_lib import build_request_payload, load_settings
 
 ROWS = [{"pair_id": f"madi_companies:train:p{i}", "input_text": f"Company A {i} || Company B {i}"} for i in range(3)]
 
@@ -47,6 +47,20 @@ class CompaniesLabelingTest(unittest.TestCase):
     def test_settings_are_companies_specific(self) -> None:
         self.assertEqual(self.config["prompt_version"], "madi-companies-er-answer-only-v1")
         self.assertIn(runner.SETTING, self.config["settings"])
+
+    def test_companies_requests_use_flex_and_wdc_requests_do_not(self) -> None:
+        row = {"pair_id": "x", "input_text": "A || B"}
+        self.assertEqual(build_request_payload(self.config, runner.SETTING, row)["service_tier"], "flex")
+        self.assertEqual(self.config["provider_routing"]["max_price"], {"prompt": 2.0, "completion": 10.0})
+        wdc = load_settings(runner.SCREENING / "settings.json")
+        self.assertNotIn("service_tier", build_request_payload(wdc, runner.SETTING, row))
+
+    def test_only_flex_tier_is_accepted(self) -> None:
+        bad = json.loads(runner.SETTINGS.read_text(encoding="utf-8")) | {"service_tier": "priority"}
+        path = self.data / "bad.json"
+        path.write_text(json.dumps(bad), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "flex"):
+            load_settings(path)
 
     def test_inputs_must_match_manifest(self) -> None:
         (self.data / "teacher_labels/inputs.jsonl").write_text(json.dumps(ROWS[0]) + "\n", encoding="utf-8")

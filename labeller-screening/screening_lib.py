@@ -235,6 +235,11 @@ def load_settings(path: Path) -> dict[str, Any]:
     }
     if config.get("provider_routing") != expected_routing:
         raise ValueError("OpenRouter routing must pin OpenAI, disable fallbacks, and enforce parameters/prices")
+    # Optional service tier. Absent for WDC (its frozen payloads are unchanged); "flex" is the
+    # OpenAI flex endpoint, which is the only endpoint that fits the frozen max_price since the
+    # OpenRouter standard price rose to 4/20 (checked 2026-10-29).
+    if "service_tier" in config and config["service_tier"] != "flex":
+        raise ValueError("service_tier, when set, must be 'flex'")
     pricing = config.get("pricing_snapshot")
     for key in ("input_usd_per_million_tokens", "output_usd_per_million_tokens"):
         value = pricing.get(key) if isinstance(pricing, dict) else None
@@ -276,6 +281,7 @@ def build_request_payload(config: Mapping[str, Any], setting: str, row: Mapping[
         "provider": config["provider_routing"],
         "max_tokens": config["max_output_tokens"],
         "stream": False,
+        **({"service_tier": config["service_tier"]} if "service_tier" in config else {}),
     }
 
 
