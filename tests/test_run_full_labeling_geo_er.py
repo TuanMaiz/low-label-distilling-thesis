@@ -88,6 +88,21 @@ class GeoErLabelingTest(unittest.TestCase):
         self.assertEqual({r["label_source"] for r in rows}, {"llm_majority"})
         self.assertEqual(hashlib.sha256(train.read_bytes()).hexdigest(), manifest["train_sha256"])
 
+    def test_progress_events_and_log(self) -> None:
+        from screening_lib import run_setting
+        events = []
+        run_setting(inputs_path=self.data / "teacher_labels/inputs.jsonl", output_dir=self.data / "probe",
+                    config=self.config, setting=runner.SETTING, client=FakeClient(), spend_ceiling_usd=1.0,
+                    expected_count=len(ROWS), progress=events.append)
+        self.assertEqual([e["event"] for e in events], ["start", "valid", "valid", "valid", "finish"])
+        self.assertEqual([e["done"] for e in events if e["event"] == "valid"], [1, 2, 3])
+        self.assertAlmostEqual(events[-1]["accounted_cost_usd"], 3 * 0.00004)
+
+        runner.label_pass(self.data, 1, self.config, FakeClient(), spend_ceiling_usd=1.0, show_progress=False)
+        log = (runner.pass_dir(self.data, 1) / "progress.log").read_text(encoding="utf-8")
+        self.assertIn("pass 1 start: 0/3 already done", log)
+        self.assertIn("pass 1 finished: 3/3", log)
+
     def test_majority_requires_all_passes(self) -> None:
         runner.label_pass(self.data, 1, self.config, FakeClient(), spend_ceiling_usd=1.0)
         with self.assertRaises(Exception):

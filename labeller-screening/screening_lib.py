@@ -488,7 +488,15 @@ def run_setting(
     reuse_attempts_path: Path | None = None,
     reuse_inputs_path: Path | None = None,
     run_provenance: Mapping[str, Any] | None = None,
+    progress: Any = None,
 ) -> Path:
+    """Label every row once. ``progress``, if given, is called with one dict per event
+    (start, valid, error, finish); it only observes and never changes the run."""
+    def _emit(event: str, **fields: Any) -> None:
+        if progress is not None:
+            progress({"event": event, "total": len(rows), "done": len(completed),
+                      "accounted_cost_usd": _observed_cost(attempts, config["pricing_snapshot"]), **fields})
+
     if not isinstance(spend_ceiling_usd, (int, float)) or isinstance(spend_ceiling_usd, bool) or not math.isfinite(spend_ceiling_usd) or spend_ceiling_usd <= 0:
         raise ValueError("spend_ceiling_usd must be a positive number")
     rows = validate_blinded_inputs(inputs_path, expected_count=expected_count)
@@ -599,6 +607,7 @@ def run_setting(
         attempt_counts[pair_id] = expected_attempt
 
     max_attempts = int(config["max_attempts"])
+    _emit("start", spend_ceiling_usd=float(spend_ceiling_usd))
     for row in rows:
         pair_id = row["pair_id"]
         if pair_id in completed:
@@ -658,6 +667,8 @@ def run_setting(
                 _append_journal(journal_path, journal_row)
                 attempts.append(journal_row)
                 completed[pair_id] = result
+                _emit("valid", pair_id=pair_id, attempt=attempt, result=result,
+                      latency_seconds=journal_row["latency_seconds"])
                 break
             except (OpenRouterHTTPError, OpenRouterTransportError, ValueError) as error:
                 last_error = error
@@ -696,6 +707,8 @@ def run_setting(
                     journal_row["reserved_cost_usd"] = reserved_cost
                 _append_journal(journal_path, journal_row)
                 attempts.append(journal_row)
+                _emit("error", pair_id=pair_id, attempt=attempt, error_type=type(error).__name__,
+                      error=str(error)[:300], retryable=retryable)
                 if not retryable:
                     raise RuntimeError(f"Non-retryable failure for {pair_id}: {error}") from error
                 if attempt < max_attempts:
@@ -715,6 +728,7 @@ def run_setting(
     _atomic_text(final_path, "".join(lines))
     audit_rows = [{key: value for key, value in row.items() if key != "result"} for row in attempts]
     _atomic_text(audit_path, _jsonl_text(audit_rows))
+    _emit("finish", final_path=str(final_path))
     return final_path
 
 

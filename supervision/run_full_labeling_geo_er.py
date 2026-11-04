@@ -33,6 +33,7 @@ sys.path.insert(0, str(SCREENING))
 
 from screening_lib import load_settings, run_setting, sha256_file, validate_blinded_inputs  # noqa: E402
 from supervision.build_teacher_consensus import build_teacher_consensus  # noqa: E402
+from supervision.labeling_progress import LabelingProgress  # noqa: E402
 
 DATASET_ID = "geo_er_pit"
 DATA = ROOT / "data/cache/geo_er/geo-er-osm-fsq-pit-83063f7"
@@ -80,14 +81,23 @@ def provenance(data_dir: Path, index: int, settings_path: Path) -> dict[str, Any
 
 
 def label_pass(data_dir: Path, index: int, config: dict, client: Any, spend_ceiling_usd: float,
-               settings_path: Path = SETTINGS) -> Path:
-    """Run one independent pass. Refuses to touch a pass that already has a final result."""
+               settings_path: Path = SETTINGS, show_progress: bool = True) -> Path:
+    """Run one independent pass. Refuses to touch a pass that already has a final result.
+
+    Shows a progress bar and appends to ``progress.log`` in the pass folder."""
     out = pass_dir(data_dir, index)
     if (out / f"{SETTING}.csv").exists():
         raise FileExistsError(f"pass {index} already has a final result: {out}")
-    return run_setting(inputs_path=inputs_path(data_dir), output_dir=out, config=config, setting=SETTING,
-                       client=client, spend_ceiling_usd=spend_ceiling_usd, expected_count=EXPECTED_COUNT,
-                       run_provenance=provenance(data_dir, index, settings_path))
+    reporter = LabelingProgress(out / "progress.log", f"{DATASET_ID} pass {index}", show_bar=show_progress)
+    try:
+        return run_setting(inputs_path=inputs_path(data_dir), output_dir=out, config=config, setting=SETTING,
+                           client=client, spend_ceiling_usd=spend_ceiling_usd, expected_count=EXPECTED_COUNT,
+                           run_provenance=provenance(data_dir, index, settings_path), progress=reporter)
+    except BaseException as error:
+        reporter.logger.error("%s pass %d stopped: %s: %s", DATASET_ID, index, type(error).__name__, error)
+        raise
+    finally:
+        reporter.close()
 
 
 def build_majority(data_dir: Path) -> dict[str, Any]:
