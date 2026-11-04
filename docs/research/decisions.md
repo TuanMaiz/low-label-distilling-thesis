@@ -1,6 +1,6 @@
 # Các quyết định đã bàn và đã chốt
 
-Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
+Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
 
 Các đề nghị của assistant chưa được researcher chốt được đặt trong [ideas.md](ideas.md). Vấn đề chưa giải quyết nằm trong [open-questions.md](open-questions.md). Không tự điền lý do hay phương án bị loại nếu lịch sử không ghi nhận.
 
@@ -55,6 +55,7 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 - **Phương án đã loại:** Các quan sát snapshot kế thừa bị researcher bác ngày 2026-09-01. Không sửa các luồng WDC đã hash-bound chỉ để tích hợp DBLP vì sẽ làm lệch hợp đồng tái lập.
 - **Giới hạn:** Chuẩn bị dữ liệu/fake run không đồng nghĩa đã có production labels hay kết quả model trên DBLP.
 - **Nguồn:** [Nhật ký DBLP-ACM](../journals/260831-dblp-acm-integration-plan.md).
+- **Trạng thái:** Đã được thay bằng D24 (2026-11-04); DBLP-ACM không còn là dataset 2.
 
 ## D07 — Tạo ba teacher pass và dùng majority labels làm đầu vào OOF
 
@@ -200,8 +201,17 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 ## D23 — Dataset 3: MaDI-Bench Companies, chỉ subtask entity matching
 
 - **Ngày:** 2026-10-28.
-- **Quyết định:** Dataset 3 là MaDI-Bench Companies (base, commit `062058d`), chỉ bước entity matching với split chính thức, gold schema mapping của benchmark, giá trị raw chỉ làm sạch nhẹ, quy tắc threshold macro-F1 hiện hành (D14), một model cho cả hai source pair và báo cáo F1 theo từng source pair cùng trung bình. Giữ DBLP-ACM vì là dataset duy nhất không đến từ nhóm Mannheim.
+- **Quyết định:** Dataset 3 là MaDI-Bench Companies (base, commit `062058d`), chỉ bước entity matching với split chính thức, gold schema mapping của benchmark, giá trị raw chỉ làm sạch nhẹ, quy tắc threshold macro-F1 hiện hành (D14), một model cho cả hai source pair và báo cáo F1 theo từng source pair cùng trung bình. Giữ DBLP-ACM vì là dataset duy nhất không đến từ nhóm Mannheim (phần này đã được thay bằng D24).
 - **Lý do:** Nhãn matching được công bố sau knowledge cutoff của teacher (GPT-5.6 Sol, 16/02/2026), nên teacher không thể đã nhớ gold; thêm domain công ty mà bài Steiner & Bizer chưa kiểm tra.
 - **Giới hạn:** Benchmark là preprint (arXiv:2606.30371 v1), repo không có license; FullContact cấm phân phối lại, nên dữ liệu không được đưa lên git hay công bố, chỉ báo cáo kết quả tổng hợp. Train/val có lỗi nhãn đã thấy; quy tắc parent/subsidiary không nhất quán; test Forbes–DBpedia nhỏ (140 cặp). Bản ghi nguồn cũ (2012–2014) nên LLM có thể biết các công ty nổi tiếng.
 - **Nguồn:** [Hồ sơ quyết định](dataset3-madi-companies.md); [plan 261028](../../plans/261028-2230-madi-companies-dataset3/plan.md).
 
+## D24 — Dataset 2: thay DBLP-ACM bằng Geo-ER Pittsburgh (OSM–Foursquare)
+
+- **Ngày:** 2026-11-04.
+- **Quyết định:** Dataset 2 là Geo-ER Pittsburgh, source pair OSM–Foursquare (Balsebre và cộng sự, WWW 2022, NTU Singapore), dùng split chính thức `data/train_valid_test/osm_fsq/pit/{train,valid,test}.txt` (2.500 / 999 / 1.502 cặp, khoảng 29% match ở mọi split). Tiền xử lý theo cùng quy tắc Companies: tách `COL <field> VAL <value>` thành name, latitude, longitude, address, postalCode; giá trị raw, chuỗi rỗng và `NULL` thành `<missing>`; A = OSM, B = Foursquare. Threshold theo quy tắc macro-F1 hiện hành (D14) trên toàn bộ validation; match F1 là metric chính. Thay đổi này sửa hợp đồng Dataset 2 DBLP-ACM đã duyệt (D06).
+- **Lý do:** Nhãn DBLP-ACM đã cũ (công khai từ khoảng 2010) và 7.417 cặp train quá tốn để gán nhãn và huấn luyện trong ngân sách. Dataset thay thế phải đến từ nhóm ngoài Mannheim (WDC Products và MaDI-Bench Companies đều từ Mannheim) và có split chính thức khoảng 2.000–2.500 cặp train; Pittsburgh là thành phố duy nhất gần cỡ này. Domain địa điểm là mới, và bằng chứng quyết định là vị trí, nên kiểm tra được guideline độc lập domain.
+- **Phương án đã loại hoặc dự phòng:** DBLP-ACM (D06). OSM–Yelp cùng thành phố (có 1 cặp trùng và 1 cặp nằm ở cả val và test). Machamp Books/Movies (Megagon Labs, BSD-3) là dự phòng nếu Geo-ER thất bại, ví dụ student không học được từ tọa độ.
+- **Giới hạn:** Tiêu chí teacher cutoff được nới cho dataset này: nhãn công khai từ 2022 nên teacher có thể đã thấy. Bản ghi mỏng (5 trường, khoảng một nửa address trống), mọi cặp đã qua bộ lọc tên tương tự, nên khoảng cách phải suy từ tọa độ raw; student nhỏ có thể không làm được. Nhãn từ bốn annotator, không báo cáo độ đồng thuận. Repo không có license; dữ liệu Foursquare có điều khoản hạn chế, nên xử lý như FullContact: không commit hay công bố bản ghi, chỉ báo cáo kết quả tổng hợp, thêm một câu về điều khoản dữ liệu trong luận văn.
+- **Còn mở:** (1) Khoảng cách: bắt đầu chỉ với tọa độ raw; chỉ thêm trường `distance_m` nếu pilot cho thấy student không dùng được tọa độ, và khi đó áp dụng cho mọi arm. (2) Viết adapter Geo-ER (parse, serialize train/validation JSONL, khóa test). (3) Cập nhật lịch: giai đoạn DBLP-ACM 3 tuần thành giai đoạn Geo-ER.
+- **Nguồn:** [Hồ sơ quyết định](dataset2-geo-er-pittsburgh.md); repo https://github.com/PasqualeTurin/Geo-ER; DOI 10.1145/3485447.3512026.

@@ -71,6 +71,11 @@ Current direction (WDC first):
   confirmation set.
 - Weekly goals: `plans/weekly-goals/`. Reviewer preparation:
   `reviewers-question-mock/`.
+- Dataset 2 (D24, 2026-11-04): Geo-ER Pittsburgh OSM–Foursquare replaces
+  DBLP-ACM (D06). Record `docs/research/dataset2-geo-er-pittsburgh.md`. Treat
+  its data like Companies: **never commit or publish it** (no licence,
+  Foursquare terms): `data/raw/geo_er/` and `data/cache/geo_er/` are git-ignored.
+  The DBLP-ACM notes further below are historical.
 - Dataset 3 (D23, 2026-10-28): MaDI-Bench Companies, entity matching subtask.
   Plan `plans/261028-2230-madi-companies-dataset3/`; preparation
   `data/prepare_madi_companies.py`; runner `scripts/run_madi_companies_arms.sh`.

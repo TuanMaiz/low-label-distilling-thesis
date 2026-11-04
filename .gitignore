@@ -14,6 +14,8 @@ data/raw/dblp_acm/
 # MaDI-Bench Companies: no license; never publish FullContact-derived data
 data/raw/madi_companies/
 data/cache/madi_companies/
+data/raw/geo_er/
+data/cache/geo_er/
 outputs/uncertainty_refinement/madi-*
 outputs/
 !outputs/
