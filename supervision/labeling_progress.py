@@ -8,10 +8,14 @@ line at start and finish, every error, and a summary every ``log_every`` pairs.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ImportError:   # optional: without tqdm a plain line is printed every log_every pairs
+    tqdm = None
 
 
 class LabelingProgress:
@@ -24,7 +28,7 @@ class LabelingProgress:
         self._handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         self.logger.addHandler(self._handler)
         self.label, self.log_every, self.show_bar = label, log_every, show_bar
-        self.bar: tqdm | None = None
+        self.bar: Any = None
         self.matches = self.new = self.errors = 0
 
     def __call__(self, event: dict[str, Any]) -> None:
@@ -32,7 +36,10 @@ class LabelingProgress:
         if kind == "start":
             self.logger.info("%s start: %d/%d already done, spent USD %.4f, ceiling USD %.2f",
                              self.label, done, total, cost, event["spend_ceiling_usd"])
-            self.bar = tqdm(total=total, initial=done, desc=self.label, unit="pair", disable=not self.show_bar)
+            if tqdm is not None:
+                self.bar = tqdm(total=total, initial=done, desc=self.label, unit="pair", disable=not self.show_bar)
+            elif self.show_bar:
+                print(f"{self.label}: {done}/{total} done (install tqdm for a progress bar)", file=sys.stderr)
         elif kind == "valid":
             self.new += 1
             self.matches += event["result"] == "match"
@@ -40,6 +47,8 @@ class LabelingProgress:
                 self.bar.update(1)
                 self.bar.set_postfix(usd=f"{cost:.3f}", match=f"{self.matches / self.new:.0%}", errors=self.errors)
             if done % self.log_every == 0 or done == total:
+                if self.bar is None and self.show_bar:
+                    print(f"{self.label}: {done}/{total} done, USD {cost:.3f}, errors {self.errors}", file=sys.stderr)
                 self.logger.info("%s %d/%d done, spent USD %.4f, match share this run %.1f%%, errors %d",
                                  self.label, done, total, cost, 100 * self.matches / self.new, self.errors)
         elif kind == "error":
@@ -49,6 +58,8 @@ class LabelingProgress:
             self.logger.warning(message)
             if self.bar is not None:
                 self.bar.write(message)
+            elif self.show_bar:
+                print(message, file=sys.stderr)
         elif kind == "finish":
             self.logger.info("%s finished: %d/%d, spent USD %.4f, errors %d, result %s",
                              self.label, done, total, cost, self.errors, event["final_path"])
