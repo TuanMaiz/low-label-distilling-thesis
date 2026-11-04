@@ -75,6 +75,10 @@ Current direction (WDC first):
   DBLP-ACM (D06). Record `docs/research/dataset2-geo-er-pittsburgh.md`. Treat
   its data like Companies: **never commit or publish it** (no licence,
   Foursquare terms): `data/raw/geo_er/` and `data/cache/geo_er/` are git-ignored.
+  Preparation `data/prepare_geo_er.py` (adds `distance_m`; teacher and student
+  read the same input), labelling `supervision/run_full_labeling_geo_er.py`
+  (dry run unless `--confirm-paid-labeling --spend-ceiling-usd`), runner
+  `scripts/run_geo_er_arms.sh <action> <G|A>`.
   The DBLP-ACM notes further below are historical.
 - Dataset 3 (D23, 2026-10-28): MaDI-Bench Companies, entity matching subtask.
   Plan `plans/261028-2230-madi-companies-dataset3/`; preparation

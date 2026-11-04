@@ -167,3 +167,52 @@ rm -f madi-companies-data.tar.gz   # do not leave the data on the rented machine
 - Results land in `outputs/uncertainty_refinement/madi-companies-qwen/arm-<X>.zip`
   (git-ignored as well).
 - Before ending the rental, delete the data and the code copy from the machine.
+
+## Dataset 2 — Geo-ER Pittsburgh OSM–Foursquare (D24)
+
+Runner: `scripts/run_geo_er_arms.sh <action> <G|A>`, same recipe, defaults and
+safeguards as the Companies runner. Each pair carries a computed
+`distance_m` line; teacher and student see the same input.
+
+**The data is not in git** (no licence; Foursquare terms). Copy
+`data/raw/geo_er/` and `data/cache/geo_er/` privately, as for Companies.
+
+Teacher labelling, on your computer (dry run without the two flags):
+
+```bash
+python -m supervision.run_full_labeling_geo_er label --pass-index 1 --confirm-paid-labeling --spend-ceiling-usd 5
+python -m supervision.run_full_labeling_geo_er label --pass-index 2 --confirm-paid-labeling --spend-ceiling-usd 5
+python -m supervision.run_full_labeling_geo_er label --pass-index 3 --confirm-paid-labeling --spend-ceiling-usd 5
+python -m supervision.run_full_labeling_geo_er majority
+```
+
+Transfer, on your computer:
+
+```bash
+python -m data.prepare_geo_er verify
+tar czf geo-er-data.tar.gz data/raw/geo_er data/cache/geo_er
+sha256sum geo-er-data.tar.gz > geo-er-data.tar.gz.sha256
+scp -P "$PORT" geo-er-data.tar.gz geo-er-data.tar.gz.sha256 "$HOST:code/"
+```
+
+On the GPU host, after the usual clone, PYTHON export and `setup G`:
+
+```bash
+cd ~/code
+sha256sum -c geo-er-data.tar.gz.sha256 && tar xzf geo-er-data.tar.gz && rm -f geo-er-data.tar.gz
+$PYTHON -m data.prepare_geo_er verify
+for ARM in G A; do
+  bash scripts/run_geo_er_arms.sh preflight $ARM &&
+  bash scripts/run_geo_er_arms.sh train $ARM --confirm-full-training &&
+  bash scripts/run_geo_er_arms.sh evaluate $ARM --confirm-validation || break
+done
+# only after both validations finish cleanly:
+for ARM in G A; do
+  bash scripts/run_geo_er_arms.sh evaluate-test $ARM --confirm-test &&
+  bash scripts/run_geo_er_arms.sh package-results $ARM || break
+done
+```
+
+Results: `outputs/uncertainty_refinement/geo-er-qwen/arm-<X>.zip` (git-ignored).
+Delete `~/code` on the GPU host before ending the rental.
+

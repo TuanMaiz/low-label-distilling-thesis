@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "frozen",
+  "dataset_id": "geo_er_pit",
+  "display_name": "Geo-ER Pittsburgh, OSM-Foursquare",
+  "logical_version": "geo-er-osm-fsq-pit-83063f7",
+  "decision_record": "D24, 2026-11-04 (researcher): Geo-ER Pittsburgh OSM-Foursquare replaces DBLP-ACM as dataset 2; official splits; raw values with light cleanup; A = OSM, B = Foursquare; plus a computed distance_m pair field seen by teacher and student alike; macro-F1 threshold rule (D14).",
+  "source": {
+    "repository": "https://github.com/PasqualeTurin/Geo-ER",
+    "commit": "83063f7095539acca6317c04251307461c93752a",
+    "commit_date": "2023-04-27",
+    "paper": "Balsebre, Yao, Cong & Hai, Geospatial Entity Resolution, WWW 2022, doi:10.1145/3485447.3512026",
+    "repo_subdirectory": "data/train_valid_test/osm_fsq/pit",
+    "license": "no licence file in the repository at this commit; records came from the OpenStreetMap (ODbL) and Foursquare APIs, and Foursquare's terms are restrictive",
+    "redistribution_allowed": false,
+    "acquisition_authorized": true,
+    "local_root": "data/raw/geo_er/osm-fsq-pit-83063f7"
+  },
+  "splits": {
+    "train": {"materialize": true, "path": "train.txt", "sha256": "6b13186c6212903a23dba853f48ffe156c68beac6e26e996901e5ed8d636a356", "row_count": 2500, "match_count": 727, "non_match_count": 1773},
+    "validation": {"materialize": true, "path": "valid.txt", "sha256": "7be71d6d6114821af81bff4a3818249f3cb4d2e281738377a9e52b59c9097463", "row_count": 999, "match_count": 290, "non_match_count": 709},
+    "test": {"materialize": false, "locked": true, "path": "test.txt", "sha256": "db2d683bc92e495054ca8c0d5317e1c024e26b2dbdc6e7369a65f44e2c85dc3b", "row_count": 1502, "match_count": 437, "non_match_count": 1065}
+  },
+  "pair_file_format": {
+    "line": "<record A>\\t<record B>\\t<label>",
+    "record": "COL <field> VAL <value> repeated for the fields in attribute_order",
+    "labels": {"1": true, "0": false}
+  },
+  "sources": {"a": "osm", "b": "foursquare"},
+  "identity": {"pair_id_template": "geo_er_pit:{split}:{line:04d}", "line_numbering": "1-based line number in the official split file"},
+  "attribute_order": ["name", "latitude", "longitude", "address", "postalCode"],
+  "cleanup": {"strip_whitespace": true, "blank_to_missing": true, "literal_null_to_missing": ["NULL"], "values_otherwise_raw": true},
+  "pair_features": {
+    "distance_m": "great-circle (haversine) distance between record A and record B coordinates, Earth radius 6371008.8 m, rounded to whole metres; <missing> if either side lacks numeric coordinates"
+  },
+  "missing_value_token": "<missing>",
+  "cache": {"root": "data/cache/geo_er/geo-er-osm-fsq-pit-83063f7", "materialized_splits": ["train", "validation"]},
+  "authorization": {"paid_labeling": false, "gpu_execution": false, "test_materialization": false}
+}

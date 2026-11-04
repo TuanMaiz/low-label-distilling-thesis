@@ -17,6 +17,7 @@ data/cache/madi_companies/
 data/raw/geo_er/
 data/cache/geo_er/
 outputs/uncertainty_refinement/madi-*
+outputs/uncertainty_refinement/geo-er-*
 outputs/
 !outputs/
 outputs/*
