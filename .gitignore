@@ -18,6 +18,9 @@ data/raw/geo_er/
 data/cache/geo_er/
 outputs/uncertainty_refinement/madi-*
 outputs/uncertainty_refinement/geo-er-*
+# private dataset transfer archives (MaDI Companies, Geo-ER): never commit
+*-data.tar.gz
+*-data.tar.gz.sha256
 outputs/
 !outputs/
 outputs/*
