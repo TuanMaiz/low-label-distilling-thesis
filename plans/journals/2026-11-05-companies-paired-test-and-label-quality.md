@@ -1,5 +1,11 @@
 # 2026-11-05 — Companies A vs G paired test; LLM label quality vs gold on train
 
+Planned for today: train Geo-ER arms G and A on the rented V100. Blocked: the
+GPU rental infrastructure was under maintenance all day. Geo-ER data and teacher
+labels are ready and verified (`prepare_geo_er verify` passes; majority manifest
+hash matches; same pairs and input text as gold), so the next GPU day is
+training only. The analyses below were done instead.
+
 No GPU, no paid calls. Aggregates only (Companies and Geo-ER records are not
 republished). Outputs: `outputs/uncertainty_refinement/madi-companies-qwen/paired-comparisons.json`,
 `outputs/uncertainty_refinement/label-quality-vs-gold-train.json` (both git-ignored).
@@ -34,3 +40,15 @@ WDC for reference: test Δ +0.7, CI [−1.2, +2.7].
 - 3/3 agreement does not mean correct: most disagreements with gold are 3/3
   (WDC 73 of 79, Companies 133 of 140, Geo-ER 113 of 128). At 2/3 about half
   disagree with gold (6/13, 7/16, 15/30).
+
+## Takeaways
+
+- Companies: no significant A–G difference (p = 0.42), but non-inferiority at
+  δ = 2 is not shown on its own (one seed, 599 test pairs). Plan: pooled A vs G
+  over WDC + Companies + Geo-ER as the main "good enough" result; δ is not
+  changed after seeing results.
+- Teacher errors are systematic, not random: Companies strict, Geo-ER lenient,
+  and most disagreements with gold are unanimous (3/3). Teacher 2/3 agreement
+  alone would miss them, which supports teacher–student disagreement for
+  detection.
+
