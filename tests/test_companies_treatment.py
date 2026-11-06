@@ -111,11 +111,15 @@ class CompaniesTreatmentTest(unittest.TestCase):
         self.assertTrue(user.startswith("Record A:"))
         self.assertNotIn(items[0]["pair_id"], json.dumps(payload["messages"]))
 
-    def test_run_refuses_draft_prompt(self) -> None:
-        items, config = self.prepare()
-        self.assertFalse(ev.prompt_signed_off(ev.PROMPT.read_text(encoding="utf-8")))
-        with self.assertRaisesRegex(RuntimeError, "DRAFT"):
-            ev.run(items, config, self.out, ev.PROMPT.read_text(encoding="utf-8"), client=None)
+    def test_prompt_is_wdc_prompt_with_company_fields(self) -> None:
+        wdc = ev.PROMPT.read_text(encoding="utf-8")
+        prompt = ev.companies_prompt()
+        self.assertEqual(prompt, wdc.replace(ev.WDC_FIELD_LIST, "/".join(FIELDS)))
+        self.assertNotIn(ev.WDC_FIELD_LIST, prompt)
+        self.assertEqual(len(prompt.splitlines()), len(wdc.splitlines()))
+        self.prepare()
+        contract = json.loads((self.out / "contract.json").read_text())
+        self.assertEqual(contract["prompt_sha256"], hashlib.sha256(prompt.encode("utf-8")).hexdigest())
 
     def test_ungrounded_quote_rejected(self) -> None:
         items, _ = self.prepare()

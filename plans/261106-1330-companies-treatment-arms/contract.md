@@ -11,7 +11,7 @@ not stated here follows that contract. Status: **draft, 2026-11-06.**
 | Majority labels | `.../majority_labels/llm_unrefined.csv`, `.../consistency.csv` |
 | Folds | `.../oof/majority-3fold` (`prepare_oof_folds`, 20% inner validation) |
 | Guideline | `supervision/judge_guideline.md` v3, SHA-256 `b2745dac96531a23bdf4c818e900acb322b5b3db2177936193ff44896e01504a` (unchanged) |
-| Evidence prompt | `supervision/evidence_case_prompt_companies.md`, hash recorded at sign-off |
+| Evidence prompt | The WDC prompt `supervision/evidence_case_prompt.md` word for word, with its one list of quotable fields (`title/brand/description/price/priceCurrency`) replaced by the eight company fields (researcher, 2026-11-06). The SHA-256 of the sent prompt is recorded in the run's `contract.json`. |
 | Teacher settings | `configs/labelers/madi_companies_sol_high.json` (Sol high, flex tier, max price 2/10) |
 
 ## 2. Detection
@@ -56,12 +56,10 @@ after A and G ran; the A/G code path and commands are byte-identical (checked).
 | Test gold | Once, frozen arms |
 
 **Disclosure.** Companies train gold was already inspected on 2026-11-05 for the
-label-quality analysis (journal `2026-11-05-companies-paired-test-and-label-quality`):
-the teacher's main disagreement with gold is parent/subsidiary and related-company
-pairs. The Companies prompt's category 4 (related-entity ambiguity) and the
-"Companies specifics" paragraph were drafted afterwards. No pair-level gold
-information enters any prompt, selection or rule; the influence is on the wording
-of the category, and must be reported.
+label-quality analysis (journal `2026-11-05-companies-paired-test-and-label-quality`).
+The evidence prompt is the WDC prompt (written before that), so its wording is not
+influenced. The one Companies-specific setting chosen afterwards is the supporting
+fields (section 3); no pair-level gold enters any prompt, selection or rule.
 
 ## 8. Costs and stop rules
 
@@ -71,9 +69,8 @@ of the category, and must be reported.
 
 ## 9. Open decisions (researcher)
 
-1. Sign off the Companies prompt, especially category 4 reworded for companies
-   (related-entity ambiguity: parent, subsidiary, division, brand, branch,
-   predecessor/successor).
+1. ~~Companies prompt~~ decided 2026-11-06: use the WDC prompt unchanged
+   except the field list.
 2. Supporting fields: `assets`, `revenue`, `keypeople`.
 3. Whether to run at all, given the caveat in the plan (guideline and teacher
    share the strict "same specific entity" view on related companies).

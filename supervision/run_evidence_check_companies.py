@@ -3,15 +3,16 @@
 Same method as the WDC evidence check (``supervision/run_evidence_check.py``):
 pairs are selected by teacher 2/3 agreement OR OOF teacher–student disagreement,
 the teacher model describes observable situations in the seven categories with
-verbatim quotes, and nothing here changes a label. Differences: the eight company
-fields, the companies prompt (``evidence_case_prompt_companies.md``), and the
-OpenAI flex tier at the WDC price cap (``configs/labelers/madi_companies_sol_high.json``).
+verbatim quotes, and nothing here changes a label. The prompt is the WDC prompt
+(``evidence_case_prompt.md``) word for word, except its list of quotable fields,
+which names the eight company fields (researcher, 2026-11-06). Other differences:
+the response schema's field list, and the OpenAI flex tier at the WDC price cap
+(``configs/labelers/madi_companies_sol_high.json``).
 
     python -m supervision.run_evidence_check_companies prepare     # free: selection + contract
     python -m supervision.run_evidence_check_companies report      # free: re-render from saved responses
     python -m supervision.run_evidence_check_companies run --confirm-paid-evidence-check
 
-``run`` refuses while the prompt is still marked DRAFT.
 """
 from __future__ import annotations
 
@@ -32,7 +33,8 @@ from supervision.openrouter_json_schema_client import create_openrouter_json_sch
 from supervision.run_evidence_check import CATEGORY_NAMES, Category, cost_of, dump, keyed, response_paths
 
 ROOT = Path(__file__).resolve().parents[1]
-PROMPT = Path(__file__).with_name('evidence_case_prompt_companies.md')
+PROMPT = Path(__file__).with_name('evidence_case_prompt.md')   # the WDC prompt, unchanged on disk
+WDC_FIELD_LIST = 'title/brand/description/price/priceCurrency'
 DATA = ROOT / 'data/cache/madi_companies/madi-bench-companies-base-062058d'
 OOF = ROOT / 'outputs/uncertainty_refinement/madi-companies-oof'
 OUTPUT = ROOT / 'outputs/uncertainty_refinement/madi-companies-evidence-check'
@@ -159,8 +161,12 @@ def validate_diagnosis(raw: dict, item: dict) -> Diagnosis:
     return diag
 
 
-def prompt_signed_off(prompt: str) -> bool:
-    return not prompt.lstrip().startswith('Status: DRAFT')
+def companies_prompt() -> str:
+    """The WDC prompt with its one list of quotable fields replaced by the company fields."""
+    text = PROMPT.read_text(encoding='utf-8')
+    if text.count(WDC_FIELD_LIST) != 1:
+        raise ValueError('the WDC prompt changed: expected exactly one field list to substitute')
+    return text.replace(WDC_FIELD_LIST, '/'.join(FIELDS))
 
 
 def prepare(inputs: Path, consistency: Path, oof: Path, oof_summary: Path, settings: Path, output: Path,
@@ -172,10 +178,13 @@ def prepare(inputs: Path, consistency: Path, oof: Path, oof_summary: Path, setti
         raise ValueError('expected canonical OpenRouter, pinned OpenAI routing and the 2/10 price cap')
     items, counts = select_pairs(inputs, consistency, oof, oof_summary, expected_count)
     paths = [inputs, consistency, oof, oof_summary, settings, PROMPT]
+    prompt = companies_prompt()
     contract = {'schema_version': 1, 'dataset_id': 'madi_companies',
                 'selection_rule': 'teacher_2of3_OR_stored_prediction_disagreement',
                 'sources': {str(p.resolve().relative_to(ROOT)) if p.resolve().is_relative_to(ROOT) else str(p):
                             hashlib.sha256(p.read_bytes()).hexdigest() for p in paths},
+                'prompt_sha256': hashlib.sha256(prompt.encode('utf-8')).hexdigest(),
+                'prompt_rule': f'WDC prompt with {WDC_FIELD_LIST!r} replaced by {"/".join(FIELDS)!r}',
                 'counts': counts, 'config': config, 'output_token_cap': OUTPUT_TOKEN_CAP,
                 'response_schema': Diagnosis.model_json_schema(), 'gold_accessed': False}
     output.mkdir(parents=True, exist_ok=True)
@@ -252,8 +261,6 @@ def report(items, output: Path, config) -> dict:
 
 
 def run(items, config, output: Path, prompt: str, client, workers=4, limit=None) -> dict:
-    if not prompt_signed_off(prompt):
-        raise RuntimeError('the companies evidence prompt is still marked DRAFT; sign it off first')
     pending = []
     for i, item in enumerate(items):
         if (output / 'responses' / f'{i:04d}.json').exists():
@@ -310,13 +317,12 @@ def main():
         parser.error('--confirm-paid-evidence-check is required')
     items, config = prepare(args.inputs, args.consistency, args.oof, args.oof_summary, args.settings, args.output_dir)
     if args.action == 'prepare':
-        print(json.dumps({'selected': len(items), 'counts': json.loads((args.output_dir / 'contract.json').read_text())['counts'],
-                          'prompt_signed_off': prompt_signed_off(PROMPT.read_text(encoding='utf-8'))}, indent=2))
+        print(json.dumps({'selected': len(items), 'counts': json.loads((args.output_dir / 'contract.json').read_text())['counts']}, indent=2))
         return
     if args.action == 'run':
         client = create_openrouter_json_schema_client(api_url=config['api_url'], model=config['settings']['sol_high']['model'],
                                                      timeout=config['request_timeout_seconds'], api_key_resolver=resolve_openrouter_api_key)
-        result = run(items, config, args.output_dir, PROMPT.read_text(encoding='utf-8'), client, args.workers, args.limit)
+        result = run(items, config, args.output_dir, companies_prompt(), client, args.workers, args.limit)
     else:
         result = report(items, args.output_dir, config)
     print(json.dumps(result, ensure_ascii=False, indent=2))
