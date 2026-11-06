@@ -1,6 +1,6 @@
 # Các quyết định đã bàn và đã chốt
 
-Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
+Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04, D25 ngày 2026-11-06. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
 
 Các đề nghị của assistant chưa được researcher chốt được đặt trong [ideas.md](ideas.md). Vấn đề chưa giải quyết nằm trong [open-questions.md](open-questions.md). Không tự điền lý do hay phương án bị loại nếu lịch sử không ghi nhận.
 
@@ -217,3 +217,13 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 - **Đã làm (2026-11-04):** Adapter `data/prepare_geo_er.py` (pair id theo số dòng trong file split chính thức; khóa test), runner gán nhãn `supervision/run_full_labeling_geo_er.py` và runner arm `scripts/run_geo_er_arms.sh`. Số cặp, số match và phân bố `distance_m` trên train khớp với số liệu researcher đã đo.
 - **Còn mở:** Cập nhật lịch: giai đoạn DBLP-ACM 3 tuần thành giai đoạn Geo-ER.
 - **Nguồn:** [Hồ sơ quyết định](dataset2-geo-er-pittsburgh.md); repo https://github.com/PasqualeTurin/Geo-ER; DOI 10.1145/3485447.3512026.
+
+## D25 — Một prompt evidence check chung, trung tính về domain, cho mọi dataset
+
+- **Ngày:** 2026-11-06.
+- **Quyết định:** Dùng một prompt evidence check chung cho WDC, Companies và Geo-ER: giữ quy tắc và bảy nhóm tình huống của prompt WDC, bỏ cách diễn đạt và ví dụ riêng cho sản phẩm, không có đoạn riêng cho từng dataset. Chỉ danh sách trường được trích dẫn đi theo schema của từng dataset. Nội dung prompt phải được researcher ký duyệt trước khi chạy có phí; SHA-256 của prompt đã gửi được ghi lại.
+- **Lý do:** Prompt WDC chứa ví dụ và đoạn riêng cho sản phẩm (SKU, giá, màu, pack size), vô nghĩa với công ty và địa điểm. Vì WDC đằng nào cũng phải chạy lại để mọi dataset dùng cùng một prompt, chọn phương án đơn giản nhất: một prompt cho tất cả.
+- **Hệ quả:** WDC chạy lại evidence check với prompt mới (khoảng USD 3,3, flex tier), dựng lại bundle C, huấn luyện lại arm C và test một lần như một arm đóng băng mới (C v2), kèm amendment cho contract plan 261023. Arm A, B, G, OOF và 158 cặp phát hiện của WDC không đổi. Kết quả arm C cũ được giữ làm bản pilot.
+- **Phương án đã loại:** Prompt WDC nguyên văn cho mọi dataset; một lõi chung kèm khối domain theo template (đã cân nhắc rồi bỏ cùng ngày).
+- **Nguồn:** Trao đổi 2026-11-06; [contract plan 261106](../../plans/261106-1330-companies-treatment-arms/contract.md).
+
