@@ -11,7 +11,7 @@ not stated here follows that contract. Status: **draft, 2026-11-06.**
 | Majority labels | `.../majority_labels/llm_unrefined.csv`, `.../consistency.csv` |
 | Folds | `.../oof/majority-3fold` (`prepare_oof_folds`, 20% inner validation) |
 | Guideline | `supervision/judge_guideline.md` v3, SHA-256 `b2745dac96531a23bdf4c818e900acb322b5b3db2177936193ff44896e01504a` (unchanged) |
-| Evidence prompt | The WDC prompt `supervision/evidence_case_prompt.md` word for word, with its one list of quotable fields (`title/brand/description/price/priceCurrency`) replaced by the eight company fields (researcher, 2026-11-06). The SHA-256 of the sent prompt is recorded in the run's `contract.json`. |
+| Evidence prompt | **To be rebuilt per D25:** shared core + Companies domain block from the fixed template; both signed off and hashed before the paid run. (An earlier same-day choice, the WDC prompt verbatim, is superseded.) |
 | Teacher settings | `configs/labelers/madi_companies_sol_high.json` (Sol high, flex tier, max price 2/10) |
 
 ## 2. Detection
@@ -69,8 +69,8 @@ fields (section 3); no pair-level gold enters any prompt, selection or rule.
 
 ## 9. Open decisions (researcher)
 
-1. ~~Companies prompt~~ decided 2026-11-06: use the WDC prompt unchanged
-   except the field list.
+1. Companies prompt: approach decided 2026-11-06 (D25, core + domain block);
+   the core text and the Companies block still need sign-off.
 2. Supporting fields: `assets`, `revenue`, `keypeople`.
 3. Whether to run at all, given the caveat in the plan (guideline and teacher
    share the strict "same specific entity" view on related companies).
