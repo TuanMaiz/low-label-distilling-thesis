@@ -11,7 +11,7 @@ not stated here follows that contract. Status: **draft, 2026-11-06.**
 | Majority labels | `.../majority_labels/llm_unrefined.csv`, `.../consistency.csv` |
 | Folds | `.../oof/majority-3fold` (`prepare_oof_folds`, 20% inner validation) |
 | Guideline | `supervision/judge_guideline.md` v3, SHA-256 `b2745dac96531a23bdf4c818e900acb322b5b3db2177936193ff44896e01504a` (unchanged) |
-| Evidence prompt | **To be rebuilt per D25:** shared core + Companies domain block from the fixed template; both signed off and hashed before the paid run. (An earlier same-day choice, the WDC prompt verbatim, is superseded.) |
+| Evidence prompt | **One generic, domain-neutral prompt for all datasets** (researcher, 2026-11-06): the WDC prompt's rules and seven categories without product-specific wording or examples, and without a dataset-specific paragraph. Only the list of quotable fields follows each dataset's schema. To be drafted and signed off before any paid run; SHA-256 recorded in each run's `contract.json`. |
 | Teacher settings | `configs/labelers/madi_companies_sol_high.json` (Sol high, flex tier, max price 2/10) |
 
 ## 2. Detection
@@ -57,8 +57,8 @@ after A and G ran; the A/G code path and commands are byte-identical (checked).
 
 **Disclosure.** Companies train gold was already inspected on 2026-11-05 for the
 label-quality analysis (journal `2026-11-05-companies-paired-test-and-label-quality`).
-The evidence prompt is the WDC prompt (written before that), so its wording is not
-influenced. The one Companies-specific setting chosen afterwards is the supporting
+The evidence prompt is generic and has no dataset-specific part, so its wording
+is not tailored to Companies. The one Companies-specific setting chosen afterwards is the supporting
 fields (section 3); no pair-level gold enters any prompt, selection or rule.
 
 ## 8. Costs and stop rules
@@ -69,8 +69,12 @@ fields (section 3); no pair-level gold enters any prompt, selection or rule.
 
 ## 9. Open decisions (researcher)
 
-1. Companies prompt: approach decided 2026-11-06 (D25, core + domain block);
-   the core text and the Companies block still need sign-off.
+1. Prompt: decided 2026-11-06 — one generic prompt for all datasets. The text
+   still needs sign-off. Consequence for WDC: its evidence check is rerun with
+   the generic prompt (about USD 3.3, flex tier), the C bundle is rebuilt and
+   arm C retrained and tested once as a new frozen arm (C v2), with an amendment
+   to the WDC contract (plan 261023). WDC A, B, G, OOF and the 158 detected
+   pairs are unchanged.
 2. Supporting fields: `assets`, `revenue`, `keypeople`.
 3. Whether to run at all, given the caveat in the plan (guideline and teacher
    share the strict "same specific entity" view on related companies).

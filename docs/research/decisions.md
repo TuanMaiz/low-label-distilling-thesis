@@ -1,6 +1,6 @@
 # Các quyết định đã bàn và đã chốt
 
-Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04, D25 ngày 2026-11-06. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
+Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
 
 Các đề nghị của assistant chưa được researcher chốt được đặt trong [ideas.md](ideas.md). Vấn đề chưa giải quyết nằm trong [open-questions.md](open-questions.md). Không tự điền lý do hay phương án bị loại nếu lịch sử không ghi nhận.
 
@@ -217,14 +217,3 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 - **Đã làm (2026-11-04):** Adapter `data/prepare_geo_er.py` (pair id theo số dòng trong file split chính thức; khóa test), runner gán nhãn `supervision/run_full_labeling_geo_er.py` và runner arm `scripts/run_geo_er_arms.sh`. Số cặp, số match và phân bố `distance_m` trên train khớp với số liệu researcher đã đo.
 - **Còn mở:** Cập nhật lịch: giai đoạn DBLP-ACM 3 tuần thành giai đoạn Geo-ER.
 - **Nguồn:** [Hồ sơ quyết định](dataset2-geo-er-pittsburgh.md); repo https://github.com/PasqualeTurin/Geo-ER; DOI 10.1145/3485447.3512026.
-
-## D25 — Prompt evidence check: một lõi chung + một khối domain theo template cố định
-
-- **Ngày:** 2026-11-06. Researcher ký duyệt **cách làm** này; nội dung cụ thể của lõi và từng khối domain vẫn phải được ký duyệt trước khi chạy có phí.
-- **Quyết định:** Prompt evidence check gồm (1) **lõi chung**, giống hệt nhau cho mọi dataset: nhiệm vụ, quy tắc (chỉ dùng bản ghi, trích dẫn nguyên văn, không trả nhãn), bảy nhóm tình huống viết trung tính không ví dụ riêng của domain, định dạng output; và (2) **một khối domain cho mỗi dataset**, điền theo một template cố định với các ô theo vai trò của guideline v3: "cùng thực thể" nghĩa là gì (một câu), trường định danh, thuộc tính định danh, thông tin hỗ trợ, chuẩn hoá được phép. Áp dụng cho WDC, Companies và Geo-ER.
-- **Lý do:** Phương án một prompt chung không cho mô hình biết "cùng thực thể" nghĩa là gì trong từng domain; prompt WDC hiện tại có đoạn và ví dụ riêng cho sản phẩm nên không dùng lại được cho công ty hay địa điểm. Khối domain là áp dụng trực tiếp các vai trò đã có trong guideline v3, không phải tinh chỉnh prompt tự do. Lập luận của researcher: giống cách trường đại học xây chương trình — mọi sinh viên học chung một nền tảng, đến năm 3–4 mỗi người học các môn chuyên ngành theo domain của mình.
-- **Chống "may đo" theo nhãn:** mỗi khối domain chỉ điền từ schema và bài báo của benchmark, không từ nhãn; đóng băng trước khi chạy evidence check của dataset đó; ghi SHA-256 của prompt đã gửi. Companies: train gold đã được xem ngày 2026-11-05 trước khi viết khối, phải công bố (contract plan 261106, mục 7).
-- **Hệ quả:** WDC phải chạy lại evidence check với prompt mới (khoảng USD 3,3, flex tier), dựng lại bundle C, huấn luyện lại arm C và test một lần như một arm đóng băng mới (C v2) — cần amendment cho contract plan 261023. Arm A, B, G, OOF và tập 158 cặp phát hiện của WDC không đổi. Companies và Geo-ER chưa chạy evidence check nên không phải làm lại gì.
-- **Phương án đã loại:** Prompt WDC nguyên văn cho mọi dataset (đoạn riêng cho sản phẩm vô nghĩa với công ty/địa điểm); một prompt chung không có khối domain (kém phù hợp domain); khối domain viết tự do không theo template (rủi ro may đo).
-- **Nguồn:** Trao đổi 2026-11-06; [plan 261106](../../plans/261106-1330-companies-treatment-arms/plan.md); [câu hỏi phản biện q06](../../reviewers-question-mock/q06-one-core-domain-blocks.md).
-

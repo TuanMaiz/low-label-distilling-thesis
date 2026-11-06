@@ -21,4 +21,3 @@ One file per question: `qNN-short-name.md`. Each file has:
 | [q03](q03-llm-randomness.md) | The LLM is stochastic, so how is the method reproducible? | draft |
 | [q04](q04-human-validation-test.md) | If the goal is no human labels, why use human validation and test? | draft |
 | [q05](q05-jury-for-teacher-labels.md) | Why not use the judge panel to label the training data itself? | draft |
-| [q06](q06-one-core-domain-blocks.md) | Why does each dataset get its own prompt block? Isn't that prompt tuning? | draft |
