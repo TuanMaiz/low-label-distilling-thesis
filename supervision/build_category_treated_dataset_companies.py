@@ -3,7 +3,8 @@
 The WDC builder (``supervision/build_category_treated_dataset.py``) with the
 Companies settings: the eight company fields, and assets, revenue and key people
 as supporting information (like price on WDC: they never decide non-match on their
-own). Same guideline steps and action rule. No API call, no gold labels.
+own). Same guideline steps and action rule. Diagnoses come from the evidence check
+v2 (D25). No API call, no gold labels.
 
     python -m supervision.build_category_treated_dataset_companies build --arm C
     python -m supervision.build_category_treated_dataset_companies verify --arm C
@@ -12,24 +13,27 @@ from __future__ import annotations
 
 import argparse
 import json
+from functools import partial
 from pathlib import Path
 
 from supervision import build_category_treated_dataset as core
-from supervision.run_evidence_check_companies import DATA, EXPECTED_COUNT, OUTPUT, parse_fields
+from supervision.run_evidence_check_v2 import PROFILES, parse_fields
 
 ROOT = Path(__file__).resolve().parents[1]
+PROFILE = PROFILES['madi_companies']
+DATA = ROOT / 'data/cache/madi_companies/madi-bench-companies-base-062058d'
 SUPPORTING_FIELDS = frozenset({'assets', 'revenue', 'keypeople'})
 CONTRACT = 'plans/261106-1330-companies-treatment-arms/contract.md'
-DATASET_ID = 'madi_companies'
 
 
 def sources(inputs=None, majority=None, selected=None, diagnoses=None) -> dict:
-    return dict(inputs_path=inputs or DATA / 'teacher_labels/inputs.jsonl',
+    return dict(inputs_path=inputs or PROFILE.inputs,
                 majority_path=majority or DATA / 'majority_labels/llm_unrefined.csv',
-                selected_path=selected or OUTPUT / 'selected_pairs.json',
-                diagnoses_path=diagnoses or OUTPUT / 'diagnoses.csv',
-                dataset_id=DATASET_ID, expected_count=EXPECTED_COUNT,
-                field_parser=parse_fields, supporting_fields=SUPPORTING_FIELDS, contract=CONTRACT)
+                selected_path=selected or PROFILE.output / 'selected_pairs.json',
+                diagnoses_path=diagnoses or PROFILE.output / 'diagnoses.csv',
+                dataset_id=PROFILE.dataset_id, expected_count=PROFILE.expected_count,
+                field_parser=partial(parse_fields, fields=PROFILE.fields),
+                supporting_fields=SUPPORTING_FIELDS, contract=CONTRACT)
 
 
 def output_dir(arm: str) -> Path:

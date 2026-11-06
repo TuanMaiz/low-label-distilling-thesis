@@ -146,3 +146,31 @@ measure how close the LLM-label student is to a human-label student.
   enough.
 - No code path used by the finished A, B, C runs changed their recipe; their
   results stand.
+
+### A5 — 2026-11-06, arm C v2 with the domain-neutral evidence prompt (D25)
+
+Researcher decision D25: one domain-neutral evidence-check prompt for every
+dataset. The prompt used for the original C (`supervision/evidence_case_prompt.md`)
+has product wording and a WDC paragraph, so WDC is rerun with the new prompt.
+
+- **Prompt:** `supervision/evidence_case_prompt_generic.md`, signed off
+  2026-11-06, SHA-256 `48b2c4615336f09dc6240a04a8d71182b32d81c8306dd10048f8adb8dce8ec2c`,
+  `{FIELDS}` = `title/brand/description/price/priceCurrency`. Output fields
+  `note`, `summary`, `uncertainties` (no language requirement).
+- **Runner:** `supervision/run_evidence_check_v2.py --dataset wdc`, output
+  `outputs/uncertainty_refinement/wdc-evidence-check-v2/`. Teacher settings
+  `configs/labelers/evidence_check_sol_high_flex.json`: same model and reasoning,
+  OpenAI flex tier, max price 2/10 (the standard endpoint is now 4/20).
+- **Selection unchanged:** the same 158 pairs in the same order (checked
+  against the pilot's `selected_pairs.json`).
+- **Rule and recipe unchanged:** sections 2–5. The bundle is built by
+  `build_category_treated_dataset build --arm C --selected-pairs …/wdc-evidence-check-v2/selected_pairs.json
+  --diagnoses …/wdc-evidence-check-v2/diagnoses.csv --output-dir data/cache/wdc_products/refinement/category-rule-C2`.
+- **Arm C2:** `scripts/run_wdc_qwen_treatment_arms.sh <action> C2`; outputs
+  `outputs/uncertainty_refinement/wdc-qwen-treatment/arm-C2/`, variant
+  `category_rule_arm_C2`. The commands for A, B, C and G are byte-identical to
+  before (checked).
+- **Test:** C2 is a new frozen arm and is tested once. WDC test already
+  influenced earlier decisions (section 7).
+- **Status of the original C:** kept as the pilot result; A, B, G, OOF and
+  detection are unchanged.

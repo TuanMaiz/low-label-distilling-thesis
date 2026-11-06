@@ -11,8 +11,8 @@ not stated here follows that contract. Status: **draft, 2026-11-06.**
 | Majority labels | `.../majority_labels/llm_unrefined.csv`, `.../consistency.csv` |
 | Folds | `.../oof/majority-3fold` (`prepare_oof_folds`, 20% inner validation) |
 | Guideline | `supervision/judge_guideline.md` v3, SHA-256 `b2745dac96531a23bdf4c818e900acb322b5b3db2177936193ff44896e01504a` (unchanged) |
-| Evidence prompt | **One generic, domain-neutral prompt for all datasets** (researcher, 2026-11-06): the WDC prompt's rules and seven categories without product-specific wording or examples, and without a dataset-specific paragraph. Only the list of quotable fields follows each dataset's schema. To be drafted and signed off before any paid run; SHA-256 recorded in each run's `contract.json`. |
-| Teacher settings | `configs/labelers/madi_companies_sol_high.json` (Sol high, flex tier, max price 2/10) |
+| Evidence prompt | `supervision/evidence_case_prompt_generic.md` (D25, signed off 2026-11-06, SHA-256 `48b2c4615336f09dc6240a04a8d71182b32d81c8306dd10048f8adb8dce8ec2c`), `{FIELDS}` = the eight company fields. Runner `supervision/run_evidence_check_v2.py --dataset madi_companies`. |
+| Teacher settings | `configs/labelers/evidence_check_sol_high_flex.json` (Sol high, flex tier, max price 2/10; shared by all datasets) |
 
 ## 2. Detection
 
@@ -69,8 +69,7 @@ fields (section 3); no pair-level gold enters any prompt, selection or rule.
 
 ## 9. Open decisions (researcher)
 
-1. Prompt: decided 2026-11-06 — one generic prompt for all datasets. The text
-   still needs sign-off. Consequence for WDC: its evidence check is rerun with
+1. Prompt: decided and signed off 2026-11-06 (D25). Consequence for WDC: its evidence check is rerun with
    the generic prompt (about USD 3.3, flex tier), the C bundle is rebuilt and
    arm C retrained and tested once as a new frozen arm (C v2), with an amendment
    to the WDC contract (plan 261023). WDC A, B, G, OOF and the 158 detected

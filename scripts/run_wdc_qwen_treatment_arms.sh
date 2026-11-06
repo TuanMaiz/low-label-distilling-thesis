@@ -9,13 +9,15 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "${repo_root}"
 
 usage() {
-  echo "Usage: bash $0 <setup|preflight|plan|train|evaluate|evaluate-test|package-results> <A|B|C|G> [--confirm-...]" >&2
+  echo "Usage: bash $0 <setup|preflight|plan|train|evaluate|evaluate-test|package-results> <A|B|C|C2|G> [--confirm-...]" >&2
   echo "Env: PYTHON, OUTPUT_ROOT, SEED (default 42), PRECISION (default fp16), EXPECTED_GPU (default 'Tesla V100-SXM2-32GB')," >&2
   echo "     PACKAGE_WEIGHTS=none|adapter|all (default adapter)." >&2
   exit 1
 }
 ACTION="${1:-}"; ARM="${2:-}"
-[[ "${ARM}" =~ ^[ABCG]$ ]] || usage
+[[ "${ARM}" =~ ^([ABCG]|C2)$ ]] || usage
+# C2 = arm C rebuilt from the evidence check v2 diagnoses (D25); its bundle manifest says arm C.
+MANIFEST_ARM="${ARM:0:1}"
 shift 2
 
 PYTHON="${PYTHON:-.venv/bin/python}"
@@ -134,7 +136,7 @@ case "${ACTION}" in
     require_file "${STUDENT_CONFIG}"; require_file "${TRAIN_TARGETS}"; require_file "${MANIFEST}"; require_file "${VALIDATION}"
     mkdir -p "${PREFLIGHT}" "${LOGS}"
     "${PYTHON}" - "${STUDENT_CONFIG}" "${TRAIN_TARGETS}" "${MANIFEST}" "${VALIDATION}" "${PREFLIGHT}" \
-      "${ARM}" "${PRECISION}" "${EXPECTED_GPU}" "${SEED}" <<'PREFLIGHT_PY'
+      "${MANIFEST_ARM}" "${PRECISION}" "${EXPECTED_GPU}" "${SEED}" <<'PREFLIGHT_PY'
 import hashlib, json, subprocess, sys
 from collections import Counter
 from importlib import metadata

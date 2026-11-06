@@ -35,7 +35,7 @@ parent/subsidiary pairs; treatment may move labels away from the gold convention
    `train-fold 1..3 --confirm-oof-training`, `merge`, `package-results`.
    Same recipe, V100, fp16 as the arms.
 3. **Selection + evidence check (OpenRouter, paid):**
-   `supervision/run_evidence_check_companies.py prepare` (free) shows the count;
+   `supervision/run_evidence_check_v2.py prepare --dataset madi_companies` (free) shows the count;
    `run --confirm-paid-evidence-check`.
 4. **Category rule (free):** `supervision/build_category_treated_dataset_companies.py
    build/verify --arm B|C` → `refinement/category-rule-{B,C}`.
@@ -49,8 +49,8 @@ parent/subsidiary pairs; treatment may move labels away from the gold convention
 - Folds built and verified.
 - `scripts/run_madi_companies_oof.sh` (build/verify folds, plan, preflight,
   train-fold, merge via the WDC merge function, package-results).
-- `supervision/run_evidence_check_companies.py`: the WDC prompt word for word
-  except its quotable-field list (researcher, 2026-11-06). Flex tier, 2/10 price cap.
+- `supervision/run_evidence_check_v2.py`: one runner for all datasets with the signed-off
+  domain-neutral prompt (D25); flex tier, 2/10 price cap. WDC rerun = arm C2 (WDC contract A5).
 - `supervision/build_category_treated_dataset.py`: parser, supporting fields and
   contract are now parameters with the WDC defaults; the three WDC bundles still
   verify byte-identically.
