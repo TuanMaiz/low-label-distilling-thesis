@@ -11,13 +11,13 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "${repo_root}"
 
 usage() {
-  echo "Usage: bash $0 <setup|preflight|plan|train|evaluate|evaluate-test|package-results> <G|A> [--confirm-...]" >&2
+  echo "Usage: bash $0 <setup|preflight|plan|train|evaluate|evaluate-test|package-results> <G|A|B|C> [--confirm-...]" >&2
   echo "Env: PYTHON, OUTPUT_ROOT, SEED (default 42), PRECISION (default fp16), EXPECTED_GPU (default 'Tesla V100-SXM2-32GB')," >&2
   echo "     PACKAGE_WEIGHTS=none|adapter|all (default adapter)." >&2
   exit 1
 }
 ACTION="${1:-}"; ARM="${2:-}"
-[[ "${ARM}" =~ ^[GA]$ ]] || usage
+[[ "${ARM}" =~ ^[GABC]$ ]] || usage
 shift 2
 
 PYTHON="${PYTHON:-.venv/bin/python}"
@@ -36,10 +36,14 @@ DATA="data/cache/madi_companies/madi-bench-companies-base-062058d"
 if [[ "${ARM}" == G ]]; then
   TRAIN_TARGETS="${DATA}/full_label_targets/gold.jsonl"
   MANIFEST="${DATA}/arm-manifests/G.json"
-else
-  # Produced later by the teacher-labelling step (three passes, majority vote).
+elif [[ "${ARM}" == A ]]; then
+  # Teacher-labelling step: three passes, majority vote.
   TRAIN_TARGETS="${DATA}/majority_labels/train.jsonl"
   MANIFEST="${DATA}/majority_labels/manifest.json"
+else
+  # Treatment arms (plan 261106): B removes detected pairs, C applies the category rule.
+  TRAIN_TARGETS="${DATA}/refinement/category-rule-${ARM}/train.jsonl"
+  MANIFEST="${DATA}/refinement/category-rule-${ARM}/manifest.json"
 fi
 VARIANT="madi_companies_arm_${ARM}"
 [[ "${SEED}" == 42 ]] || VARIANT="${VARIANT}_seed${SEED}"

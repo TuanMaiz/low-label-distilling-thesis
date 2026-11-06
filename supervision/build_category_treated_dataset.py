@@ -38,18 +38,20 @@ def check_source_path(path: Path, role: str) -> None:
         raise ValueError(f'{role} path is outside the gold-free boundary: {path}')
 
 
-def has_real_conflict(case: dict) -> bool:
-    """A conflict needs a non-price quote on both sides (price alone never decides)."""
-    sides = {e['side'] for e in case['evidence'] if e['field'] not in PRICE_FIELDS}
+def has_real_conflict(case: dict, supporting_fields=PRICE_FIELDS) -> bool:
+    """A conflict needs a quote outside the supporting fields on both sides (price alone never decides).
+
+    ``supporting_fields`` is the dataset's supporting information (WDC: price fields)."""
+    sides = {e['side'] for e in case['evidence'] if e['field'] not in supporting_fields}
     return case['category_id'] == 'cross_record_conflict' and sides == {'A', 'B'}
 
 
-def verdict_for(cases: list[dict]) -> tuple[int, int]:
+def verdict_for(cases: list[dict], supporting_fields=PRICE_FIELDS) -> tuple[int, int]:
     """Contract section 2: (verdict, guideline step). 0 = not decidable, 1 = match, 2 = non-match."""
     categories = {c['category_id'] for c in cases}
     if 'intra_record_contradiction' in categories:
         return 0, 1
-    if any(has_real_conflict(c) for c in cases):
+    if any(has_real_conflict(c, supporting_fields) for c in cases):
         return 2, 2
     if categories & {'ambiguous_variant_bundle', 'ambiguous_role_scope'}:
         return 0, 3
@@ -64,7 +66,7 @@ def action_for(verdict: int, teacher: str) -> tuple[str, str]:
     return ('upweight', label) if label == teacher else ('flip', label)
 
 
-def load_diagnoses(path: Path, selected: list[dict]) -> tuple[dict[str, list[dict]], set[str]]:
+def load_diagnoses(path: Path, selected: list[dict], field_parser=parse_fields) -> tuple[dict[str, list[dict]], set[str]]:
     """Valid diagnoses keyed by pair; every evidence quote re-checked against the record."""
     check_source_path(path, 'diagnoses')
     by_id = keyed(selected)
@@ -80,7 +82,7 @@ def load_diagnoses(path: Path, selected: list[dict]) -> tuple[dict[str, list[dic
         cases = json.loads(row['evidence_json'])
         if not cases:
             raise ValueError(f'categorized diagnosis without cases: {row["pair_id"]}')
-        fields = parse_fields(by_id[row['pair_id']]['input_text'])
+        fields = field_parser(by_id[row['pair_id']]['input_text'])
         for case in cases:
             if case['category_id'] not in CATEGORY_NAMES or not case['evidence']:
                 raise ValueError(f'invalid case in {row["pair_id"]}')
@@ -92,7 +94,7 @@ def load_diagnoses(path: Path, selected: list[dict]) -> tuple[dict[str, list[dic
     return valid, invalid
 
 
-def treat(inputs, labels, selected_ids, diagnoses, invalid, arm, dataset_id):
+def treat(inputs, labels, selected_ids, diagnoses, invalid, arm, dataset_id, supporting_fields=PRICE_FIELDS):
     """Training rows (originals in source order, then duplicates) and one decision per pair."""
     if arm not in ARMS:
         raise ValueError(f'unknown arm {arm!r}')
@@ -110,7 +112,7 @@ def treat(inputs, labels, selected_ids, diagnoses, invalid, arm, dataset_id):
         if arm == 'B' and detected:
             action, final = 'remove', ''
         elif arm == 'C' and cases is not None:
-            verdict, step = verdict_for(cases)
+            verdict, step = verdict_for(cases, supporting_fields)
             action, final = action_for(verdict, teacher)
         decisions.append({
             'pair_id': pid, 'detected': detected, 'diagnosis_valid': cases is not None,
@@ -141,7 +143,10 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def render(arm, inputs_path, majority_path, selected_path, diagnoses_path, dataset_id, expected_count):
+def render(arm, inputs_path, majority_path, selected_path, diagnoses_path, dataset_id, expected_count,
+           field_parser=parse_fields, supporting_fields=PRICE_FIELDS,
+           contract='plans/261023-2015-wdc-guideline-judge-treatment/contract.md'):
+    """Defaults are the WDC settings; other datasets pass their own parser, supporting fields and contract."""
     for path, role in [(inputs_path, 'inputs'), (majority_path, 'majority labels'),
                        (selected_path, 'selected pairs')]:
         check_source_path(path, role)
@@ -152,15 +157,15 @@ def render(arm, inputs_path, majority_path, selected_path, diagnoses_path, datas
     for item in selected:
         if source.get(item['pair_id'], {}).get('input_text') != item['input_text']:
             raise ValueError('detected pair differs from blinded source')
-    diagnoses, invalid = load_diagnoses(diagnoses_path, selected)
+    diagnoses, invalid = load_diagnoses(diagnoses_path, selected, field_parser)
     training, decisions = treat(inputs, labels, {i['pair_id'] for i in selected},
-                                diagnoses, invalid, arm, dataset_id)
+                                diagnoses, invalid, arm, dataset_id, supporting_fields)
     train_bytes = b''.join(json.dumps(r, ensure_ascii=False, sort_keys=True).encode('utf-8') + b'\n'
                            for r in training)
     decisions_bytes = _csv(decisions, DECISION_FIELDS)
     detected = [d for d in decisions if d['detected']]
     manifest = {
-        'policy': 'category-rule-v1', 'arm': arm, 'contract': 'plans/261023-2015-wdc-guideline-judge-treatment/contract.md',
+        'policy': 'category-rule-v1', 'arm': arm, 'contract': contract,
         'gold_accessed': False, 'dataset_id': dataset_id,
         'sources': {name: _sha(p) for name, p in [
             ('inputs', inputs_path), ('majority_labels', majority_path), ('selected_pairs', selected_path),

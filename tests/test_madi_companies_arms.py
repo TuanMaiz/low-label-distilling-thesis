@@ -49,7 +49,7 @@ class CompaniesRunnerTests(unittest.TestCase):
         self.assertEqual(train[train.index("--train-targets") + 1], f"{DATA}/majority_labels/train.jsonl")
 
     def test_unknown_arms_and_missing_confirmations_are_rejected(self):
-        for args in (("plan", "B"), ("plan", "C"), ("plan",)):
+        for args in (("plan", "D"), ("plan", "E"), ("plan",)):   # B and C are the treatment arms (plan 261106)
             self.assertIn("Usage", run(RUNNER, *args).stderr)
         with tempfile.TemporaryDirectory() as tmp:
             for args in (("train", "G"), ("evaluate", "G"), ("evaluate-test", "G"), ("train", "G", "--confirm-test")):
