@@ -15,6 +15,8 @@ verbatim quotes. What changed (researcher, 2026-11-06):
     python -m supervision.run_evidence_check_v2 prepare --dataset madi_companies   # free
     python -m supervision.run_evidence_check_v2 report  --dataset madi_companies   # free
     python -m supervision.run_evidence_check_v2 run     --dataset wdc --confirm-paid-evidence-check
+
+Datasets: wdc, madi_companies, geo_er_pit.
 """
 from __future__ import annotations
 
@@ -59,6 +61,8 @@ class Profile:
 _MADI = ROOT / 'data/cache/madi_companies/madi-bench-companies-base-062058d'
 _MADI_OOF = ROOT / 'outputs/uncertainty_refinement/madi-companies-oof'
 _WDC_OOF = ROOT / 'outputs/uncertainty_refinement/wdc-qwen-oof'
+_GEO = ROOT / 'data/cache/geo_er/geo-er-osm-fsq-pit-83063f7'
+_GEO_OOF = ROOT / 'outputs/uncertainty_refinement/geo-er-oof'
 PROFILES = {
     'wdc': Profile(
         'wdc_products_80cc_small_100un', ('title', 'brand', 'description', 'price', 'priceCurrency'),
@@ -71,6 +75,12 @@ PROFILES = {
         _MADI / 'teacher_labels/inputs.jsonl', _MADI / 'majority_labels/consistency.csv',
         _MADI_OOF / 'oof_predictions.csv', _MADI_OOF / 'oof_summary.json',
         ROOT / 'outputs/uncertainty_refinement/madi-companies-evidence-check', 1968),
+    # Record fields only; the computed `Pair: distance_m` line is sent with the records but is not quotable.
+    'geo_er_pit': Profile(
+        'geo_er_pit', ('name', 'latitude', 'longitude', 'address', 'postalCode'),
+        _GEO / 'teacher_labels/inputs.jsonl', _GEO / 'majority_labels/consistency.csv',
+        _GEO_OOF / 'oof_predictions.csv', _GEO_OOF / 'oof_summary.json',
+        ROOT / 'outputs/uncertainty_refinement/geo-er-evidence-check', 2500),
 }
 
 
