@@ -216,3 +216,79 @@ done
 Results: `outputs/uncertainty_refinement/geo-er-qwen/arm-<X>.zip` (git-ignored).
 Delete `~/code` on the GPU host before ending the rental.
 
+## Companies treatment arms B and C (plan 261106)
+
+Two GPU stages with one paid step on your computer in between. Keep the rental
+running during the evidence check (it is cheap), or end it and rent again.
+
+**1. Your computer: refresh the data archive** (it now includes `oof/majority-3fold`).
+
+```bash
+uv run python -m data.prepare_madi_companies verify
+uv run bash scripts/run_madi_companies_oof.sh verify-folds
+rm -f madi-companies-data.tar.gz madi-companies-data.tar.gz.sha256
+tar czf madi-companies-data.tar.gz data/raw/madi_companies data/cache/madi_companies
+sha256sum madi-companies-data.tar.gz > madi-companies-data.tar.gz.sha256
+scp -P "$PORT" madi-companies-data.tar.gz madi-companies-data.tar.gz.sha256 "$HOST:code/"
+```
+
+**2. GPU: three OOF folds.**
+
+```bash
+cd ~/code && git pull
+sha256sum -c madi-companies-data.tar.gz.sha256 && tar xzf madi-companies-data.tar.gz && rm -f madi-companies-data.tar.gz
+bash scripts/run_madi_companies_oof.sh verify-folds
+bash scripts/run_madi_companies_oof.sh preflight
+for f in 1 2 3; do bash scripts/run_madi_companies_oof.sh train-fold $f --confirm-oof-training || break; done
+bash scripts/run_madi_companies_oof.sh merge
+bash scripts/run_madi_companies_oof.sh package-results
+```
+
+**3. Your computer: download OOF, evidence check (paid), build B and C.**
+
+```bash
+cd /mnt/d/study/cao-hoc/luan-van/code/outputs/uncertainty_refinement
+scp -P "$PORT" "$HOST:code/outputs/uncertainty_refinement/madi-companies-oof.zip*" .
+sha256sum -c madi-companies-oof.zip.sha256 && python3 -c "import zipfile; zipfile.ZipFile('madi-companies-oof.zip').extractall('.')"
+cd /mnt/d/study/cao-hoc/luan-van/code
+uv run python -m supervision.run_evidence_check_v2 prepare --dataset madi_companies   # free: count + estimate
+uv run python -m supervision.run_evidence_check_v2 run --dataset madi_companies --confirm-paid-evidence-check
+uv run python -m supervision.build_category_treated_dataset_companies build --arm B
+uv run python -m supervision.build_category_treated_dataset_companies build --arm C
+```
+
+Stop and check if `prepare` selects more than 400 pairs (contract 261106, section 8).
+
+**4. Your computer → GPU: send the bundles, train B and C.**
+
+```bash
+tar czf madi-companies-bc.tar.gz data/cache/madi_companies/madi-bench-companies-base-062058d/refinement
+sha256sum madi-companies-bc.tar.gz > madi-companies-bc.tar.gz.sha256
+scp -P "$PORT" madi-companies-bc.tar.gz madi-companies-bc.tar.gz.sha256 "$HOST:code/"
+```
+
+```bash
+cd ~/code && sha256sum -c madi-companies-bc.tar.gz.sha256 && tar xzf madi-companies-bc.tar.gz && rm -f madi-companies-bc.tar.gz
+for ARM in B C; do
+  bash scripts/run_madi_companies_arms.sh preflight $ARM &&
+  bash scripts/run_madi_companies_arms.sh train $ARM --confirm-full-training &&
+  bash scripts/run_madi_companies_arms.sh evaluate $ARM --confirm-validation || break
+done
+# only after both validations finish cleanly:
+for ARM in B C; do
+  bash scripts/run_madi_companies_arms.sh evaluate-test $ARM --confirm-test &&
+  bash scripts/run_madi_companies_arms.sh package-results $ARM || break
+done
+```
+
+Download `arm-B.zip` and `arm-C.zip` as for G and A, then delete `~/code` on the GPU host.
+
+**5. Analysis (after both arms are frozen).** Paired comparisons C vs A, C vs B,
+B vs A, and the label audit against train gold:
+
+```bash
+uv run python -m analysis.category_rule_gold_audit \
+  --decisions data/cache/madi_companies/madi-bench-companies-base-062058d/refinement/category-rule-C/decisions.csv \
+  --gold data/cache/madi_companies/madi-bench-companies-base-062058d/full_label_targets/gold.jsonl
+```
+
