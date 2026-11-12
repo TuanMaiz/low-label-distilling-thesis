@@ -1,0 +1,40 @@
+{
+  "arm": "S",
+  "base": {
+    "arm_a_train_sha256": "4045580697e6e30384d6e91fa31d7c18ac6d030092a0ea8b24df05edceb1e002"
+  },
+  "beta": 0.5,
+  "class_counts": {
+    "match": 495,
+    "non-match": 2005
+  },
+  "contract": "plans/261023-2015-wdc-guideline-judge-treatment/contract.md (amendment A6)",
+  "dataset_id": "wdc_products_80cc_small_100un",
+  "decisions_sha256": "6fedb016f6cf5c054283226dcbd42e3aba94e2d9435bf8abd1d7a78869d8c23f",
+  "gold_accessed": false,
+  "policy": "soft-target-v1",
+  "selection_counts": {
+    "disagreement": 149,
+    "overlap": 4,
+    "two_of_three": 13,
+    "union": 158
+  },
+  "selection_rule": "teacher_2of3_OR_stored_prediction_disagreement",
+  "soft_target_rows": 158,
+  "soft_target_summary": {
+    "max": 0.999975,
+    "mean": 0.46132,
+    "min": 8e-06,
+    "teacher_match": 72,
+    "teacher_non_match": 86
+  },
+  "sources": {
+    "arm_a_train": "4045580697e6e30384d6e91fa31d7c18ac6d030092a0ea8b24df05edceb1e002",
+    "consistency": "7280100a249e623858969da4ebea376c81a0f81aa6121eb2f3fe4d98711bebbb",
+    "inputs": "e443fc38fe1206ce961c6f71dce28e50b4e148d720dda3b2bdc688abf196e1ea",
+    "oof_predictions": "2cc04638588ed75391b90524a5163ca8b5c5c9eca9a2554b1262a20b90e59c4b",
+    "oof_summary": "fac2dede35ae5a7f2bd9c38ab5678dd0757f22c0ae192bfe4f1c0d423c1fd0a6"
+  },
+  "train_rows": 2500,
+  "train_sha256": "ede88b9e678bfbffaaae3cd69512c7965865b0e0bd1f6587ef0ea6483a1fe873"
+}
