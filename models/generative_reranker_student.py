@@ -138,8 +138,32 @@ def prepare_reranker_token_rows(
     return prepared, audit
 
 
+def soft_target_label(row: dict, label_to_id: dict[str, int]) -> list[float] | None:
+    """Class-probability target from an optional ``soft_target`` (P(match), 0..1).
+
+    Rows without ``soft_target`` return None and keep their integer label, so files
+    without the field train exactly as before (plan 261112, arm S).
+    """
+    if "soft_target" not in row:
+        return None
+    value = row["soft_target"]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"soft_target must be a number in [0, 1]: {row.get('pair_id')}")
+    value = float(value)
+    if not 0.0 <= value <= 1.0:
+        raise ValueError(f"soft_target must be a number in [0, 1]: {row.get('pair_id')}")
+    target = [0.0, 0.0]
+    target[label_to_id["match"]] = value
+    target[label_to_id["non-match"]] = 1.0 - value
+    return target
+
+
 class ERGenerativeRerankerDataset:
-    """Variable-length Qwen reranker inputs with integer binary labels."""
+    """Variable-length Qwen reranker inputs with binary labels.
+
+    Labels are class IDs; a row with ``soft_target`` gets a class-probability pair
+    instead (training only; validation and test rows never carry it).
+    """
 
     def __init__(
         self,
@@ -156,11 +180,14 @@ class ERGenerativeRerankerDataset:
             config,
             max_input_length,
         )
-        self.labels = (
-            [target_label(row, config.label_to_id) for row in rows]
-            if include_labels
-            else None
-        )
+        if include_labels:
+            self.labels = []
+            for row in rows:
+                hard = target_label(row, config.label_to_id)
+                soft = soft_target_label(row, config.label_to_id)
+                self.labels.append(hard if soft is None else soft)
+        else:
+            self.labels = None
 
     def __len__(self) -> int:
         return len(self.rows)
@@ -200,7 +227,20 @@ class RerankerDataCollator:
             return_tensors="pt",
         )
         if labels is not None:
-            batch["labels"] = torch.tensor(labels, dtype=torch.long)
+            if any(isinstance(label, list) for label in labels):
+                # Any soft target in the batch: class probabilities for every row
+                # (hard labels become one-hot), which F.cross_entropy accepts.
+                probabilities = []
+                for label in labels:
+                    if isinstance(label, list):
+                        probabilities.append(label)
+                    else:
+                        one_hot = [0.0, 0.0]
+                        one_hot[int(label)] = 1.0
+                        probabilities.append(one_hot)
+                batch["labels"] = torch.tensor(probabilities, dtype=torch.float32)
+            else:
+                batch["labels"] = torch.tensor(labels, dtype=torch.long)
         return batch
 
 
@@ -245,6 +285,8 @@ class GenerativeRerankerModel(torch.nn.Module):
             :,
             self.class_token_ids,
         ]
+        # Integer class IDs (hard labels) or class probabilities (soft targets,
+        # float rows summing to one); F.cross_entropy accepts both since torch 1.10.
         loss = (
             F.cross_entropy(binary_logits.float(), labels)
             if labels is not None
