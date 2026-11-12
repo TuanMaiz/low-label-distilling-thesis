@@ -174,3 +174,34 @@ has product wording and a WDC paragraph, so WDC is rerun with the new prompt.
   influenced earlier decisions (section 7).
 - **Status of the original C:** kept as the pilot result; A, B, G, OOF and
   detection are unchanged.
+
+### A6 — 2026-11-12, arm S (soft targets) and seeds — draft, needs researcher sign-off
+
+Branch `feat/soft-target-arm`, plan `plans/261112-1710-soft-target-arm/`. Reason:
+the gold audit shows that hard actions (flip, remove, duplicate) changed correct
+labels; the literature note (`docs/research/literature-treatment-deep-research-2026-11-12.md`)
+points to soft targets as a cheaper, gentler treatment.
+
+- **Arm S:** the frozen arm A file (all 2,500 pairs, teacher labels; SHA-256
+  checked) plus, on the 158 detected pairs only (teacher 2/3 or OOF
+  teacher–student disagreement, section 1),
+  `soft_target = 0.5 × teacher label + 0.5 × OOF P(match)`. beta = 0.5 is fixed
+  here, before any run, and is not tuned on gold. Bundle:
+  `data/cache/wdc_products/refinement/soft-target-S/` (`supervision/build_soft_target_dataset.py`,
+  rebuild byte-identical). No API call, no gold.
+- **Training:** recipe of section 5 unchanged. The trainer reads `soft_target`
+  as class probabilities for cross-entropy; rows without it train exactly as
+  before (`tests/test_soft_targets.py`).
+- **Runner:** `scripts/run_wdc_qwen_treatment_arms.sh <action> S`; outputs
+  `outputs/uncertainty_refinement/wdc-qwen-treatment/arm-S/`, variant
+  `soft_target_arm_S`. A, B, C, C2 and G commands byte-identical (checked).
+- **Seeds (proposed):** 3 per arm for A, G, C2 and S: seed 42 (existing for A, G)
+  plus 43 and 44, via the runner's `SEED`.
+- **GPU (open):** all new runs on one card. Either the V100-SXM2-32GB family
+  (existing seed-42 runs stay valid) or a new card with every arm rerun on it.
+  Decided before the first run.
+- **Analysis:** paired bootstrap ΔF1 and exact McNemar (section 6) for S vs A,
+  S vs G and C2 vs A per seed, plus mean ± SD over seeds. Test once per frozen
+  arm and seed. WDC is the development set; Companies and Geo-ER would get the
+  frozen method only.
+

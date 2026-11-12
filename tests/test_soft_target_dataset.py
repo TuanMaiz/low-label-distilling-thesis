@@ -1,6 +1,10 @@
 """Arm S bundle (plan 261112): soft targets only on detected pairs, built from arm A."""
 import json
+import os
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 
 from supervision import build_soft_target_dataset as s
 
@@ -19,6 +23,16 @@ class SoftTargetFormulaTest(unittest.TestCase):
         for p in (0.0, 0.3, 0.999):
             self.assertGreaterEqual(s.soft_target(1, p), 0.5)
             self.assertLessEqual(s.soft_target(0, p), 0.5)
+
+
+class ArmSRouteTest(unittest.TestCase):
+    def test_runner_routes_s_to_its_bundle(self):
+        root = Path(__file__).resolve().parents[1]
+        out = subprocess.run(["bash", "scripts/run_wdc_qwen_treatment_arms.sh", "plan", "S"], cwd=root,
+                             env={**os.environ, "PYTHON": sys.executable}, capture_output=True, text=True,
+                             check=True).stdout
+        self.assertIn("refinement/soft-target-S/train.jsonl", out)
+        self.assertIn("soft_target_arm_S", out)
 
 
 @unittest.skipUnless(HAVE_DATA, "WDC arm A bundle or OOF predictions not present")
