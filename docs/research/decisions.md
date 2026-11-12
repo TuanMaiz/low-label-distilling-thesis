@@ -1,6 +1,6 @@
 # Các quyết định đã bàn và đã chốt
 
-Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04, D25 ngày 2026-11-06. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
+Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04, D25 ngày 2026-11-06, D26 ngày 2026-11-12. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
 
 Các đề nghị của assistant chưa được researcher chốt được đặt trong [ideas.md](ideas.md). Vấn đề chưa giải quyết nằm trong [open-questions.md](open-questions.md). Không tự điền lý do hay phương án bị loại nếu lịch sử không ghi nhận.
 
@@ -227,4 +227,13 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 - **Phương án đã loại:** Prompt WDC nguyên văn cho mọi dataset; một lõi chung kèm khối domain theo template (đã cân nhắc rồi bỏ cùng ngày).
 - **Căn cứ:** Steiner & Bizer (arXiv:2606.28823, mục 2.3) chọn mô tả nhiệm vụ general-complex của Peeters et al. (2023) vì cách diễn đạt độc lập domain, dùng nguyên văn cho cả sản phẩm và dữ liệu thư mục.
 - **Nguồn:** Trao đổi 2026-11-06; [contract plan 261106](../../plans/261106-1330-companies-treatment-arms/contract.md); amendment A5 của [contract plan 261023](../../plans/261023-2015-wdc-guideline-judge-treatment/contract.md).
+
+## D26 — Các run còn lại chạy trên Google Colab A100, fp16
+
+- **Ngày:** 2026-11-12.
+- **Quyết định:** Vì nền tảng thuê V100 cũ bảo trì không rõ ngày mở lại, mọi run huấn luyện còn lại chạy trên Google Colab với GPU A100 (pay-as-you-go), precision fp16, cùng recipe. Tên GPU thực tế được ghi trong `runtime.json` của từng run và `EXPECTED_GPU` đặt theo đúng card đó.
+- **Lý do:** Không có V100 sẵn trong một tuần; Colab A100 rẻ (khoảng 5–8 unit/giờ, khoảng USD 0,5–0,75/giờ), không cần thuê máy, dữ liệu chạy trong datacenter của Google. Researcher: đổi card gây khác biệt ngẫu nhiên nhưng không lớn, như mọi người làm AI đều biết.
+- **Giới hạn và cách giảm:** Khác biệt do card có thể cùng cỡ với hiệu ứng đang đo (khoảng 1 điểm F1). Vì vậy hai arm được so sánh với nhau phải cùng chạy trên A100: chạy lại arm tham chiếu (A, nếu cần cả G) một lần trên A100 trước khi so sánh, và các seed mới của mọi arm đều chạy trên A100. Kết quả seed 42 trên V100 (WDC A, B, C, G; Companies A, G) giữ nguyên, báo cáo là kết quả V100.
+- **Dữ liệu:** Colab chạy trên máy datacenter của Google nên dùng được cho cả Companies và Geo-ER: chỉ để dữ liệu trong thư mục Drive riêng tư, không chia sẻ, không đưa lên repo công khai, xoá sau khi xong.
+- **Nguồn:** Trao đổi 2026-11-12; amendment A6 của [contract plan 261023](../../plans/261023-2015-wdc-guideline-judge-treatment/contract.md).
 

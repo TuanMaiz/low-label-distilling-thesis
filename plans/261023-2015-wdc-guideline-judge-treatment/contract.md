@@ -197,9 +197,10 @@ points to soft targets as a cheaper, gentler treatment.
   `soft_target_arm_S`. A, B, C, C2 and G commands byte-identical (checked).
 - **Seeds (proposed):** 3 per arm for A, G, C2 and S: seed 42 (existing for A, G)
   plus 43 and 44, via the runner's `SEED`.
-- **GPU (open):** all new runs on one card. Either the V100-SXM2-32GB family
-  (existing seed-42 runs stay valid) or a new card with every arm rerun on it.
-  Decided before the first run.
+- **GPU (D26, 2026-11-12):** Google Colab A100, fp16, `EXPECTED_GPU` set to the
+  card's exact name. Arms compared with each other run on the A100: arm A (and G
+  if compared) is rerun once on the A100 as the reference for S; seeds 43 and 44
+  of every arm also run there. Seed-42 V100 results stay as reported.
 - **Analysis:** paired bootstrap ΔF1 and exact McNemar (section 6) for S vs A,
   S vs G and C2 vs A per seed, plus mean ± SD over seeds. Test once per frozen
   arm and seed. WDC is the development set; Companies and Geo-ER would get the
