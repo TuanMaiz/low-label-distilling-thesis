@@ -4,7 +4,11 @@ The WDC builder (``supervision/build_category_treated_dataset.py``) with the
 Companies settings: the eight company fields, and assets, revenue and key people
 as supporting information (like price on WDC: they never decide non-match on their
 own). Same guideline steps and action rule. Diagnoses come from the evidence check
-v2 (D25). No API call, no gold labels.
+v2 (D25); arm B needs none (it removes every detected pair), so B can be built as
+soon as the OOF predictions and ``selected_pairs.json`` exist (amendment A1).
+No API call, no gold labels.
+
+    python -m supervision.build_category_treated_dataset_companies build --arm B
 
     python -m supervision.build_category_treated_dataset_companies build --arm C
     python -m supervision.build_category_treated_dataset_companies verify --arm C
@@ -26,11 +30,13 @@ SUPPORTING_FIELDS = frozenset({'assets', 'revenue', 'keypeople'})
 CONTRACT = 'plans/261106-1330-companies-treatment-arms/contract.md'
 
 
-def sources(inputs=None, majority=None, selected=None, diagnoses=None) -> dict:
+def sources(inputs=None, majority=None, selected=None, diagnoses=None, arm=None) -> dict:
+    if diagnoses is None and arm != 'B':
+        diagnoses = PROFILE.output / 'diagnoses.csv'
     return dict(inputs_path=inputs or PROFILE.inputs,
                 majority_path=majority or DATA / 'majority_labels/llm_unrefined.csv',
                 selected_path=selected or PROFILE.output / 'selected_pairs.json',
-                diagnoses_path=diagnoses or PROFILE.output / 'diagnoses.csv',
+                diagnoses_path=diagnoses,
                 dataset_id=PROFILE.dataset_id, expected_count=PROFILE.expected_count,
                 field_parser=partial(parse_fields, fields=PROFILE.fields),
                 supporting_fields=SUPPORTING_FIELDS, contract=CONTRACT)
@@ -48,7 +54,7 @@ def main():
     parser.add_argument('--diagnoses', type=Path)
     parser.add_argument('--output-dir', type=Path)
     args = parser.parse_args()
-    src = sources(selected=args.selected_pairs, diagnoses=args.diagnoses)
+    src = sources(selected=args.selected_pairs, diagnoses=args.diagnoses, arm=args.arm)
     out = args.output_dir or output_dir(args.arm)
     result = (core.build if args.action == 'build' else core.verify)(args.arm, out, **src)
     print(json.dumps({k: result[k] for k in ('arm', 'train_rows', 'duplicate_rows', 'actions', 'class_counts')}, indent=2))

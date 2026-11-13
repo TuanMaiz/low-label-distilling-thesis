@@ -157,7 +157,12 @@ def render(arm, inputs_path, majority_path, selected_path, diagnoses_path, datas
     for item in selected:
         if source.get(item['pair_id'], {}).get('input_text') != item['input_text']:
             raise ValueError('detected pair differs from blinded source')
-    diagnoses, invalid = load_diagnoses(diagnoses_path, selected, field_parser)
+    if diagnoses_path is None:   # B removes every detected pair; it never reads a diagnosis
+        if arm != 'B':
+            raise ValueError('only arm B can be built without diagnoses')
+        diagnoses, invalid = {}, set()
+    else:
+        diagnoses, invalid = load_diagnoses(diagnoses_path, selected, field_parser)
     training, decisions = treat(inputs, labels, {i['pair_id'] for i in selected},
                                 diagnoses, invalid, arm, dataset_id, supporting_fields)
     train_bytes = b''.join(json.dumps(r, ensure_ascii=False, sort_keys=True).encode('utf-8') + b'\n'
@@ -169,7 +174,7 @@ def render(arm, inputs_path, majority_path, selected_path, diagnoses_path, datas
         'gold_accessed': False, 'dataset_id': dataset_id,
         'sources': {name: _sha(p) for name, p in [
             ('inputs', inputs_path), ('majority_labels', majority_path), ('selected_pairs', selected_path),
-            ('diagnoses', diagnoses_path), ('guideline', GUIDELINE)]},
+            ('diagnoses', diagnoses_path), ('guideline', GUIDELINE)] if p is not None},
         'source_count': len(inputs), 'detected_count': len(selected),
         'valid_diagnoses': len(diagnoses), 'invalid_diagnoses': len(invalid),
         'train_rows': len(training),

@@ -80,4 +80,25 @@ fields (section 3); no pair-level gold enters any prompt, selection or rule.
 
 ## Amendments
 
-None yet.
+### A1 — arm S, B without diagnoses, Colab A100 (2026-11-13, draft until signed off)
+
+Fixed before any Companies OOF prediction exists.
+
+1. **Arm S added.** Soft targets on the detected pairs, the same rule as WDC arm S
+   (plan 261112, WDC amendment A6): `soft_target = 0.5 · teacher + 0.5 · p_OOF(match)`
+   on pairs flagged by teacher 2/3 OR OOF disagreement; all other pairs keep the
+   teacher label. Base: the arm A majority file (`majority_labels/train.jsonl`,
+   hash-checked). Built with
+   `python -m supervision.build_soft_target_dataset build --dataset madi_companies`.
+   No API call, no gold.
+2. **Arm B needs no diagnoses.** B removes every detected pair and never read a
+   diagnosis; it is built right after the OOF merge, before the evidence check.
+   Its manifest records no diagnoses source.
+3. **Arm C unchanged.** It waits for the evidence check (section 8 cost and stop rule).
+4. **GPU (D26).** Colab A100, fp16, same recipe, replacing the V100 line in
+   section 8. Arms that are compared run on the same card: A (and G, when S is
+   compared with G) is rerun on the A100; the V100 A and G results stay as
+   reported. Several runs may share the card as separate processes; the recipe
+   is unchanged.
+5. **Private data on Colab (D26).** Companies files sit in a private Drive folder
+   and are deleted after the runs.
