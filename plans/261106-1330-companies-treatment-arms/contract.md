@@ -95,13 +95,14 @@ Fixed before any Companies OOF prediction exists.
    diagnosis; it is built right after the OOF merge, before the evidence check.
    Its manifest records no diagnoses source.
 3. **Arm C unchanged.** It waits for the evidence check (section 8 cost and stop rule).
-4. **GPU (D26).** Colab A100, fp16, same recipe, replacing the V100 line in
-   section 8. Arms that are compared run on the same card: A (and G, when S is
-   compared with G) is rerun on the A100; the V100 A and G results stay as
+4. **GPU (D26, revised 2026-11-14).** Colab NVIDIA RTX PRO 6000 Blackwell ("G4";
+   A100 unavailable), fp16, same recipe, replacing the V100 line in section 8.
+   The OOF folds ran on an L4 (they only select pairs and are not compared). Arms that are compared run on the same card: A (and G, when S is
+   compared with G) is rerun on it; the V100 A and G results stay as
    reported. Several runs may share the card as separate processes; the recipe
    is unchanged.
 5. **Private data on Colab (D26).** Companies files sit in a private Drive folder
    and are deleted after the runs.
 6. **Extra seeds (2026-11-14).** A and S also run with seeds 43 and 44 (G and B
-   seed 42 only), all on the same A100 session, so S vs A can be tested across
+   seed 42 only), all on the same card and session, so S vs A can be tested across
    three seeds. Same recipe; only `SEED` changes.

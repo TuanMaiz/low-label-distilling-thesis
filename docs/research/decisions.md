@@ -1,6 +1,6 @@
 # Các quyết định đã bàn và đã chốt
 
-Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04, D25 ngày 2026-11-06, D26 ngày 2026-11-12. Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
+Ngày tổng hợp: 2026-10-19; cập nhật D18–D21 ngày 2026-10-22, D22 ngày 2026-10-24, D23 ngày 2026-10-28, D24 ngày 2026-11-04, D25 ngày 2026-11-06, D26 ngày 2026-11-12 (sửa 2026-11-14). Bản này ghi lại trao đổi hiện có và các nhật ký trong repo; không thay thế giao thức thí nghiệm hoặc cấp quyền chạy thêm. Ngày dưới đây là ngày quyết định nếu có căn cứ; ngày không chắc được đánh dấu `[CẦN XÁC NHẬN]`.
 
 Các đề nghị của assistant chưa được researcher chốt được đặt trong [ideas.md](ideas.md). Vấn đề chưa giải quyết nằm trong [open-questions.md](open-questions.md). Không tự điền lý do hay phương án bị loại nếu lịch sử không ghi nhận.
 
@@ -236,4 +236,5 @@ Các đề nghị của assistant chưa được researcher chốt được đ�
 - **Giới hạn và cách giảm:** Khác biệt do card có thể cùng cỡ với hiệu ứng đang đo (khoảng 1 điểm F1). Vì vậy hai arm được so sánh với nhau phải cùng chạy trên A100: chạy lại arm tham chiếu (A, nếu cần cả G) một lần trên A100 trước khi so sánh, và các seed mới của mọi arm đều chạy trên A100. Kết quả seed 42 trên V100 (WDC A, B, C, G; Companies A, G) giữ nguyên, báo cáo là kết quả V100.
 - **Dữ liệu:** Colab chạy trên máy datacenter của Google nên dùng được cho cả Companies và Geo-ER: chỉ để dữ liệu trong thư mục Drive riêng tư, không chia sẻ, không đưa lên repo công khai, xoá sau khi xong.
 - **Nguồn:** Trao đổi 2026-11-12; amendment A6 của [contract plan 261023](../../plans/261023-2015-wdc-guideline-judge-treatment/contract.md).
+- **Sửa đổi 2026-11-14:** A100 thường không có trên Colab. Quy tắc đổi thành: mỗi nhóm arm được so sánh với nhau chạy trên cùng một card (A100 hoặc RTX PRO 6000 Blackwell "G4"), tên card ghi trong từng run. Bộ Companies (A, G, B, S và seed 43/44 của A, S) chạy trên RTX PRO 6000 Blackwell. Run WDC S thăm dò (2026-11-12) chạy trên T4.
 
