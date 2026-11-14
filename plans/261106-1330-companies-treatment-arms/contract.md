@@ -103,6 +103,6 @@ Fixed before any Companies OOF prediction exists.
    is unchanged.
 5. **Private data on Colab (D26).** Companies files sit in a private Drive folder
    and are deleted after the runs.
-6. **Extra seeds (2026-11-14).** A and S also run with seeds 43 and 44 (G and B
-   seed 42 only), all on the same card and session, so S vs A can be tested across
-   three seeds. Same recipe; only `SEED` changes.
+6. **Extra seeds (2026-11-14).** A, S and G also run with seeds 43 and 44 (B
+   seed 42 only), all on the same card and session, so S vs A and S vs G can be
+   tested across three seeds. Same recipe; only `SEED` changes.
