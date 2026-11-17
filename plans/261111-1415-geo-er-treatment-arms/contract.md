@@ -29,4 +29,28 @@ the WDC contract, plan 261023) except where stated. Status: **draft, 2026-11-11.
 
 ## Amendments
 
-None yet.
+### A1 — soft-label arm S, B without diagnoses, Colab GPU and seeds (2026-11-17, draft until signed off)
+
+Fixed before any Geo-ER OOF prediction or arm result exists. Mirrors Companies
+amendment A1 (plan 261106).
+
+1. **Arm S added.** Soft targets on the detected pairs, the same rule and beta as
+   WDC (plan 261112, amendment A6) and Companies: `soft_target = 0.5 · teacher +
+   0.5 · p_OOF(match)` on pairs flagged by teacher 2/3 OR OOF disagreement; all
+   other pairs keep the teacher label. Base: the arm A majority file
+   (`majority_labels/train.jsonl`, hash-checked). Built with
+   `python -m supervision.build_soft_target_dataset build --dataset geo_er_pit`.
+   No API call, no gold.
+2. **Arm B needs no diagnoses.** B removes every detected pair and never reads a
+   diagnosis; it is built right after the OOF merge, before any evidence check.
+3. **Arm C unchanged.** It waits for the evidence check and its own decision.
+4. **GPU (D26, revised 2026-11-14).** Colab, fp16, same recipe, replacing the V100
+   in the training-recipe row. All compared arms (G, A, B, S at every seed) run on
+   one card in one session, recorded per run; the OOF folds may run on another
+   card (they only select pairs and are not compared). Several runs may share the
+   card as separate processes.
+5. **Seeds.** G, A, B and S each run with seeds 42, 43 and 44, so S − A, S − G and
+   S − B can be tested across three seeds.
+6. **Private data on Colab (D26).** Geo-ER files (prepared data and the raw files
+   needed to build the test set at test time) sit in a private Drive folder and
+   are deleted after the runs.

@@ -1,5 +1,6 @@
-"""Arm S: soft targets for detected uncertain pairs (plan 261112; WDC, and
-MaDI-Bench Companies under plan 261106 amendment A1).
+"""Arm S: soft targets for detected uncertain pairs (plan 261112; WDC,
+MaDI-Bench Companies under plan 261106 amendment A1, and Geo-ER Pittsburgh
+under plan 261111 amendment A1).
 
 Starts from the frozen arm A training file (all pairs, teacher majority labels;
 its SHA-256 is checked against the arm A manifest) and adds, to every detected
@@ -13,12 +14,12 @@ computed from the stored OOF predictions, so no API call and no gold label is us
 Undetected pairs keep their hard label. ``target_text`` and ``label`` stay the
 teacher's label on every row; only training reads ``soft_target``.
 
-    python -m supervision.build_soft_target_dataset build [--dataset madi_companies]
-    python -m supervision.build_soft_target_dataset verify [--dataset madi_companies]
+    python -m supervision.build_soft_target_dataset build [--dataset madi_companies|geo_er_pit]
+    python -m supervision.build_soft_target_dataset verify [--dataset madi_companies|geo_er_pit]
 
-Companies uses the same rule and beta; its base is the teacher majority file
-(``majority_labels/train.jsonl``, arm A), and its detection reads the Companies
-OOF predictions.
+Companies and Geo-ER use the same rule and beta; their base is the teacher
+majority file (``majority_labels/train.jsonl``, arm A), and their detection
+reads their own OOF predictions.
 """
 from __future__ import annotations
 
@@ -41,11 +42,15 @@ OUTPUT = REFINEMENT / 'soft-target-S'
 BETA = 0.5
 CONTRACT = 'plans/261023-2015-wdc-guideline-judge-treatment/contract.md (amendment A6)'
 COMPANIES = ROOT / 'data/cache/madi_companies/madi-bench-companies-base-062058d'
+GEO_ER = ROOT / 'data/cache/geo_er/geo-er-osm-fsq-pit-83063f7'
 DATASETS = {
     'wdc': dict(profile='wdc', arm_a=ARM_A, output=OUTPUT, contract=CONTRACT),
     'madi_companies': dict(profile='madi_companies', arm_a=COMPANIES / 'majority_labels',
                            output=COMPANIES / 'refinement/soft-target-S',
                            contract='plans/261106-1330-companies-treatment-arms/contract.md (amendment A1)'),
+    'geo_er_pit': dict(profile='geo_er_pit', arm_a=GEO_ER / 'majority_labels',
+                       output=GEO_ER / 'refinement/soft-target-S',
+                       contract='plans/261111-1415-geo-er-treatment-arms/contract.md (amendment A1)'),
 }
 TEACHER_TEXT = {'match': 1, 'non-match': 0}
 DECISION_FIELDS = ['pair_id', 'detected', 'two_of_three', 'disagreement', 'teacher_label',
