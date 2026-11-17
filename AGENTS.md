@@ -54,15 +54,37 @@ Research question (wording `[CẦN XÁC NHẬN]`):
 > should they be treated, so that a compact ER student learns from LLM labels
 > without human training labels?
 
-Current direction (WDC first):
+Current direction (updated 2026-11-17):
 
-- Detection: 149 OOF teacher–student disagreements plus 13 teacher `2/3`
-  pairs, 158 unique pairs, all with evidence-check diagnoses. Confident
-  Learning is a side analysis only.
-- Treatment: a researcher-written guideline applied by an LLM judge (records
-  only, no old label), then a fixed rule: not decidable → remove; agrees with
-  the teacher → upweight; disagrees → flip. Guideline, judge model and new
-  plan are not written yet. No paid judge run is authorized.
+- Detection: teacher 2/3 vote OR out-of-fold teacher–student disagreement.
+  WDC 158 of 2,500 pairs (17.7% wrong vs 2.2% elsewhere, gold audit);
+  Companies 88 of 1,968. Confident Learning is a side analysis only.
+- Hard treatments failed on WDC: B (remove flagged) −1.4 and C (guideline
+  category rule: remove / flip / upweight) −1.7 test match F1 vs A.
+- **Lead treatment: arm S, soft targets** (plan
+  `plans/261112-1710-soft-target-arm/`; WDC amendment A6, Companies amendment
+  A1). Flagged pairs get `soft_target = 0.5 × teacher label + 0.5 × OOF
+  p(match)`; other pairs keep the hard label; no API call, no gold. The
+  target never crosses 0.5, so S lowers the teacher's confidence but never
+  flips a label. Builder `supervision/build_soft_target_dataset.py`
+  (`--dataset wdc|madi_companies`); trainer support in
+  `models/generative_reranker_student.py`.
+- Results so far: WDC (no A–G gap) S 76.9 vs A 76.5, beats B and C (p 0.01),
+  one seed on a T4. Companies (A < G), 3 seeds on one RTX PRO 6000: test
+  A 88.8, S 90.0, G 89.9; pooled S − A +1.1 [+0.02, +2.45], p 0.04; on
+  validation S − A only +0.2. B tied S at seed 42 on Companies. Journals
+  `plans/journals/2026-11-12-wdc-soft-target-arm-S-exploratory.md` and
+  `plans/journals/2026-11-14-companies-arm-S-three-seeds.md`.
+  S as the thesis's main method is awaiting supervisor input.
+- Next candidates: Geo-ER G/A then S; Companies B seeds 43/44; Companies C
+  (evidence check about USD 1.85); ablations (teacher vote share, calibrated
+  student probabilities) only as predeclared arms. Known limitation: the
+  student's p is uncalibrated (17 flagged pairs with p < 0.5 barely softened);
+  see `reviewers-question-mock/q06-soft-target-mixes-label-and-probability.md`.
+- GPU (D26, revised 2026-11-14): Colab; each set of compared arms on one card,
+  card recorded per run. Colab may hold Companies/Geo-ER data only in a private
+  Drive folder, deleted after the runs. Companies' test set is built from the
+  raw MaDI CSVs at test time, so upload `data/raw/madi_companies/` too.
 - Backlog: `plans/261021-2235-wdc-order-swap-and-hard-pair-upweighting/`
   (swap training, order-flip detector, RHO-style selection). Do not implement it.
 - Gold boundary: train gold only in the final analysis; validation gold for
@@ -132,7 +154,8 @@ the other two datasets are pending.
 ## Scope Guardrail
 
 For the current question: no new detectors, arms or datasets without a
-researcher decision; finish the guideline-judge treatment on WDC first.
+researcher decision; arm S (soft targets) is the lead treatment, confirmed on
+Companies and Geo-ER before any new variant.
 
 The fixed high-level design of the full-label comparison is:
 

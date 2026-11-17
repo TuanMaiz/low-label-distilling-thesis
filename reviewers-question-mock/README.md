@@ -21,3 +21,4 @@ One file per question: `qNN-short-name.md`. Each file has:
 | [q03](q03-llm-randomness.md) | The LLM is stochastic, so how is the method reproducible? | draft |
 | [q04](q04-human-validation-test.md) | If the goal is no human labels, why use human validation and test? | draft |
 | [q05](q05-jury-for-teacher-labels.md) | Why not use the judge panel to label the training data itself? | draft |
+| [q06](q06-soft-target-mixes-label-and-probability.md) | Arm S mixes a hard label with a probability: is that valid, and why does it favour the teacher? | backed |
