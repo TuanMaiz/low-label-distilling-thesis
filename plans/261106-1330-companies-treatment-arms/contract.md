@@ -80,7 +80,7 @@ fields (section 3); no pair-level gold enters any prompt, selection or rule.
 
 ## Amendments
 
-### A1 — arm S, B without diagnoses, Colab GPU and seeds (2026-11-13, draft until signed off)
+### A1 — arm S, B without diagnoses, Colab GPU and seeds (2026-11-13; signed off by the researcher 2026-11-17)
 
 Fixed before any Companies OOF prediction exists.
 
