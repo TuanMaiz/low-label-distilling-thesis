@@ -1,7 +1,8 @@
 # Contract — Geo-ER treatment arms (plan 261111)
 
 Same as `plans/261106-1330-companies-treatment-arms/contract.md` (which mirrors
-the WDC contract, plan 261023) except where stated. Status: **draft, 2026-11-11.**
+the WDC contract, plan 261023) except where stated. Status: **draft 2026-11-11; signed off by the researcher 2026-11-18** (with
+amendment A1).
 
 | Item | Geo-ER |
 |---|---|
@@ -25,11 +26,13 @@ the WDC contract, plan 261023) except where stated. Status: **draft, 2026-11-11.
 ## Open decisions (researcher)
 
 1. Supporting fields: `latitude`, `longitude` (postalCode stays an identity attribute).
+   Only affects arm C; deferred to the decision on running C (2026-11-18).
 2. Whether to add the free label audit before training B and C as a gate (all datasets).
+   Decided 2026-11-18: no gate.
 
 ## Amendments
 
-### A1 — soft-label arm S, B without diagnoses, Colab GPU and seeds (2026-11-17, draft until signed off)
+### A1 — soft-label arm S, B without diagnoses, Colab GPU and seeds (2026-11-17; signed off by the researcher 2026-11-18)
 
 Fixed before any Geo-ER OOF prediction or arm result exists. Mirrors Companies
 amendment A1 (plan 261106).
